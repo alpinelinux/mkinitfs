@@ -9,3 +9,4 @@
 /lib/ld-uClibc-[0-9]*
 /lib/ld-uClibc.so*
 /lib/mdev
+/sbin/apk
