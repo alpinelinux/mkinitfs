@@ -1,5 +1,5 @@
 
-VERSION		:= 1.1
+VERSION		:= $(shell awk -F= '$$1=="VERSION" {print($$2)}' mkinitfs)
 
 
 SBIN_FILES	:= mkinitfs bootchartd
@@ -21,6 +21,7 @@ DISTFILES	:= $(SBIN_FILES) $(CONF_FILES) $(SHARE_FILES) Makefile
 INSTALL		:= install
 
 help:
+	@echo mkinitfs $(VERSION)
 	@echo "usage: make install [DESTDIR=]"
 
 install:

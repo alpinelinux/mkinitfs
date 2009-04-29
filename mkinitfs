@@ -1,5 +1,7 @@
 #!/bin/sh
 
+VERSION=1.0
+
 _cp() {
 	local i
 	if [ -n "$list_sources" ]; then
