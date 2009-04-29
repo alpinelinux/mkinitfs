@@ -13,6 +13,7 @@
 # bootup procedure only.
 #
 
+VERSION=@VERSION@
 PATH="/sbin:/bin:/usr/sbin:/usr/bin:$PATH"
 
 # Configuration for bootchartd, the bootchart logger script.

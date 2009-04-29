@@ -1,6 +1,5 @@
 
-VERSION		:= $(shell awk -F= '$$1=="VERSION" {print($$2)}' mkinitfs)
-
+VERSION		:= 1.1
 
 SBIN_FILES	:= mkinitfs bootchartd
 SHARE_FILES	:= initramfs-init
@@ -16,22 +15,42 @@ CONF_FILES	:= mkinitfs.conf \
 		files.d/bootchart \
 		files.d/base
 
-DISTFILES	:= $(SBIN_FILES) $(CONF_FILES) $(SHARE_FILES) Makefile
+SCRIPTS		:= $(SBIN_FILES) $(SHARE_FILES)
+IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
+
+GIT_REV := $(shell git describe || echo exported)
+ifneq ($(GIT_REV), exported)
+FULL_VERSION    := $(patsubst $(PACKAGE)-%,%,$(GIT_REV))
+FULL_VERSION    := $(patsubst v%,%,$(FULL_VERSION))
+else
+FULL_VERSION    := $(VERSION)
+endif
+
+
+DISTFILES	:= $(IN_FILES) $(CONF_FILES) Makefile
 
 INSTALL		:= install
+SED		:= sed
+SED_REPLACE	:= -e 's:@VERSION@:$(FULL_VERSION):g'
 
+
+all:	$(SCRIPTS)
 help:
 	@echo mkinitfs $(VERSION)
 	@echo "usage: make install [DESTDIR=]"
 
-install:
+.SUFFIXES:	.in
+.in:
+	${SED} ${SED_REPLACE} ${SED_EXTRA} $< > $@
+
+install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
 	for i in $(SBIN_FILES); do \
-		$(INSTALL) -Dm755 $$i $(DESTDIR)/sbin/$$i || exit 1;\
+		$(INSTALL) -Dm755 $$i $(DESTDIR)/sbin/$$i;\
 	done
 	for i in $(CONF_FILES); do \
-		$(INSTALL) -Dm644 $$i $(DESTDIR)/etc/mkinitfs/$$i || exit 1;\
+		$(INSTALL) -Dm644 $$i $(DESTDIR)/etc/mkinitfs/$$i;\
 	done
 	for i in $(SHARE_FILES); do \
-		$(INSTALL) -D $$i $(DESTDIR)/usr/share/mkinitfs/$$i || exit 1;\
+		$(INSTALL) -D $$i $(DESTDIR)/usr/share/mkinitfs/$$i;\
 	done
 

@@ -1,6 +1,6 @@
 #!/bin/sh
 
-VERSION=1.0
+VERSION=@VERSION@
 
 _cp() {
 	local i
