@@ -1,6 +1,12 @@
 #!/bin/sh
 
 VERSION=@VERSION@
+sysconfdir=@sysconfdir@
+datadir=@datadir@
+
+config="$sysconfidir"/mkinitfs.conf
+init="$datadir"/initramfs-init
+startdir=$PWD
 
 _cp() {
 	local i
@@ -132,9 +138,6 @@ EOF
 
 # main
 
-startdir=$PWD
-config=/etc/mkinitfs/mkinitfs.conf
-init=/usr/share/mkinitfs/initramfs-init
 
 while getopts "b:c:hi:kLlo:t:" opt; do
 	case "$opt" in
@@ -153,9 +156,9 @@ while getopts "b:c:hi:kLlo:t:" opt; do
 done
 shift $(( $OPTIND - 1 ))
 
-. "$config"
-filelists_dir=${filelists_dir:-"/etc/mkinitfs/files.d"}
-modulelists_dir=${modules_dir:-"/etc/mkinitfs/modules.d"}
+. $(readlink -f "$config")
+filelists_dir=${filelists_dir:-"$sysconfdir/files.d"}
+modulelists_dir=${modules_dir:-"$sysconfdir/modules.d"}
 [ -n "$myfeatures" ] && features="$myfeatures"
 
 if [ -n "$list_features" ]; then

@@ -1,6 +1,10 @@
 
 VERSION		:= 1.1
 
+sysconfdir	?= /etc/mkinitfs
+datarootdir	?= /usr/share
+datadir		?= $(datarootdir)/mkinitfs
+
 SBIN_FILES	:= mkinitfs bootchartd
 SHARE_FILES	:= initramfs-init
 CONF_FILES	:= mkinitfs.conf \
@@ -31,10 +35,16 @@ DISTFILES	:= $(IN_FILES) $(CONF_FILES) Makefile
 
 INSTALL		:= install
 SED		:= sed
-SED_REPLACE	:= -e 's:@VERSION@:$(FULL_VERSION):g'
+SED_REPLACE	:= -e 's:@VERSION@:$(FULL_VERSION):g' \
+		-e 's:@sysconfdir@:$(sysconfdir):g' \
+		-e 's:@datadir@:$(datadir):g'
 
 
 all:	$(SCRIPTS)
+
+clean:
+	rm -f $(SCRIPTS)
+
 help:
 	@echo mkinitfs $(VERSION)
 	@echo "usage: make install [DESTDIR=]"
