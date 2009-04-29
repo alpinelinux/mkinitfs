@@ -1,0 +1,11 @@
+/bin/busybox
+/bin/sh
+/lib/libcrypt-[0-9]*
+/lib/libcrypt.so.*
+/lib/libm-[0-9]*
+/lib/libm.so.*
+/lib/libuClibc-[0-9]*
+/lib/libc.so.*
+/lib/ld-uClibc-[0-9]*
+/lib/ld-uClibc.so*
+/lib/mdev

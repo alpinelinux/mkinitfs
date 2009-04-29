@@ -1,0 +1,179 @@
+#!/bin/sh
+
+_cp() {
+	local i
+	for i in "$@"; do
+		local dest="$tmpdir"/${i%/*}
+		mkdir -p "$dest"
+		cp -flLpR "$i" "$dest" 2>/dev/null || cp -pR "$i" "$dest"
+	done
+}
+
+feature_files() {
+	local dir="$1"
+	local glob file 
+	for f in $features; do
+		if [ ! -f "$dir/$f" ]; then
+			continue
+		fi
+		for glob in $(cat "$dir/$f"); do
+			for file in $glob; do
+				echo $glob
+			done
+		done
+	done
+}
+
+initfs_base() {
+	local i= dirs= glob= file=
+	echo "==> initramfs: copying base files" >&2
+	for i in dev proc sys sbin bin .modloop lib/modules media/cdrom \
+	    media/floppy media/usb newroot; do
+		dirs="$dirs $tmpdir/$i"
+	done
+	mkdir -p $dirs
+
+	for file in $(feature_files "$filelists_dir"); do
+		_cp $file
+	done
+
+	# copy init
+	cd $startdir
+	install -m755 "$init" "$tmpdir"/init
+}
+
+find_kmod_deps() {
+	awk '
+function recursedeps(k,		j) {
+	if (k in visited)
+		return;
+	visited[k] = 1;
+	split(deps[k], dep, " ");
+	for (j in dep)
+		recursedeps(dep[j]);
+	print(k);
+}
+
+BEGIN {
+	if (modulesdep == "")
+		modulesdep="modules.dep";
+	FS = ": ";
+	while ( (getline < modulesdep) > 0) {
+		deps[$1] = $2;
+	}
+}
+
+{
+	mod["/"$0] = 1;
+}
+
+END {
+	for (i in mod)
+		recursedeps(i);
+}' -v modulesdep="$basedir/lib/modules/$kernel/modules.dep"
+}
+
+initfs_kmods() {
+	local glob= file= files= dirs=
+        rm -rf "$tmpdir"/lib/modules
+	cd "$kerneldir" || return 1
+	echo "==> initramfs: copying kernel $kernel modules" >&2
+	files=$(
+	for file in $(feature_files $modulelists_dir); do
+		if ! [ -e ${file} ]; then
+			echo "$file: No such file or directory" >&2
+			continue
+		fi
+		echo $file
+	done | find_kmod_deps)
+	for file in $files; do
+		_cp "$basedir"/lib/modules/$kernel/$file
+	done
+}
+
+initfs_cpio() {
+	echo "==> initramfs: creating $outfile" >&2
+	(cd "$tmpdir" && find . | cpio -o -H newc | gzip) > $outfile
+}
+
+usage() {
+	cat <<EOF
+usage: mkinitfs [-hkL] [-b basedir] [-c configfile] [-i initfile ] 
+                [-o outfile] [-t tempdir] [kernelversion]"
+options:
+	-b  prefix files and kernel modules with basedir
+	-c  use configfile instead of $config
+	-h  print this help
+	-i  use initfile as init instead of $init
+	-k  keep tempdir
+	-L  list available features
+	-o  set another outfile
+	-t  use tempdir when creating initramfs image
+
+EOF
+	exit 1
+}
+
+# main
+
+startdir=$PWD
+config=/etc/mkinitfs/mkinitfs.conf
+init=/usr/share/mkinitfs/initramfs-init
+
+while getopts "b:c:hi:kLo:t:" opt; do
+	case "$opt" in
+		b) basedir="$OPTARG";;
+		c) config="$OPTARG";;
+		h) usage;;
+		i) init=$OPTARG;;
+		k) keeptmp=1;;
+		L) list_features=1;;
+		o) outfile="$OPTARG";;
+		t) tmpdir="$OPTARG";;
+		*) usage;;
+	esac
+done
+shift $(( $OPTIND - 1 ))
+
+. "$config"
+filelists_dir=${filelists_dir:-"/etc/mkinitfs/files.d"}
+modulelists_dir=${modules_dir:-"/etc/mkinitfs/modules.d"}
+
+if [ -n "$list_features" ]; then
+	for i in $filelists_dir $modulelists_dir; do
+		( [ -d "$i" ] && cd $i && ls )
+	done | sort | uniq
+	exit 0
+fi
+
+[ -n "$1" ] && kernel="$1"
+[ -z "$kernel" ] && kernel=$(uname -r)
+kerneldir="$basedir/lib/modules/$kernel"
+if [ -z "$outfile" ]; then
+	outfile="$basedir"/boot/${kernel##*-}.gz
+fi
+
+if [ ! -d "$kerneldir" ]; then
+	echo "$kerneldir does not exist or is not a directory"
+	exit 1
+fi
+
+if [ -z "$tmpdir" ]; then
+	tmpdir=$(mktemp -d /tmp/mkinitfs.XXXXXX)
+else
+	mkdir -p "$tmpdir"
+fi
+
+if [ -z "$keeptmp" ]; then
+	[ -d "$tmpdir" ] && rm -rf "$tmpdir"/*
+fi
+
+initfs_base
+initfs_kmods
+initfs_cpio
+
+# cleanup
+if [ -z "$keeptmp" ]; then
+	[ -d "$tmpdir" ] && rm -rf "$tmpdir"
+fi
+

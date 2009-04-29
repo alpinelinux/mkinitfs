@@ -1,0 +1,3 @@
+kernel/drivers/usb/host
+kernel/drivers/usb/storage
+kernel/fs/fat

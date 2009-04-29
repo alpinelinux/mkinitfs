@@ -1,0 +1,2 @@
+kernel/drivers/scsi/*
+kernel/drivers/message/fusion
