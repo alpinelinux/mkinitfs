@@ -9,6 +9,7 @@ SBIN_FILES	:= mkinitfs bootchartd
 SHARE_FILES	:= initramfs-init fstab
 CONF_FILES	:= mkinitfs.conf \
 		modules.d/ata \
+		modules.d/ext3 \
 		modules.d/ide \
 		modules.d/base \
 		modules.d/raid \

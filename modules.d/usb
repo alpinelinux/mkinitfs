@@ -1,3 +1,5 @@
 kernel/drivers/usb/host
 kernel/drivers/usb/storage
+kernel/drivers/hid/usbhid
 kernel/fs/fat
+kernel/fs/nls

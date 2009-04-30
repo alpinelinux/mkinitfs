@@ -1,2 +1,1 @@
 kernel/drivers/block/loop.ko
-kernel/drivers/hid/*
