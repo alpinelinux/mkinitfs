@@ -6,7 +6,7 @@ datarootdir	?= /usr/share
 datadir		?= $(datarootdir)/mkinitfs
 
 SBIN_FILES	:= mkinitfs bootchartd
-SHARE_FILES	:= initramfs-init
+SHARE_FILES	:= initramfs-init fstab
 CONF_FILES	:= mkinitfs.conf \
 		modules.d/ata \
 		modules.d/ide \
@@ -19,7 +19,7 @@ CONF_FILES	:= mkinitfs.conf \
 		files.d/bootchart \
 		files.d/base
 
-SCRIPTS		:= $(SBIN_FILES) $(SHARE_FILES)
+SCRIPTS		:= $(SBIN_FILES) initramfs-init 
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
 
 GIT_REV := $(shell git describe || echo exported)

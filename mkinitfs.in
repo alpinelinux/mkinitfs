@@ -4,8 +4,9 @@ VERSION=@VERSION@
 sysconfdir=@sysconfdir@
 datadir=@datadir@
 
-config="$sysconfidir"/mkinitfs.conf
+config="$sysconfdir"/mkinitfs.conf
 init="$datadir"/initramfs-init
+fstab="$datadir"/fstab
 startdir=$PWD
 
 _cp() {
@@ -33,7 +34,11 @@ feature_files() {
 		fi
 		for glob in $(cat "$dir/$f"); do
 			for file in $glob; do
-				echo $glob
+				if [ -d $file ]; then
+					find $file -type f
+				else
+					echo $file
+				fi
 			done
 		done
 	done
@@ -43,7 +48,7 @@ initfs_base() {
 	local i= dirs= glob= file=
 	echo "==> initramfs: copying base files" >&2
 	for i in dev proc sys sbin bin .modloop lib/modules media/cdrom \
-	    media/floppy media/usb newroot; do
+	    etc/apk media/floppy media/usb newroot; do
 		dirs="$dirs $tmpdir/$i"
 	done
 	[ -z "$list_sources" ] && mkdir -p $dirs
@@ -55,7 +60,8 @@ initfs_base() {
 	# copy init
 	if [ -z "$list_sources" ]; then
 		cd $startdir
-		install -m755 "$init" "$tmpdir"/init
+		install -m755 "$init" "$tmpdir"/init || return 1
+		install -Dm644 "$fstab" "$tmpdir"/etc/fstab || return 1
 	else
 		echo "$init"
 	fi
@@ -83,7 +89,7 @@ BEGIN {
 }
 
 {
-	mod["/"$0] = 1;
+	mod[$0] = 1;
 }
 
 END {
@@ -92,22 +98,26 @@ END {
 }' -v modulesdep="$basedir/lib/modules/$kernel/modules.dep"
 }
 
-initfs_kmods() {
-	local glob= file= files= dirs=
-	[ -z "$list_soruces" ] && rm -rf "$tmpdir"/lib/modules
+find_kmods() {
 	cd "$kerneldir" || return 1
-	echo "==> initramfs: copying kernel $kernel modules" >&2
-	files=$(
 	for file in $(feature_files $modulelists_dir); do
 		if ! [ -e ${file} ]; then
 			echo "$file: No such file or directory" >&2
 			continue
 		fi
-		echo $file
-	done | find_kmod_deps)
+		echo /lib/modules/$kernel/$file
+	done | find_kmod_deps
+}
+
+initfs_kmods() {
+	local glob= file= files= dirs=
+	[ -z "$list_sources" ] && rm -rf "$tmpdir"/lib/modules
+	echo "==> initramfs: copying kernel $kernel modules" >&2
+	files=$(find_kmods)
 	for file in $files; do
-		_cp "$basedir"/lib/modules/$kernel/$file
+		_cp "$basedir"/$file
 	done
+	[ -z "$list_sources" ] && depmod $kernel -b "$tmpdir"
 }
 
 initfs_cpio() {
@@ -118,11 +128,12 @@ initfs_cpio() {
 
 usage() {
 	cat <<EOF
-usage: mkinitfs [-hkLl] [-b basedir] [-c configfile] [-f features] 
+usage: mkinitfs [-hkLl] [-b basedir] [-c configfile] [-F features] [-f fstab]
 		[-i initfile ] [-o outfile] [-t tempdir] [kernelversion]"
 options:
 	-b  prefix files and kernel modules with basedir
 	-c  use configfile instead of $config
+	-F  use fstab instead of $fstab
 	-f  use specified features
 	-h  print this help
 	-i  use initfile as init instead of $init
@@ -139,11 +150,12 @@ EOF
 # main
 
 
-while getopts "b:c:hi:kLlo:t:" opt; do
+while getopts "b:c:f:F:hi:kLlo:t:" opt; do
 	case "$opt" in
 		b) basedir="$OPTARG";;
 		c) config="$OPTARG";;
-		f) myfeatures="$OPTARG";;
+		F) myfeatures="$OPTARG";;
+		f) fstab="$OPTARG";;
 		h) usage;;
 		i) init=$OPTARG;;
 		k) keeptmp=1;;
@@ -180,6 +192,11 @@ if [ ! -d "$kerneldir" ]; then
 	exit 1
 fi
 
+if [ -n "$DEBUG_KMOD" ]; then
+	find_kmods
+	exit 0
+fi
+
 if [ -z "$tmpdir" ]; then
 	tmpdir=$(mktemp -d /tmp/mkinitfs.XXXXXX)
 else
@@ -190,9 +207,9 @@ if [ -z "$keeptmp" ]; then
 	[ -d "$tmpdir" ] && rm -rf "$tmpdir"/*
 fi
 
-initfs_base
-initfs_kmods
-initfs_cpio
+initfs_base || exit 1
+initfs_kmods || exit 1
+initfs_cpio || exit 1
 
 # cleanup
 if [ -z "$keeptmp" ]; then
