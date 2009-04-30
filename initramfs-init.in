@@ -258,7 +258,7 @@ if [ -f "$ovl" ]; then
 fi
 
 # hack so we get openrc
-pkgs="$pkgs openrc"
+pkgs="$pkgs alpine-baselayout alpine-conf apk-tools"
 
 # install new root
 ebegin "Installing packages to root filesystem"
