@@ -23,7 +23,7 @@ CONF_FILES	:= mkinitfs.conf \
 SCRIPTS		:= $(SBIN_FILES) initramfs-init 
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
 
-GIT_REV := $(shell git describe || echo exported)
+GIT_REV := $(shell test -d .git && git describe || echo exported)
 ifneq ($(GIT_REV), exported)
 FULL_VERSION    := $(patsubst $(PACKAGE)-%,%,$(GIT_REV))
 FULL_VERSION    := $(patsubst v%,%,$(FULL_VERSION))
