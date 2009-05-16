@@ -2,10 +2,10 @@
 
 # this is the init script version
 VERSION=@VERSION@
-NEWROOT=/newroot
 SINGLEMODE=no
+sysroot=/sysroot
 
-/bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $NEWROOT \
+/bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
 	/media/cdrom /media/floppy /media/usb
 /bin/busybox --install -s
 
@@ -115,7 +115,7 @@ done
 # start bootcharting if wanted
 if [ -n "$KOPT_chart" ]; then
 	ebegin "Starting bootchart logging"
-	/sbin/bootchartd start-initfs "$NEWROOT"
+	/sbin/bootchartd start-initfs "$sysroot"
 	eend 0
 fi
 
@@ -169,16 +169,16 @@ if [ -n "$KOPT_root" ]; then
 			;;
 	esac
 	ebegin "Mounting root"
-	retry_mount $KOPT_root $NEWROOT 2>/dev/null
+	retry_mount $KOPT_root $sysroot 2>/dev/null
 	eend $?
 	cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
-		if [ "$DIR" != "/" -a "$DIR" != "$NEWROOT" -a -d "$DIR" ]; then
-			mkdir -p $NEWROOT/$DIR
-			mount -o move $DIR $NEWROOT/$DIR
+		if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
+			mkdir -p $sysroot/$DIR
+			mount -o move $DIR $sysroot/$DIR
 		fi
 	done
 	sync
-	exec /bin/busybox switch_root $NEWROOT $chart_init /sbin/init $KOPT_init_args
+	exec /bin/busybox switch_root $sysroot $chart_init /sbin/init $KOPT_init_args
 	echo "initramfs emergency recovery shell launched"
 	exec /bin/busybox sh
 fi
@@ -231,7 +231,7 @@ ebegin "Loading hardware drivers"
 scan_drivers
 eend 0
 
-mount -t tmpfs tmpfs $NEWROOT
+mount -t tmpfs tmpfs $sysroot
 
 # look for apkovl
 if dmesg | grep '^usb-storage: waiting' >/dev/null; then
@@ -253,10 +253,10 @@ fi
 
 if [ -f "$ovl" ]; then
 	ebegin "Loading user settings from $ovl"
-	unpack_apkovl "$ovl" $NEWROOT
+	unpack_apkovl "$ovl" $sysroot
 	eend $? $errstr
 	umount /media/$i 2>/dev/null &
-	pkgs=$(sed 's/\#.*//' $NEWROOT/etc/lbu/packages.list 2>/dev/null)
+	pkgs=$(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)
 fi
 
 # hack so we get openrc
@@ -271,38 +271,38 @@ apkflags="--initdb --quiet --progress --force"
 if [ -z "$KOPT_keep_apk_new" ]; then
 	apkflags="$apkflags --clean-protected"
 fi
-apk add --root /newroot $apkflags $pkgs >/dev/null
+apk add --root $sysroot $apkflags $pkgs >/dev/null
 eend $?
 
 # copy alpine release info
-cp $ALPINE_MNT/.alpine-release $NEWROOT/
-ln -sf /.alpine-release $NEWROOT/etc/alpine-release
+cp $ALPINE_MNT/.alpine-release $sysroot/
+ln -sf /.alpine-release $sysroot/etc/alpine-release
 
 # if there is no repositories file, then use the default
-if ! [ -f $NEWROOT/etc/apk/repositories ]; then
-	cp /etc/apk/repositories $NEWROOT/etc/apk/repositories
+if ! [ -f $sysroot/etc/apk/repositories ]; then
+	cp /etc/apk/repositories $sysroot/etc/apk/repositories
 fi
 
 # setup bootchart for switch_root
 chart_init=""
 if [ -n "$KOPT_chart" ]; then
-	/sbin/bootchartd stop-initfs "$NEWROOT"
+	/sbin/bootchartd stop-initfs "$sysroot"
 	chart_init="/sbin/bootchartd start-rootfs"
 fi
 
 # switch over to new root
 cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
-	if [ "$DIR" != "/" -a "$DIR" != "$NEWROOT" -a -d "$DIR" ]; then
-		mkdir -p $NEWROOT/$DIR
-		mount -o move $DIR $NEWROOT/$DIR
+	if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
+		mkdir -p $sysroot/$DIR
+		mount -o move $DIR $sysroot/$DIR
 	fi
 done
-ln -sf /.modloop/modules $NEWROOT/lib/modules
+ln -sf /.modloop/modules $sysroot/lib/modules
 sync
 
 echo ""
-if [ -x $NEWROOT/sbin/init ]; then
-	exec /bin/busybox switch_root $NEWROOT $chart_init /sbin/init $KOPT_init_args
+if [ -x $sysroot/sbin/init ]; then
+	exec /bin/busybox switch_root $sysroot $chart_init /sbin/init $KOPT_init_args
 fi
 
 echo "initramfs emergency recovery shell launched"
