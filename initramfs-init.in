@@ -5,6 +5,8 @@ VERSION=@VERSION@
 NEWROOT=/newroot
 SINGLEMODE=no
 
+/bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $NEWROOT \
+	/media/cdrom /media/floppy /media/usb
 /bin/busybox --install -s
 
 # basic environment
