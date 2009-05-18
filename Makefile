@@ -9,14 +9,15 @@ SBIN_FILES	:= mkinitfs bootchartd
 SHARE_FILES	:= initramfs-init fstab
 CONF_FILES	:= mkinitfs.conf \
 		modules.d/ata \
-		modules.d/ext3 \
-		modules.d/ide \
 		modules.d/base \
+		modules.d/cdrom \
+		modules.d/cramfs \
+		modules.d/ext3 \
+		modules.d/floppy \
+		modules.d/ide \
 		modules.d/raid \
 		modules.d/scsi \
-		modules.d/cdrom \
 		modules.d/usb \
-		modules.d/cramfs \
 		files.d/bootchart \
 		files.d/base
 
