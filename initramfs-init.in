@@ -255,6 +255,8 @@ if [ -f "$ovl" ]; then
 	ebegin "Loading user settings from $ovl"
 	unpack_apkovl "$ovl" $sysroot
 	eend $? $errstr
+	# hack, incase /root/.ssh was included in apkovl
+	[ -d "$sysroot/root" ] && chmod 700 "$sysroot/root"
 	umount /media/$i 2>/dev/null &
 	pkgs=$(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)
 fi
