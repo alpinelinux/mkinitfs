@@ -11,3 +11,4 @@
 /lib/mdev
 /sbin/apk
 /etc/modprobe.d/blacklist
+/etc/mdev.conf

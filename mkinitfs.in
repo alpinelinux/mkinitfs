@@ -7,6 +7,9 @@ datadir=@datadir@
 config="$sysconfdir"/mkinitfs.conf
 init="$datadir"/initramfs-init
 fstab="$datadir"/fstab
+passwd="$datadir"/passwd
+group="$datadir"/group
+
 startdir=$PWD
 
 _cp() {
@@ -61,9 +64,14 @@ initfs_base() {
 	if [ -z "$list_sources" ]; then
 		cd $startdir
 		install -m755 "$init" "$tmpdir"/init || return 1
-		install -Dm644 "$fstab" "$tmpdir"/etc/fstab || return 1
+		for i in "$fstab" "$passwd" "$group"; do
+			install -Dm644 "$i" "$tmpdir"/etc/${i##*/} || return 1
+		done
 	else
 		echo "$init"
+		echo "$fstab"
+		echo "$passwd"
+		echo "$group"
 	fi
 }
 
