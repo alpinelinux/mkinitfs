@@ -259,6 +259,7 @@ if [ -f "$ovl" ]; then
 	[ -d "$sysroot/root" ] && chmod 700 "$sysroot/root"
 	umount /media/$i 2>/dev/null &
 	pkgs=$(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)
+	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world 2>/dev/null)"
 fi
 
 # hack so we get openrc
