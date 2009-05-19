@@ -12,12 +12,17 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/base \
 		modules.d/cdrom \
 		modules.d/cramfs \
+		modules.d/ext2 \
 		modules.d/ext3 \
+		modules.d/ext4 \
 		modules.d/floppy \
 		modules.d/ide \
 		modules.d/raid \
+		modules.d/reiserfs \
 		modules.d/scsi \
+		modules.d/ubifs \
 		modules.d/usb \
+		modules.d/xfs
 		files.d/bootchart \
 		files.d/base
 
