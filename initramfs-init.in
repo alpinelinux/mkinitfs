@@ -98,18 +98,22 @@ unpack_apkovl() {
 # gotta start from somewhere :)
 echo "Alpine Init $VERSION"
 
-# read the kernel options
-for i in `cat /proc/cmdline` ; do
-	case $i in
+# read the kernel options. We use eval set so we can handle things like
+# acpi_osi="!Windows 2006"
+eval set -- `cat /proc/cmdline`
+
+while [ $# -gt 0 ]; do
+	case "$1" in
 		s|single|1)
 			SINGLEMODE=yes ;;
 		modules=*)
-			MODULES="`echo ${i#modules=} | tr ',' ' '`";;
+			MODULES="`echo ${1#modules=} | tr ',' ' '`";;
 		noautodetect)
 			AUTODETECT=no;;
-		*=*)    eval KOPT_$i ;;
-		*)      eval KOPT_$i=yes ;;
+		*=*)    eval "KOPT_${1%%=*}='${1#*=}'" ;;
+		*)      eval "KOPT_$(echo $1 | sed 's: :_:g')=yes" ;;
 	esac
+	shift
 done
 
 # start bootcharting if wanted
