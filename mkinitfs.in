@@ -49,7 +49,6 @@ feature_files() {
 
 initfs_base() {
 	local i= dirs= glob= file=
-	echo "==> initramfs: copying base files" >&2
 	for i in dev proc sys sbin bin .modloop lib/modules media/cdrom \
 	    etc/apk media/floppy media/usb newroot; do
 		dirs="$dirs $tmpdir/$i"
@@ -120,7 +119,6 @@ find_kmods() {
 initfs_kmods() {
 	local glob= file= files= dirs=
 	[ -z "$list_sources" ] && rm -rf "$tmpdir"/lib/modules
-	echo "==> initramfs: copying kernel $kernel modules" >&2
 	files=$(find_kmods)
 	for file in $files; do
 		_cp "$basedir"/$file
@@ -130,7 +128,6 @@ initfs_kmods() {
 
 initfs_cpio() {
 	[ -n "$list_sources" ] && return
-	echo "==> initramfs: creating $outfile" >&2
 	(cd "$tmpdir" && find . | cpio -o -H newc | gzip) > $outfile
 }
 
@@ -215,6 +212,9 @@ if [ -z "$keeptmp" ]; then
 	[ -d "$tmpdir" ] && rm -rf "$tmpdir"/*
 fi
 
+if [ -z "$list_sources" ]; then
+	echo "==> initramfs: creating $outfile" >&2
+fi
 initfs_base || exit 1
 initfs_kmods || exit 1
 initfs_cpio || exit 1
