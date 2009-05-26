@@ -119,6 +119,11 @@ if [ -n "$KOPT_chart" ]; then
 	eend 0
 fi
 
+# dma can be problematic
+if [ -n "$KOPT_nodma" ]; then
+	modprobe libata dma=0
+fi
+
 ALPINE_DEV=${KOPT_alpine_dev%%:*}
 ALPINE_DEV_FS=${KOPT_alpine_dev##*:}
 if [ "$ALPINE_DEV_FS" = "$ALPINE_DEV" ]; then
