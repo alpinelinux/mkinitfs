@@ -66,6 +66,14 @@ retry_mount() {
 	return 1
 }
 
+unpack_apk() {
+	local i
+	for i in $ALPINE_MNT/*/*/$1-[0-9]*.apk $ALPINE_MNT/*/$1-[0-9]*.apk; do
+		[ -f "$i" ] && tar --numeric-owner -C / -zxf $i && return 0
+	done
+	return 1
+}
+
 unpack_apkovl() {
 	local ovl="$1"
 	local dest="$2"
@@ -76,9 +84,8 @@ unpack_apkovl() {
 		return $?
 	fi
 
-	for i in $ALPINE_MNT/*/*/openssl-[0-9]*.apk $ALPINE_MNT/*/openssl-[0-9]*.apk; do
-		[ -f "$i" ] && tar --numeric-owner -C / -zxf $i && break
-	done
+	unpack_apk uclibc
+	unpack_apk openssl
 
 	if ! openssl list-cipher-commands | grep "^$suffix$" > /dev/null; then
 		errstr="Cipher $suffix is not supported"
