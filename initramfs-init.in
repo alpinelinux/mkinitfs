@@ -247,7 +247,12 @@ ebegin "Loading hardware drivers"
 scan_drivers
 eend 0
 
-mount -t tmpfs tmpfs $sysroot
+# mount tmpfs sysroot
+root_opts=
+if [ -n "$KOPT_root_size" ]; then
+	root_opts="-o size=$KOPT_root_size"
+fi
+mount -t tmpfs $root_opts tmpfs $sysroot
 
 # look for apkovl
 if dmesg | grep '^usb-storage: waiting' >/dev/null; then
