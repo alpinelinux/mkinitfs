@@ -59,7 +59,7 @@ find_ovl() {
 
 retry_mount() {
 	# usb might need some time to settle so we retry a few times
-	for i in $(seq 0 19); do
+	for i in $(seq 0 9); do
 		mount $@ 2>&1 && return 0
 		sleep 1
 	done
@@ -102,6 +102,26 @@ unpack_apkovl() {
 	return 1
 }
 
+# find mount dir for given device in an fstab
+find_mnt() {
+	local dev="$1"
+	local fsfile="$2"
+	awk "\$ == \"$dev\" {print \$2}\"" "$fsfile" 2>/dev/null
+}
+
+# Wait for usb to settle
+wait_usb() {
+	if [ -n "$USB_DONE" ] || ! dmesg | grep '^usb-storage: waiting' >/dev/null; then
+		return 0
+	fi
+	ebegin "Waiting for USB device to settle"
+	while ! dmesg | grep 'usb-storage: device scan complete' >/dev/null; do
+		sleep 1
+	done
+	USB_DONE=yes
+	eend 0
+}
+
 # gotta start from somewhere :)
 echo "Alpine Init $VERSION"
 
@@ -140,7 +160,10 @@ ALPINE_DEV_FS=${KOPT_alpine_dev##*:}
 if [ "$ALPINE_DEV_FS" = "$ALPINE_DEV" ]; then
 	unset ALPINE_DEV_FS
 fi
-ALPINE_MNT=/media/$ALPINE_DEV
+
+# look for standard mountpoint locations
+ALPINE_MNT=$(find_mnt /dev/$ALPINE_DEV /etc/fstab)
+[ -z "$ALPINE_MNT" ] && ALPINE_MNT=/media/$ALPINE_DEV
 
 # hide kernel messages
 dmesg -n 1
@@ -199,6 +222,11 @@ if [ -n "$KOPT_root" ]; then
 	exec /bin/busybox sh
 fi
 
+# we only want to wait for usb if really needed at this point
+if [ -z "${ALPINE_DEV##*usb*}" ]; then
+	wait_usb
+fi
+
 # locate boot media and mount it
 ebegin "Mounting boot media"
 mkdir -p $ALPINE_MNT
@@ -209,43 +237,11 @@ fi
 retry_mount $mount_opts /dev/$ALPINE_DEV $ALPINE_MNT >/dev/null 2>&1
 eend $?
 
-ebegin "Mounting loopback device for kernel modules"
-modprobe loop
-if [ -n "$KOPT_modloop" ]; then
-	modloop=$KOPT_modloop
-else
-	modloop=$KOPT_BOOT_IMAGE.cmg
-fi
-mount -o loop,ro -t cramfs $ALPINE_MNT/$modloop /.modloop
-rc=$?
-if [ "$rc" = 0 ]; then
-	rm -rf /lib/modules
-	ln -sf /.modloop/modules /lib
-fi
-eend $?
-
-if [ -d $ALPINE_MNT/firmware ]; then
-	ebegin "Copying firmware from $ALPINE_MNT/firmware"
-	mkdir -p /lib
-	cp -R -a $ALPINE_MNT/firmware /lib/
-	eend $?
-fi
-
-mkdir -p /etc/apk
-for i in $ALPINE_MNT/*/APK_INDEX.gz $ALPINE_MNT/*/*/APK_INDEX.gz; do
-	[ -r "$i" ] && echo ${i%/APK_INDEX.gz} >> /etc/apk/repositories
-done
-
 # early console?
 if [ "$SINGLEMODE" = "yes" ]; then
 	echo "Entering single mode. Type 'exit' to continue booting."
 	sh
 fi
-
-# more drivers
-ebegin "Loading hardware drivers"
-scan_drivers
-eend 0
 
 # mount tmpfs sysroot
 root_opts=
@@ -254,14 +250,10 @@ if [ -n "$KOPT_root_size" ]; then
 fi
 mount -t tmpfs $root_opts tmpfs $sysroot
 
+# wait for usb to settle if needed
+wait_usb
+
 # look for apkovl
-if dmesg | grep '^usb-storage: waiting' >/dev/null; then
-	ebegin "Waiting for USB device to settle"
-	while ! dmesg | grep 'usb-storage: device scan complete' >/dev/null; do
-		sleep 1
-	done
-	eend 0
-fi
 for i in usb floppy cdrom; do
 	mount /media/$i 2>/dev/null || continue
 	ovl=$(find_ovl /media/$i)
@@ -285,6 +277,21 @@ fi
 
 # hack so we get openrc
 pkgs="$pkgs alpine-baselayout alpine-conf apk-tools"
+
+# move the ALPINE_MNT if ALPINE_DEV is specified in users fstab
+# this is so a generated /etc/apk/repositories will use correct mount dir
+new_mnt=$(find_mnt /dev/$ALPINE_DEV $sysroot/etc/fstab)
+if [ -n "$new_mnt" ] && [ "$new_mnt" != "$ALPINE_MNT" ]; then
+	mkdir -p $new_mnt
+	mount -o move $ALPINE_MNT $new_mnt
+	ALPINE_MNT="$new_mnt"
+fi
+
+# generate apk repositories file
+mkdir -p /etc/apk
+for i in $ALPINE_MNT/*/APK_INDEX.gz $ALPINE_MNT/*/*/APK_INDEX.gz; do
+	[ -r "$i" ] && echo ${i%/APK_INDEX.gz} >> /etc/apk/repositories
+done
 
 # install new root
 ebegin "Installing packages to root filesystem"
@@ -321,7 +328,6 @@ cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
 		mount -o move $DIR $sysroot/$DIR
 	fi
 done
-ln -sf /.modloop/modules $sysroot/lib/modules
 sync
 
 echo ""
