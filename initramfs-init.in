@@ -184,7 +184,7 @@ eend $RC
 
 # load available drivers to get access to modloop media
 ebegin "Loading boot drivers"
-[ "$MODULES" ] && modprobe -a $MODULES 2> /dev/null
+[ "$MODULES" ] && modprobe -a $MODULES loop cramfs 2> /dev/null
 if [ -f /etc/modules ] ; then
 	sed 's/\#.*//g' < /etc/modules |
 	while read module args; do
@@ -273,10 +273,23 @@ if [ -f "$ovl" ]; then
 	umount /media/$i 2>/dev/null &
 	pkgs=$(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)
 	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world 2>/dev/null)"
+else
+	# add some boot services by default
+	mkdir -p $sysroot/etc/runlevels/boot
+	ln -s /etc/init.d/hwclock $sysroot/etc/runlevels/boot/hwclock
+	ln -s /etc/init.d/modloop $sysroot/etc/runlevels/boot/modloop
+	ln -s /etc/init.d/hwdrivers $sysroot/etc/runlevels/boot/hwdrivers
+	ln -s /etc/init.d/sysctl $sysroot/etc/runlevels/boot/sysctl
+	ln -s /etc/init.d/syslog $sysroot/etc/runlevels/boot/syslog
 fi
 
+# incase we upgraed we might need those:
+mkdir -p $sysroot/etc/runlevels/boot
+ln -s /etc/init.d/modloop $sysroot/etc/runlevels/boot/modloop
+ln -s /etc/init.d/hwdrivers $sysroot/etc/runlevels/boot/hwdrivers
+
 # hack so we get openrc
-pkgs="$pkgs alpine-baselayout alpine-conf apk-tools"
+pkgs="$pkgs alpine-base"
 
 # move the ALPINE_MNT if ALPINE_DEV is specified in users fstab
 # this is so a generated /etc/apk/repositories will use correct mount dir
