@@ -266,6 +266,9 @@ fi
 
 if [ -f "$ovl" ]; then
 	ebegin "Loading user settings from $ovl"
+	# create apk db and needed /dev/null and /tmp first
+	apk add --root $sysroot --initdb --quiet
+
 	unpack_apkovl "$ovl" $sysroot
 	eend $? $errstr
 	# hack, incase /root/.ssh was included in apkovl
