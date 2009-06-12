@@ -122,6 +122,12 @@ wait_usb() {
 	eend 0
 }
 
+#  add a boot service to $sysroot
+rc_add() {
+	mkdir -p $sysroot/etc/runlevels/$2
+	ln -sf /etc/init.d/$1 $sysroot/etc/runlevels/$2/$1
+}
+
 # gotta start from somewhere :)
 echo "Alpine Init $VERSION"
 
@@ -170,7 +176,7 @@ dmesg -n 1
 
 # setup /dev
 ebegin "Starting mdev"
-mount -t tmpfs -o exec,nosuid,mode=0755 mdev /dev
+mount -t tmpfs -o exec,nosuid,mode=0755,size=1M mdev /dev
 ln -s sr0 /dev/cdrom
 echo "/sbin/mdev" > /proc/sys/kernel/hotplug
 mdev -s
@@ -278,18 +284,25 @@ if [ -f "$ovl" ]; then
 	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world 2>/dev/null)"
 else
 	# add some boot services by default
-	mkdir -p $sysroot/etc/runlevels/boot
-	ln -s /etc/init.d/hwclock $sysroot/etc/runlevels/boot/hwclock
-	ln -s /etc/init.d/modloop $sysroot/etc/runlevels/boot/modloop
-	ln -s /etc/init.d/hwdrivers $sysroot/etc/runlevels/boot/hwdrivers
-	ln -s /etc/init.d/sysctl $sysroot/etc/runlevels/boot/sysctl
-	ln -s /etc/init.d/syslog $sysroot/etc/runlevels/boot/syslog
+	rc_add defvs sysinit
+	rc_add dmesg sysinit
+	rc_add mdev sysinit
+
+	rc_add hwclock boot
+	rc_add modules boot
+	rc_add sysctl boot
+	rc_add hostname boot
+	rc_add bootmisc boot
+	rc_add syslog boot
+	
+	rc_add mount-ro shutdown
+	rc_add killprocs shutdown
+	rc_add savecache shutdown
 fi
 
-# incase we upgraed we might need those:
-mkdir -p $sysroot/etc/runlevels/boot
-ln -s /etc/init.d/modloop $sysroot/etc/runlevels/boot/modloop
-ln -s /etc/init.d/hwdrivers $sysroot/etc/runlevels/boot/hwdrivers
+# in case we upgrade we might need those:
+rc_add hwdrivers sysinit
+rc_add modloop sysinit
 
 # hack so we get openrc
 pkgs="$pkgs alpine-base"
