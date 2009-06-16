@@ -207,6 +207,8 @@ if [ -n "$KOPT_root" ]; then
 		echo "Entering single mode. Type 'exit' to continue booting."
 		sh
 	fi
+	# let usb settle in case we boot from usb disks
+	wait_usb
 	case "$KOPT_root" in
 		/dev/md*) 
 			mknod $KOPT_root b 9 ${KOPT_root#/dev/md}
