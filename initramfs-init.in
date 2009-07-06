@@ -128,6 +128,24 @@ rc_add() {
 	ln -sf /etc/init.d/$1 $sysroot/etc/runlevels/$2/$1
 }
 
+# we have issues with some slow usb 1 hosts so we add 1 second delay
+# with possibility to increase delay at boot prompt with usbdelay=<sec>
+find_ovl_dev() {
+	local n i
+	# look for apkovl
+	for n in $(seq 0 ${KOPT_usbdelay:-1}); do
+		# wait for usb to settle if needed
+		wait_usb
+		for i in usb floppy cdrom; do
+			mount /media/$i 2>/dev/null || continue
+			ovl=$(find_ovl /media/$i)
+			[ -f "$ovl" ] && return
+			umount /media/$i 2>/dev/null
+		done
+		sleep 1
+	done
+}
+
 # gotta start from somewhere :)
 echo "Alpine Init $VERSION"
 
@@ -258,16 +276,7 @@ if [ -n "$KOPT_root_size" ]; then
 fi
 mount -t tmpfs $root_opts tmpfs $sysroot
 
-# wait for usb to settle if needed
-wait_usb
-
-# look for apkovl
-for i in usb floppy cdrom; do
-	mount /media/$i 2>/dev/null || continue
-	ovl=$(find_ovl /media/$i)
-	[ -f "$ovl" ] && break
-	umount /media/$i 2>/dev/null
-done
+find_ovl_dev
 if ! [ -f "$ovl" ]; then
 	ovl=$(find_ovl $ALPINE_MNT)
 fi
