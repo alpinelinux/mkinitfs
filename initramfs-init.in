@@ -85,6 +85,7 @@ unpack_apkovl() {
 	fi
 
 	unpack_apk uclibc
+	unpack_apk libcrypto
 	unpack_apk openssl
 
 	if ! openssl list-cipher-commands | grep "^$suffix$" > /dev/null; then
