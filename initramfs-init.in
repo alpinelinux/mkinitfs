@@ -294,6 +294,11 @@ if [ -f "$ovl" ]; then
 	umount /media/$i 2>/dev/null &
 	pkgs=$(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)
 	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world 2>/dev/null)"
+	# copy the apk keys from ovl
+	if [ -d "$sysroot"/etc/apk/keys ]; then
+		mkdir -p /etc/apk
+		cp -r "$sysroot"/etc/apk/keys /etc/apk/
+	fi
 else
 	# add some boot services by default
 	rc_add defvs sysinit
