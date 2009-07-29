@@ -126,6 +126,12 @@ initfs_kmods() {
 	[ -z "$list_sources" ] && depmod $kernel -b "$tmpdir"
 }
 
+initfs_apk_keys() {
+	[ -n "$list_sources" ] && return
+	mkdir -p "$tmpdir"/etc/apk/keys
+	cp "$basedir"/etc/apk/keys/* "$tmpdir"/etc/apk/keys/
+}
+
 initfs_cpio() {
 	[ -n "$list_sources" ] && return
 	(cd "$tmpdir" && find . | cpio -o -H newc | gzip) > $outfile
@@ -217,7 +223,9 @@ if [ -z "$list_sources" ]; then
 fi
 initfs_base || exit 1
 initfs_kmods || exit 1
+initfs_apk_keys || exit 1
 initfs_cpio || exit 1
+
 
 # cleanup
 if [ -z "$keeptmp" ]; then
