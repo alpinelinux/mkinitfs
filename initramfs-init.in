@@ -336,9 +336,8 @@ fi
 
 # generate apk repositories file
 mkdir -p /etc/apk
-for i in $ALPINE_MNT/*/APK_INDEX.gz $ALPINE_MNT/*/*/APK_INDEX.gz; do
-	[ -r "$i" ] && echo ${i%/APK_INDEX.gz} >> /etc/apk/repositories
-done
+echo "$(find $ALPINE_MNT -name 'APK*.gz' -type f -maxdepth 3 \
+	| sed 's:/APK.*\.gz$::')" >> /etc/apk/repositories
 
 # install new root
 ebegin "Installing packages to root filesystem"
