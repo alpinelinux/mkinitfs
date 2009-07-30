@@ -318,6 +318,14 @@ else
 	rc_add savecache shutdown
 fi
 
+# let user override tmpfs size in fstab in apkovl
+if [ -f $sysroot/etc/fstab ]; then
+	mountopts=$(awk '$2 == "/" && $3 == "tmpfs" { print $4 }' $sysroot/etc/fstab)
+	if [ -n "$mountopts" ]; then
+		mount -o remount,$mountopts $sysroot
+	fi
+fi
+
 # in case we upgrade we might need those:
 rc_add hwdrivers sysinit
 rc_add modloop sysinit
