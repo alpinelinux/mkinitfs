@@ -368,6 +368,12 @@ if [ -n "$KOPT_chart" ]; then
 	chart_init="/sbin/bootchartd start-rootfs"
 fi
 
+if [ ! -x $sysroot/sbin/init ]; then
+	echo "/sbin/init not found in new root. Launching emergency recovery shell"
+	echo "Type exit to continue boot."
+	/bin/busybox sh
+fi
+
 # switch over to new root
 cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
 	if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
@@ -378,9 +384,7 @@ done
 sync
 
 echo ""
-if [ -x $sysroot/sbin/init ]; then
-	exec /bin/busybox switch_root $sysroot $chart_init /sbin/init $KOPT_init_args
-fi
+exec /bin/busybox switch_root $sysroot $chart_init /sbin/init $KOPT_init_args
 
 echo "initramfs emergency recovery shell launched"
 exec /bin/busybox sh
