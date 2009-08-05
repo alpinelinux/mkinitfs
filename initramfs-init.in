@@ -295,11 +295,6 @@ if [ -f "$ovl" ]; then
 	pkgs=$(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)
 	rm -f "$sysroot"/etc/lbu/packages.list
 	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world 2>/dev/null)"
-	# copy the apk keys from ovl
-	if [ -d "$sysroot"/etc/apk/keys ]; then
-		mkdir -p /etc/apk
-		cp -r "$sysroot"/etc/apk/keys /etc/apk/
-	fi
 else
 	# add some boot services by default
 	rc_add defvs sysinit
@@ -318,6 +313,10 @@ else
 	rc_add savecache shutdown
 fi
 
+# copy the apk keys to sysroot
+mkdir -p "$sysroot"/etc/apk/keys
+cp -r /etc/apk/keys/* "$sysroot"/etc/apk/keys/ 2>/dev/null
+
 # let user override tmpfs size in fstab in apkovl
 if [ -f $sysroot/etc/fstab ]; then
 	mountopts=$(awk '$2 == "/" && $3 == "tmpfs" { print $4 }' $sysroot/etc/fstab)
@@ -329,6 +328,7 @@ fi
 # in case we upgrade we might need those:
 rc_add hwdrivers sysinit
 rc_add modloop sysinit
+
 
 # hack so we get openrc
 pkgs="$pkgs alpine-base"
@@ -344,8 +344,11 @@ fi
 
 # generate apk repositories file
 mkdir -p /etc/apk
-echo "$(find $ALPINE_MNT -name 'APK*.gz' -type f -maxdepth 3 \
-	| sed 's:/APK.*\.gz$::')" >> /etc/apk/repositories
+repo_opt=
+for i in $(find $ALPINE_MNT -name 'APK*.gz' -type f -maxdepth 3 \
+	| sed 's:/APK.*\.gz$::'); do
+	repo_opt="$repo_opt --repo $i"
+done
 
 # install new root
 ebegin "Installing packages to root filesystem"
@@ -356,17 +359,12 @@ apkflags="--initdb --quiet --progress --force"
 if [ -z "$KOPT_keep_apk_new" ]; then
 	apkflags="$apkflags --clean-protected"
 fi
-apk add --root $sysroot $apkflags $pkgs >/dev/null
+apk add --root $sysroot $repo_opt $apkflags $pkgs >/dev/null
 eend $?
 
 # copy alpine release info
 cp $ALPINE_MNT/.alpine-release $sysroot/
 ln -sf /.alpine-release $sysroot/etc/alpine-release
-
-# if there is no repositories file, then use the default
-if ! [ -f $sysroot/etc/apk/repositories ]; then
-	cp /etc/apk/repositories $sysroot/etc/apk/repositories
-fi
 
 # setup bootchart for switch_root
 chart_init=""
