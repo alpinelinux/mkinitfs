@@ -1,5 +1,5 @@
 
-VERSION		:= 1.9
+VERSION		:= 2.0_rc1
 
 sysconfdir	?= /etc/mkinitfs
 datarootdir	?= /usr/share
