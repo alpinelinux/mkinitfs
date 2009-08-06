@@ -152,6 +152,7 @@ options:
 	-l  only list files that would have been used
 	-L  list available features
 	-o  set another outfile
+	-q  Quiet mode
 	-t  use tempdir when creating initramfs image
 
 EOF
@@ -161,7 +162,7 @@ EOF
 # main
 
 
-while getopts "b:c:f:F:hi:kLlo:t:" opt; do
+while getopts "b:c:f:F:hi:kLlo:qt:" opt; do
 	case "$opt" in
 		b) basedir="$OPTARG";;
 		c) config="$OPTARG";;
@@ -173,6 +174,7 @@ while getopts "b:c:f:F:hi:kLlo:t:" opt; do
 		L) list_features=1;;
 		l) list_sources=1;;
 		o) outfile="$OPTARG";;
+		q) quiet=1;;
 		t) tmpdir="$OPTARG";;
 		*) usage;;
 	esac
@@ -218,8 +220,8 @@ if [ -z "$keeptmp" ]; then
 	[ -d "$tmpdir" ] && rm -rf "$tmpdir"/*
 fi
 
-if [ -z "$list_sources" ]; then
-	echo "==> initramfs: creating $outfile" >&2
+if [ -z "$list_sources" ] && [ -z "$quiet" ]; then
+	echo "==> initramfs: creating $outfile"
 fi
 initfs_base || exit 1
 initfs_kmods || exit 1
