@@ -342,7 +342,7 @@ fi
 mkdir -p $sysroot/etc/apk/keys/
 cp -a /etc/apk/keys $sysroot/etc/apk
 
-# generate apk repositories file and --repo opt 
+# generate apk repositories file and --repository opt 
 echo "$(find $ALPINE_MNT -name .boot_repository -type f -maxdepth 3 \
 	| sed 's:/.boot_repository$::')" > /tmp/repositories
 
@@ -350,7 +350,7 @@ if [ ! -f $sysroot/etc/apk/repositories ]; then
 	mv /tmp/repositories $sysroot/etc/apk/
 else
 	for i in $(cat /tmp/repositories); do
-		repo_opt="$repo_opt --repo $i"
+		repo_opt="$repo_opt --repository $i"
 	done
 fi
 
@@ -359,7 +359,7 @@ ebegin "Installing packages to root filesystem"
 if [ -n "$KOPT_chart" ]; then
 	pkgs="$pkgs acct"
 fi
-apkflags="--initdb --quiet --progress --force"
+apkflags="--initdb --quiet --progress --force --no-network"
 if [ -z "$KOPT_keep_apk_new" ]; then
 	apkflags="$apkflags --clean-protected"
 fi
