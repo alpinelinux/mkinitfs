@@ -196,8 +196,12 @@ fi
 [ -n "$1" ] && kernel="$1"
 [ -z "$kernel" ] && kernel=$(uname -r)
 kerneldir="$basedir/lib/modules/$kernel"
+
+imagename=${kernel##*-}
+[ "$imagename" = "$kernel" ] && imagename=initrd
+
 if [ -z "$outfile" ]; then
-	outfile="$basedir"/boot/${kernel##*-}.gz
+	outfile="$basedir"/boot/${imagename}.gz
 fi
 
 if [ ! -d "$kerneldir" ]; then
