@@ -308,7 +308,7 @@ if [ -f "$ovl" ]; then
 	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world 2>/dev/null)"
 else
 	# add some boot services by default
-	rc_add defvs sysinit
+	rc_add devfs sysinit
 	rc_add dmesg sysinit
 	rc_add mdev sysinit
 
