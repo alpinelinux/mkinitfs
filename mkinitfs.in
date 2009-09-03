@@ -24,7 +24,7 @@ _cp() {
 	for i in "$@"; do
 		local dest="$tmpdir"/${i%/*}
 		mkdir -p "$dest"
-		cp -flLpR "$basedir"/"$i" "$dest" 2>/dev/null || cp -pR "$i" "$dest"
+		cp -flLpR "$basedir"/"$i" "$dest" 2>/dev/null || cp -pR "$basedir"/"$i" "$dest"
 	done
 }
 
@@ -35,7 +35,7 @@ feature_files() {
 		if [ ! -f "$dir/$f" ]; then
 			continue
 		fi
-		for glob in $(cat "$dir/$f"); do
+		for glob in $(sed 's:^/\+::' "$dir/$f"); do
 			for file in $glob; do
 				if [ -d $file ]; then
 					find $file -type f
@@ -55,6 +55,7 @@ initfs_base() {
 	done
 	[ -z "$list_sources" ] && mkdir -p $dirs
 
+	cd "$basedir"
 	for file in $(feature_files "$filelists_dir"); do
 		_cp $file
 	done
@@ -75,7 +76,7 @@ initfs_base() {
 }
 
 find_kmod_deps() {
-	awk '
+	awk -v modulesdep="$basedir/lib/modules/$kernel/modules.dep" '
 function recursedeps(k,		j, dep) {
 	if (k in visited)
 		return;
@@ -102,7 +103,7 @@ BEGIN {
 END {
 	for (i in mod)
 		recursedeps(i);
-}' -v modulesdep="$basedir/lib/modules/$kernel/modules.dep"
+}' 
 }
 
 find_kmods() {
