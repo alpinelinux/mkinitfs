@@ -16,7 +16,7 @@ _cp() {
 	local i
 	if [ -n "$list_sources" ]; then
 		for i in "$@"; do
-			echo $i
+			echo "$basedir"/$i
 		done
 		return
 	fi
@@ -24,7 +24,7 @@ _cp() {
 	for i in "$@"; do
 		local dest="$tmpdir"/${i%/*}
 		mkdir -p "$dest"
-		cp -flLpR "$i" "$dest" 2>/dev/null || cp -pR "$i" "$dest"
+		cp -flLpR "$basedir"/"$i" "$dest" 2>/dev/null || cp -pR "$i" "$dest"
 	done
 }
 
@@ -121,7 +121,7 @@ initfs_kmods() {
 	[ -z "$list_sources" ] && rm -rf "$tmpdir"/lib/modules
 	files=$(find_kmods)
 	for file in $files; do
-		_cp "$basedir"/$file
+		_cp $file
 	done
 	[ -z "$list_sources" ] && depmod $kernel -b "$tmpdir"
 }
