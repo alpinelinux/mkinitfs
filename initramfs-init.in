@@ -238,6 +238,7 @@ if [ -n "$KOPT_root" ]; then
 		sh
 	fi
 	# let usb settle in case we boot from usb disks
+	[ -n "$KOPT_usbdelay" ] && sleep "$KOPT_usbdelay"
 	wait_usb
 	case "$KOPT_root" in
 		/dev/md*) 
