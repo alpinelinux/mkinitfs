@@ -207,7 +207,6 @@ dmesg -n 1
 # setup /dev
 ebegin "Starting mdev"
 mount -t tmpfs -o exec,nosuid,mode=0755,size=1M mdev /dev
-ln -s sr0 /dev/cdrom
 echo "/sbin/mdev" > /proc/sys/kernel/hotplug
 mdev -s
 RC=$?
