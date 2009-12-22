@@ -79,8 +79,9 @@ unpack_apkovl() {
 	local dest="$2"
 	local suffix=${ovl##*.}
 	local i
+	ovlfiles=/tmp/ovlfiles
 	if [ "$suffix" = "gz" ]; then
-		tar -C "$dest" -zxf "$ovl"
+		tar -C "$dest" -zxvf "$ovl" > $ovlfiles
 		return $?
 	fi
 
@@ -97,9 +98,10 @@ unpack_apkovl() {
 	echo -e "\007"
 	while [ $count -lt 3 ]; do
 		openssl enc -d -$suffix -in "$ovl" | tar --numeric-owner \
-			-C "$dest" -zx 2>/dev/null && return 0
+			-C "$dest" -zxv >$ovlfiles 2>/dev/null && return 0
 		count=$(( $count + 1 ))
 	done
+	ovlfiles=
 	return 1
 }
 
@@ -299,7 +301,7 @@ if [ -f "$ovl" ]; then
 	apk add --root $sysroot --initdb --quiet
 
 	unpack_apkovl "$ovl" $sysroot
-	eend $? $errstr
+	eend $? $errstr || ovlfiles=
 	# hack, incase /root/.ssh was included in apkovl
 	[ -d "$sysroot/root" ] && chmod 700 "$sysroot/root"
 	umount /media/$i 2>/dev/null &
@@ -372,9 +374,15 @@ if [ -n "$KOPT_chart" ]; then
 fi
 apkflags="--initdb --quiet --progress --force --no-network"
 if [ -z "$KOPT_keep_apk_new" ]; then
-	apkflags="$apkflags --clean-protected --never-overwrite"
+	apkflags="$apkflags --clean-protected"
+	[ -n "$ovlfiles" ] && apkflags="$apkflags --overlay-from-stdin"
 fi
-apk add --root $sysroot $repo_opt $apkflags $pkgs >/dev/null
+
+if [ -n "$ovlfiles" ]; then
+	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles>/dev/null 
+else
+	apk add --root $sysroot $repo_opt $apkflags $pkgs >/dev/null
+fi
 eend $?
 
 # fix inittab if serial console
