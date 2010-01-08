@@ -109,7 +109,7 @@ unpack_apkovl() {
 find_mnt() {
 	local dev="$1"
 	local fsfile="$2"
-	awk "\$ == \"$dev\" {print \$2}\"" "$fsfile" 2>/dev/null
+	awk "\$1 == \"$dev\" {print \$2}\"" "$fsfile" 2>/dev/null
 }
 
 # Wait for usb to settle
