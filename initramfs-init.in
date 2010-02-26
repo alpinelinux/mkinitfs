@@ -204,7 +204,7 @@ ALPINE_MNT=$(find_mnt /dev/$ALPINE_DEV /etc/fstab)
 [ -z "$ALPINE_MNT" ] && ALPINE_MNT=/media/$ALPINE_DEV
 
 # hide kernel messages
-dmesg -n 1
+[ -n "$KOPT_quiet" ] && dmesg -n 1
 
 # setup /dev
 ebegin "Starting mdev"
