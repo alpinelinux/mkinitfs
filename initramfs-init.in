@@ -36,7 +36,7 @@ eend() {
 }
 
 scan_drivers() {
-	if [ "$AUTODETECT" != no ] ; then
+	if [ "$KOPT_autodetect" != no ] ; then
 		find /sys -name modalias | xargs sort -u | xargs modprobe -a 2> /dev/null
 	fi
 }
@@ -150,14 +150,20 @@ find_ovl_dev() {
 }
 
 setup_inittab_serial(){
-	local tty=$1
-	local speed=$2
+	while [ $# -gt 0 ]; do
+		local tty=${1%,*}
+		local speed=${1#*,}
+		if [ "$speed" = "$1" ]; then
+			speed=
+		fi
+		shift
 
-	# do nothing if inittab already have the tty set up
-	grep -q "^$tty:" $sysroot/etc/inittab && return 0
-	echo "# enable login on serial console" >> $sysroot/etc/inittab
-	echo "$tty::respawn:/sbin/getty -L $tty $speed vt100" \
-		>> $sysroot/etc/inittab
+		# do nothing if inittab already have the tty set up
+		grep -q "^$tty:" $sysroot/etc/inittab && continue
+		echo "# enable login on serial console" >> $sysroot/etc/inittab
+		echo "$tty::respawn:/sbin/getty -L $tty $speed vt100" \
+			>> $sysroot/etc/inittab
+	done
 }
 
 # gotta start from somewhere :)
@@ -171,25 +177,24 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		s|single|1)
 			SINGLEMODE=yes ;;
-		modules=*)
-			MODULES="`echo ${1#modules=} | tr ',' ' '`";;
-		noautodetect)
-			AUTODETECT=no;;
+		console=ttyS*)
+			SERIAL="$SERIAL ${1#console=}";;
 		*=*)    eval "KOPT_${1%%=*}='${1#*=}'" ;;
+		no*)    eval "KOPT_$(echo ${1#no} | sed 's: :_:g')=no" ;;
 		*)      eval "KOPT_$(echo $1 | sed 's: :_:g')=yes" ;;
 	esac
 	shift
 done
 
 # start bootcharting if wanted
-if [ -n "$KOPT_chart" ]; then
+if [ "$KOPT_chart" = yes ]; then
 	ebegin "Starting bootchart logging"
 	/sbin/bootchartd start-initfs "$sysroot"
 	eend 0
 fi
 
 # dma can be problematic
-if [ -n "$KOPT_nodma" ]; then
+if [ "$KOPT_dma" = no ]; then
 	modprobe libata dma=0
 fi
 
@@ -204,7 +209,7 @@ ALPINE_MNT=$(find_mnt /dev/$ALPINE_DEV /etc/fstab)
 [ -z "$ALPINE_MNT" ] && ALPINE_MNT=/media/$ALPINE_DEV
 
 # hide kernel messages
-[ -n "$KOPT_quiet" ] && dmesg -n 1
+[ "$KOPT_quiet" = yes ] && dmesg -n 1
 
 # setup /dev
 ebegin "Starting mdev"
@@ -221,7 +226,8 @@ eend $RC
 
 # load available drivers to get access to modloop media
 ebegin "Loading boot drivers"
-[ "$MODULES" ] && modprobe -a $MODULES loop cramfs 2> /dev/null
+
+modprobe -a $(echo "$KOPT_modules" | tr ',' ' ' ) loop cramfs 2> /dev/null
 if [ -f /etc/modules ] ; then
 	sed 's/\#.*//g' < /etc/modules |
 	while read module args; do
@@ -369,11 +375,11 @@ fi
 
 # install new root
 ebegin "Installing packages to root filesystem"
-if [ -n "$KOPT_chart" ]; then
+if [ "$KOPT_chart" = yes ]; then
 	pkgs="$pkgs acct"
 fi
 apkflags="--initdb --quiet --progress --force --no-network"
-if [ -z "$KOPT_keep_apk_new" ]; then
+if [ "$KOPT_keep_apk_new" != yes ]; then
 	apkflags="$apkflags --clean-protected"
 	[ -n "$ovlfiles" ] && apkflags="$apkflags --overlay-from-stdin"
 fi
@@ -386,9 +392,7 @@ fi
 eend $?
 
 # fix inittab if serial console
-case  "$KOPT_console" in
-	ttyS*) setup_inittab_serial $(echo "$KOPT_console" | tr ',' ' ')
-esac
+setup_inittab_serial $SERIAL
 
 # copy alpine release info
 cp $ALPINE_MNT/.alpine-release $sysroot/
@@ -396,7 +400,7 @@ ln -sf /.alpine-release $sysroot/etc/alpine-release
 
 # setup bootchart for switch_root
 chart_init=""
-if [ -n "$KOPT_chart" ]; then
+if [ "$KOPT_chart" = yes ]; then
 	/sbin/bootchartd stop-initfs "$sysroot"
 	chart_init="/sbin/bootchartd start-rootfs"
 fi
