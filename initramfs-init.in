@@ -378,6 +378,10 @@ ebegin "Installing packages to root filesystem"
 if [ "$KOPT_chart" = yes ]; then
 	pkgs="$pkgs acct"
 fi
+if [ "$KOPT_xen" = yes ] && [ -d /proc/xen ]; then
+	pkgs="$pkgs xe-guest-utilities"
+	rc_add xe-guest-utilities boot
+fi
 apkflags="--initdb --quiet --progress --force --no-network"
 if [ "$KOPT_keep_apk_new" != yes ]; then
 	apkflags="$apkflags --clean-protected"
