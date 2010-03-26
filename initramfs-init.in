@@ -212,6 +212,13 @@ ALPINE_DEV_FS=${KOPT_alpine_dev##*:}
 if [ "$ALPINE_DEV_FS" = "$ALPINE_DEV" ]; then
 	unset ALPINE_DEV_FS
 fi
+if [ -n "$KOPT_ovl_dev" ] ; then
+	OVL_DEV=${KOPT_ovl_dev%%:*}
+	OVL_DEV_FS=${KOPT_ovl_dev##*:}
+	if [ "$OVL_DEV_FS" = "$OVL_DEV" ]; then
+		unset OVL_DEV_FS
+	fi
+fi
 
 # look for standard mountpoint locations
 ALPINE_MNT=$(find_mnt /dev/$ALPINE_DEV /etc/fstab)
@@ -305,7 +312,18 @@ if [ -n "$KOPT_root_size" ]; then
 fi
 mount -t tmpfs $root_opts tmpfs $sysroot
 
-find_ovl_dev
+if [ -n "$OVL_DEV" ]; then
+	mkdir -p /media/$OVL_DEV
+	unset mount_opts
+	if [ -n "$OVL_DEV_FS" ]; then
+		mount_opts="-t $OVL_DEV_FS"
+	fi
+	
+	retry_mount $mount_opts /dev/$OVL_DEV /media/$OVL_DEV >/dev/null 2>&1
+	ovl=$(find_ovl /media/$OVL_DEV)
+else
+	find_ovl_dev
+fi
 if ! [ -f "$ovl" ]; then
 	ovl=$(find_ovl $ALPINE_MNT)
 fi
