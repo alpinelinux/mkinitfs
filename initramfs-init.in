@@ -152,19 +152,28 @@ find_ovl_dev() {
 	done
 }
 
-setup_inittab_serial(){
+setup_inittab_console(){
 	while [ $# -gt 0 ]; do
 		local tty=${1%,*}
 		local speed=${1#*,}
-		if [ "$speed" = "$1" ]; then
-			speed=
-		fi
+		local line=
+		local term=
+		case "$tty" in
+			ttyS*)
+				[ "$speed" = "$1" ] && speed=9600
+				term=vt100
+				line=-L
+				;;
+			*)
+				[ "$speed" = "$1" ] && speed=38400
+				;;
+		esac
 		shift
 
 		# do nothing if inittab already have the tty set up
 		grep -q "^$tty:" $sysroot/etc/inittab && continue
-		echo "# enable login on serial console" >> $sysroot/etc/inittab
-		echo "$tty::respawn:/sbin/getty -L $tty $speed vt100" \
+		echo "# enable login on alternative console" >> $sysroot/etc/inittab
+		echo "$tty::respawn:/sbin/getty $line $speed $tty $term" \
 			>> $sysroot/etc/inittab
 	done
 }
@@ -180,8 +189,8 @@ while [ $# -gt 0 ]; do
 	case "$1" in
 		s|single|1)
 			SINGLEMODE=yes ;;
-		console=ttyS*)
-			SERIAL="$SERIAL ${1#console=}";;
+		console=*)
+			CONSOLE="$CONSOLE ${1#console=}";;
 		*=*)    eval "KOPT_${1%%=*}='${1#*=}'" ;;
 		no*)    eval "KOPT_$(echo ${1#no} | sed 's: :_:g')=no" ;;
 		*)      eval "KOPT_$(echo $1 | sed 's: :_:g')=yes" ;;
@@ -205,6 +214,13 @@ ALPINE_DEV=${KOPT_alpine_dev%%:*}
 ALPINE_DEV_FS=${KOPT_alpine_dev##*:}
 if [ "$ALPINE_DEV_FS" = "$ALPINE_DEV" ]; then
 	unset ALPINE_DEV_FS
+fi
+if [ -n "$KOPT_ovl_dev" ] ; then
+	OVL_DEV=${KOPT_ovl_dev%%:*}
+	OVL_DEV_FS=${KOPT_ovl_dev##*:}
+	if [ "$OVL_DEV_FS" = "$OVL_DEV" ]; then
+		unset OVL_DEV_FS
+	fi
 fi
 
 # look for standard mountpoint locations
@@ -299,7 +315,18 @@ if [ -n "$KOPT_root_size" ]; then
 fi
 mount -t tmpfs $root_opts tmpfs $sysroot
 
-find_ovl_dev
+if [ -n "$OVL_DEV" ]; then
+	mkdir -p /media/$OVL_DEV
+	unset mount_opts
+	if [ -n "$OVL_DEV_FS" ]; then
+		mount_opts="-t $OVL_DEV_FS"
+	fi
+	
+	retry_mount $mount_opts /dev/$OVL_DEV /media/$OVL_DEV >/dev/null 2>&1
+	ovl=$(find_ovl /media/$OVL_DEV)
+else
+	find_ovl_dev
+fi
 if ! [ -f "$ovl" ]; then
 	ovl=$(find_ovl $ALPINE_MNT)
 fi
@@ -394,8 +421,8 @@ else
 fi
 eend $?
 
-# fix inittab if serial console
-setup_inittab_serial $SERIAL
+# fix inittab if alternative console
+setup_inittab_console $CONSOLE
 
 # copy alpine release info
 cp $ALPINE_MNT/.alpine-release $sysroot/
