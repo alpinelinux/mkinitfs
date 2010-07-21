@@ -1,0 +1,2 @@
+kernel/drivers/block/virtio*
+kernel/drivers/virtio
