@@ -60,7 +60,7 @@ find_ovl() {
 retry_mount() {
 	# usb might need some time to settle so we retry a few times
 	for i in $(seq 0 9); do
-		mount $@ 2>&1 && return 0
+		mount $@ 2>/tmp/mount-error && return 0
 		sleep 1
 	done
 	return 1
