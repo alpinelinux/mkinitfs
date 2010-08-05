@@ -76,7 +76,7 @@ initfs_base() {
 }
 
 find_kmod_deps() {
-	awk -v modulesdep="$basedir/lib/modules/$kernel/modules.dep" '
+	awk -v prepend="$basedir/lib/modules/$kernel/" -v modulesdep="$basedir/lib/modules/$kernel/modules.dep" '
 function recursedeps(k,		j, dep) {
 	if (k in visited)
 		return;
@@ -84,7 +84,7 @@ function recursedeps(k,		j, dep) {
 	split(deps[k], dep, " ");
 	for (j in dep)
 		recursedeps(dep[j]);
-	print(k);
+	print(prepend k);
 }
 
 BEGIN {
@@ -113,7 +113,7 @@ find_kmods() {
 			echo "$file: No such file or directory" >&2
 			continue
 		fi
-		echo /lib/modules/$kernel/$file
+		echo $file
 	done | find_kmod_deps
 }
 
