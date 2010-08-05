@@ -76,7 +76,7 @@ initfs_base() {
 }
 
 find_kmod_deps() {
-	awk -v prepend="$basedir/lib/modules/$kernel/" -v modulesdep="$basedir/lib/modules/$kernel/modules.dep" '
+	awk -v prepend="/lib/modules/$kernel/" -v modulesdep="$basedir/lib/modules/$kernel/modules.dep" '
 function recursedeps(k,		j, dep) {
 	if (k in visited)
 		return;
