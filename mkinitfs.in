@@ -92,6 +92,10 @@ BEGIN {
 		modulesdep="modules.dep";
 	FS = ": ";
 	while ( (getline < modulesdep) > 0) {
+		if (substr($0,1,1) == "/") {
+			gsub(prepend, "", $1);
+			gsub(prepend, "", $2);
+		}
 		deps[$1] = $2;
 	}
 }
