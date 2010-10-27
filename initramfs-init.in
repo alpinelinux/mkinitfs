@@ -432,8 +432,10 @@ eend $?
 setup_inittab_console $CONSOLE
 
 # copy alpine release info
-cp $ALPINE_MNT/.alpine-release $sysroot/
-ln -sf /.alpine-release $sysroot/etc/alpine-release
+if ! [ -f "$sysroot"/etc/alpine-release ]; then
+	cp $ALPINE_MNT/.alpine-release $sysroot/
+	ln -sf /.alpine-release $sysroot/etc/alpine-release
+fi
 
 # setup bootchart for switch_root
 chart_init=""
