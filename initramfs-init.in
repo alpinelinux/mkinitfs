@@ -21,14 +21,20 @@ mount -t sysfs -o noexec,nosuid,nodev sysfs /sys
 
 # some helpers
 ebegin() {
-	echo -n " * $*: "
+	last_emsg="$*"
+	[ -n "$KOPT_quiet" ] && return 0
+	echo -n " * $last_emsg: "
 }
 eend() {
 	local msg
 	if [ "$1" = 0 ] || [ $# -lt 1 ] ; then
+		[ -n "$KOPT_quiet" ] && return 0
 		echo "ok."
 	else
 		shift
+		if [ "$KOPT_quiet" = "yes" ]; then
+			echo -n "$last_emsg "
+		fi
 		echo "failed. $*"
 		echo "initramfs emergency recovery shell launched. Type 'exit' to continue boot"
 		/bin/busybox sh
@@ -66,14 +72,6 @@ retry_mount() {
 	return 1
 }
 
-unpack_apk() {
-	local i
-	for i in $ALPINE_MNT/*/*/$1-[0-9]*.apk $ALPINE_MNT/*/$1-[0-9]*.apk; do
-		[ -f "$i" ] && tar --numeric-owner -C / -zxf $i && return 0
-	done
-	return 1
-}
-
 unpack_apkovl() {
 	local ovl="$1"
 	local dest="$2"
@@ -85,9 +83,9 @@ unpack_apkovl() {
 		return $?
 	fi
 
-	unpack_apk uclibc
-	unpack_apk libcrypto
-	unpack_apk openssl
+	# we need openssl. let apk handle deps
+	apk add --quiet --initdb --repositories-file /tmp/repositories openssl\
+		|| return 1
 
 	if ! openssl list-cipher-commands | grep "^$suffix$" > /dev/null; then
 		errstr="Cipher $suffix is not supported"
@@ -307,6 +305,10 @@ fi
 retry_mount $mount_opts $ALPINE_DEV $ALPINE_MNT >/dev/null 2>&1
 eend $?
 
+# generate apk repositories file 
+echo "$(find $ALPINE_MNT -name .boot_repository -type f -maxdepth 3 \
+	| sed 's:/.boot_repository$::')" > /tmp/repositories
+
 # early console?
 if [ "$SINGLEMODE" = "yes" ]; then
 	echo "Entering single mode. Type 'exit' to continue booting."
@@ -341,6 +343,7 @@ if [ -n "$KOPT_pkgs" ]; then
 	pkgs=$(echo "$KOPT_pkgs" | tr ',' ' ' )
 fi
 
+# load apkovl or set up a minimal system
 if [ -f "$ovl" ]; then
 	ebegin "Loading user settings from $ovl"
 	# create apk db and needed /dev/null and /tmp first
@@ -401,10 +404,7 @@ fi
 mkdir -p $sysroot/etc/apk/keys/
 cp -a /etc/apk/keys $sysroot/etc/apk
 
-# generate apk repositories file and --repository opt 
-echo "$(find $ALPINE_MNT -name .boot_repository -type f -maxdepth 3 \
-	| sed 's:/.boot_repository$::')" > /tmp/repositories
-
+# generate repo opts for apk
 if [ ! -f $sysroot/etc/apk/repositories ]; then
 	mv /tmp/repositories $sysroot/etc/apk/
 else
