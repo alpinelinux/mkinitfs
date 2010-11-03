@@ -16,7 +16,7 @@ _cp() {
 	local i
 	if [ -n "$list_sources" ]; then
 		for i in "$@"; do
-			echo "$basedir"/$i
+			echo "$basedir"/"$i"
 		done
 		return
 	fi
@@ -55,7 +55,7 @@ initfs_base() {
 	done
 	[ -z "$list_sources" ] && mkdir -p $dirs
 
-	cd "$basedir"
+	cd "${basedir:-/}"
 	for file in $(feature_files "$filelists_dir"); do
 		_cp $file
 	done
