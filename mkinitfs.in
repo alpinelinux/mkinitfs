@@ -124,6 +124,10 @@ find_kmods() {
 initfs_kmods() {
 	local glob= file= files= dirs=
 	[ -z "$list_sources" ] && rm -rf "$tmpdir"/lib/modules
+	# make sure we have modules.dep
+	if ! [ -f "$kerneldir"/modules.dep ]; then
+		depmod -b "${basedir:-/}" $kernel
+	fi
 	files=$(find_kmods)
 	for file in $files; do
 		_cp $file
