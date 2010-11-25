@@ -10,8 +10,8 @@
 /lib/libuClibc-[0-9]*
 /lib/libc.so.*
 /lib/libz.*
-/lib/ld-uClibc-[0-9]*
-/lib/ld-uClibc.so*
+/lib/ld*-uClibc-[0-9]*
+/lib/ld*-uClibc.so*
 /lib/mdev
 /sbin/apk
 /etc/modprobe.d/blacklist
