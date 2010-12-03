@@ -400,6 +400,15 @@ if [ -n "$new_mnt" ] && [ "$new_mnt" != "$ALPINE_MNT" ]; then
 	ALPINE_MNT="$new_mnt"
 fi
 
+# let user set ALPINE_MNT as readonly in fstab
+if [ -f $sysroot/etc/fstab ]; then
+	mountopts=$(awk "\$2 == \"$ALPINE_MNT\" { print \$4 }" \
+		$sysroot/etc/fstab)
+	if [ -n "$mountopts" ]; then
+		mount -o remount,$mountopts $ALPINE_MNT
+	fi
+fi
+
 # copy keys so apk finds them. apk looks for stuff relative --root
 mkdir -p $sysroot/etc/apk/keys/
 cp -a /etc/apk/keys $sysroot/etc/apk
