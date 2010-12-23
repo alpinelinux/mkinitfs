@@ -1,3 +1,2 @@
 /lib/libdevmapper.so.*
-/sbin/vgchange
-/sbin/vgscan
+/sbin/lvm

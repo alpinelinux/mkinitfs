@@ -261,9 +261,10 @@ scan_drivers
 eend 0
 
 # start lvm if exists
-if [ -x /sbin/vgscan ] && [ -x /sbin/vgchange ]; then
-	vgscan --mknodes --ignorelockingfailure >/dev/null 2>&1 &&\
-		vgchange --ignorelockingfailure -a y >/dev/null 2>&1
+if [ -x /sbin/lvm ]; then
+	modprobe dm-mod
+	lvm vgscan --mknodes --ignorelockingfailure >/dev/null 2>&1 &&\
+		lvm vgchange --ignorelockingfailure -a y >/dev/null 2>&1
 fi
 
 # check if root=... was set
