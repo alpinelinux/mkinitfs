@@ -260,6 +260,12 @@ scan_drivers
 scan_drivers
 eend 0
 
+# start lvm if exists
+if [ -x /sbin/vgscan ] && [ -x /sbin/vgchange ]; then
+	vgscan --mknodes --ignorelockingfailure >/dev/null 2>&1 &&\
+		vgchange --ignorelockingfailure -a y >/dev/null 2>&1
+fi
+
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
 	if [ "$SINGLEMODE" = "yes" ]; then

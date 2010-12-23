@@ -16,6 +16,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/ext3 \
 		modules.d/ext4 \
 		modules.d/floppy \
+		modules.d/lvm \
 		modules.d/raid \
 		modules.d/reiserfs \
 		modules.d/scsi \
@@ -23,7 +24,8 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/usb \
 		modules.d/xfs \
 		files.d/bootchart \
-		files.d/base
+		files.d/base \
+		files.d/lvm
 
 SCRIPTS		:= $(SBIN_FILES) initramfs-init 
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
