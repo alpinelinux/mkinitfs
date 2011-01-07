@@ -328,9 +328,9 @@ if [ "$SINGLEMODE" = "yes" ]; then
 fi
 
 # mount tmpfs sysroot
-root_opts=
+root_opts="-o mode=0755"
 if [ -n "$KOPT_root_size" ]; then
-	root_opts="-o size=$KOPT_root_size"
+	root_opts="$root_opts,size=$KOPT_root_size"
 fi
 mount -t tmpfs $root_opts tmpfs $sysroot
 
