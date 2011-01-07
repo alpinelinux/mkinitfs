@@ -173,6 +173,26 @@ setup_inittab_console(){
 	done
 }
 
+start_raid() {
+	local n= i=
+	case "$KOPT_root" in
+		/dev/md*) n=${KOPT_root#/dev/md} ;;
+	esac
+	case "$KOPT_autoraid" in
+		[0-9]*) n="$n $(echo $KOPT_autoraid | tr ',' ' ')" ;;
+	esac
+	# if kernel can autostart the raid he will
+	for i in $n; do
+		mknod /dev/md$i b 9 $i
+		raidautorun /dev/md$i
+	done
+	# kernel cannot autostart newer versions of mdadm metadata
+	# so we also check if mdadm binary is there
+	if [ -x /sbin/mdadm ]; then
+		mdadm --assemble --scan
+	fi
+}
+
 # start lvm if exists
 start_lvm() {
 	[ -x /sbin/lvm ] || return
@@ -277,12 +297,7 @@ if [ -n "$KOPT_root" ]; then
 	# let usb settle in case we boot from usb disks
 	[ -n "$KOPT_usbdelay" ] && sleep "$KOPT_usbdelay"
 	wait_usb
-	case "$KOPT_root" in
-		/dev/md*) 
-			mknod $KOPT_root b 9 ${KOPT_root#/dev/md}
-			raidautorun "$KOPT_root"
-			;;
-	esac
+	start_raid
 	start_lvm
 	ebegin "Mounting root"
 	retry_mount -o ro $KOPT_root $sysroot 2>/dev/null
@@ -299,13 +314,14 @@ if [ -n "$KOPT_root" ]; then
 	exec /bin/busybox sh
 fi
 
-# incase we have alpine_dev on raid device...
-start_lvm
-
 # we only want to wait for usb if really needed at this point
 if [ -z "${ALPINE_DEV##*usb*}" ]; then
 	wait_usb
 fi
+
+# incase we have alpine_dev on raid device...
+start_raid
+start_lvm
 
 # locate boot media and mount it
 ebegin "Mounting boot media"
