@@ -17,7 +17,10 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/ext3 \
 		modules.d/ext4 \
 		modules.d/floppy \
+		modules.d/gfs2 \
+		modules.d/jfs \
 		modules.d/lvm \
+		modules.d/ocfs2 \
 		modules.d/raid \
 		modules.d/reiserfs \
 		modules.d/scsi \
