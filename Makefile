@@ -10,6 +10,7 @@ SHARE_FILES	:= initramfs-init fstab passwd group
 CONF_FILES	:= mkinitfs.conf \
 		modules.d/ata \
 		modules.d/base \
+		modules.d/btrfs \
 		modules.d/cdrom \
 		modules.d/cramfs \
 		modules.d/ext2 \
