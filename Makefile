@@ -26,6 +26,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/scsi \
 		modules.d/ubifs \
 		modules.d/usb \
+		modules.d/virtio \
 		modules.d/xfs \
 		files.d/bootchart \
 		files.d/base \
