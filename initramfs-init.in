@@ -291,7 +291,7 @@ eend 0
 ebegin "Setting up KMS framebuffer"
 if [ -d /lib/modules/`uname -r`/kernel/drivers/gpu ]; then
 	modprobe -q radeon modeset=1 &>/dev/null
-	modprobe -q i915 modeset=1 &>/dev/nll
+	modprobe -q i915 modeset=1 &>/dev/null
 	modprobe -q fbcon &>/dev/null
 fi
 eend 0
