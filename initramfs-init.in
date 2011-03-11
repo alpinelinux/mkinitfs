@@ -288,6 +288,14 @@ scan_drivers
 scan_drivers
 eend 0
 
+ebegin "Setting up KMS framebuffer"
+if [ -d /lib/modules/`uname -r`/kernel/drivers/gpu ]; then
+	modprobe -q radeon modeset=1 &>/dev/null
+	modprobe -q i915 modeset=1 &>/dev/nll
+	modprobe -q fbcon &>/dev/null
+fi
+eend 0
+
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
 	if [ "$SINGLEMODE" = "yes" ]; then

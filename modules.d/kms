@@ -1,0 +1,5 @@
+kernel/drivers/char/agp
+kernel/drivers/gpu
+kernel/drivers/i2c
+kernel/drivers/video
+kernel/arch/x86/video/fbdev.ko

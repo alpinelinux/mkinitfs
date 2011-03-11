@@ -19,6 +19,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/floppy \
 		modules.d/gfs2 \
 		modules.d/jfs \
+		modules.d/kms \
 		modules.d/lvm \
 		modules.d/ocfs2 \
 		modules.d/raid \
@@ -30,6 +31,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/xfs \
 		files.d/bootchart \
 		files.d/base \
+		files.d/kms \
 		files.d/lvm
 
 SCRIPTS		:= $(SBIN_FILES) initramfs-init 
