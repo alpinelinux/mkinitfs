@@ -288,10 +288,8 @@ scan_drivers
 scan_drivers
 eend 0
 
-ebegin "Setting up KMS framebuffer"
+ebegin "Setting up framebuffer console"
 if [ -d /lib/modules/`uname -r`/kernel/drivers/gpu ]; then
-	modprobe -q radeon modeset=1 &>/dev/null
-	modprobe -q i915 modeset=1 &>/dev/null
 	modprobe -q fbcon &>/dev/null
 fi
 eend 0
