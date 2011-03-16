@@ -14,5 +14,5 @@
 /lib/ld*-uClibc.so*
 /lib/mdev
 /sbin/apk
-/etc/modprobe.d/blacklist
+/etc/modprobe.d/*.conf
 /etc/mdev.conf
