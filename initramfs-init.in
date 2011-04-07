@@ -391,7 +391,7 @@ if [ -f "$ovl" ]; then
 	umount /media/$i 2>/dev/null &
 	pkgs="$pkgs $(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)"
 	rm -f "$sysroot"/etc/lbu/packages.list
-	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world 2>/dev/null)"
+	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world $sysroot/etc/apk/world 2>/dev/null)"
 else
 	# add some boot services by default
 	rc_add devfs sysinit
