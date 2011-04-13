@@ -140,7 +140,10 @@ find_ovl_dev() {
 		for i in usb floppy cdrom; do
 			mount -o ro /media/$i 2>/dev/null || continue
 			ovl=$(find_ovl /media/$i)
-			[ -f "$ovl" ] && return
+			if [ -f "$ovl" ]; then
+				ovl_unmount="$ovl_unmount /media/$i"
+				return
+			fi
 			umount /media/$i 2>/dev/null
 		done
 		sleep 1
@@ -388,7 +391,7 @@ if [ -f "$ovl" ]; then
 	eend $? $errstr || ovlfiles=
 	# hack, incase /root/.ssh was included in apkovl
 	[ -d "$sysroot/root" ] && chmod 700 "$sysroot/root"
-	umount /media/$i 2>/dev/null &
+	umount $ovl_unmount 2>/dev/null &
 	pkgs="$pkgs $(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)"
 	rm -f "$sysroot"/etc/lbu/packages.list
 	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world $sysroot/etc/apk/world 2>/dev/null)"
