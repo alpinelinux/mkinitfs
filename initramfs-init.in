@@ -462,6 +462,9 @@ fi
 
 # install new root
 ebegin "Installing packages to root filesystem"
+# insert newline unless quiet to fix progress bar
+[ -n "$KOPT_quiet" ] || echo ""
+
 if [ "$KOPT_chart" = yes ]; then
 	pkgs="$pkgs acct"
 fi
