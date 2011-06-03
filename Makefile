@@ -5,7 +5,7 @@ sysconfdir	?= /etc/mkinitfs
 datarootdir	?= /usr/share
 datadir		?= $(datarootdir)/mkinitfs
 
-SBIN_FILES	:= mkinitfs bootchartd
+SBIN_FILES	:= mkinitfs bootchartd mkinitfs-rundep
 SHARE_FILES	:= initramfs-init fstab passwd group
 CONF_FILES	:= mkinitfs.conf \
 		modules.d/ata \
