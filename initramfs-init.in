@@ -202,7 +202,6 @@ start_cryptsetup() {
 	modprobe dm-crypt
 	if [ -n "$KOPT_cryptroot" ]; then
 		modprobe dm-crypt
-		for map in /etc/keymap/*; do if [ -f "$map" ]; then zcat "$map" | loadkmap && break; fi ; done
 		cryptsetup luksOpen "$KOPT_cryptroot" "$KOPT_cryptdm"
 	fi
 }
