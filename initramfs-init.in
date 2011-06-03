@@ -196,6 +196,17 @@ start_raid() {
 	fi
 }
 
+# start cryptsetup if exists
+start_cryptsetup() {
+	[ -x /sbin/cryptsetup ] || return
+	modprobe dm-crypt
+	if [ -n "$KOPT_cryptroot" ]; then
+		modprobe dm-crypt
+		for map in /etc/keymap/*; do if [ -f "$map" ]; then zcat "$map" | loadkmap && break; fi ; done
+		cryptsetup luksOpen "$KOPT_cryptroot" "$KOPT_cryptdm"
+	fi
+}
+
 # start lvm if exists
 start_lvm() {
 	[ -x /sbin/lvm ] || return
@@ -317,6 +328,7 @@ if [ -n "$KOPT_root" ]; then
 	[ -n "$KOPT_usbdelay" ] && sleep "$KOPT_usbdelay"
 	wait_usb
 	start_raid
+	start_cryptsetup
 	start_lvm
 	ebegin "Mounting root"
 	retry_mount -o ro $KOPT_root $sysroot 2>/dev/null
@@ -340,6 +352,7 @@ fi
 
 # incase we have alpine_dev on raid device...
 start_raid
+start_cryptsetup
 start_lvm
 
 # locate boot media and mount it

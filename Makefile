@@ -13,6 +13,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/btrfs \
 		modules.d/cdrom \
 		modules.d/cramfs \
+		modules.d/cryptsetup \
 		modules.d/ext2 \
 		modules.d/ext3 \
 		modules.d/ext4 \
@@ -31,6 +32,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/xfs \
 		files.d/bootchart \
 		files.d/base \
+		files.d/cryptsetup \
 		files.d/kms \
 		files.d/lvm
 

@@ -1,0 +1,2 @@
+kernel/crypto/*
+kernel/drivers/md/dm-crypt.ko
