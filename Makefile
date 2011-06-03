@@ -33,6 +33,7 @@ CONF_FILES	:= mkinitfs.conf \
 		files.d/bootchart \
 		files.d/base \
 		files.d/cryptsetup \
+		files.d/keymap \
 		files.d/kms \
 		files.d/lvm
 
