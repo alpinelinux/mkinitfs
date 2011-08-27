@@ -26,6 +26,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/raid \
 		modules.d/reiserfs \
 		modules.d/scsi \
+		modules.d/squashfs \
 		modules.d/ubifs \
 		modules.d/usb \
 		modules.d/virtio \
