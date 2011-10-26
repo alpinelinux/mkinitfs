@@ -143,6 +143,8 @@ initfs_apk_keys() {
 
 initfs_cpio() {
 	[ -n "$list_sources" ] && return
+	rm -f $outfile
+	umask 0022
 	(cd "$tmpdir" && find . | cpio -o -H newc | gzip) > $outfile
 }
 
