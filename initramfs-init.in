@@ -289,6 +289,9 @@ while [ $# -gt 0 ]; do
 	shift
 done
 
+# enable debugging if requested
+[ -n "$KOPT_debug_init" ] && set -x
+
 # pick first keymap if found
 for map in /etc/keymap/*; do
 	if [ -f "$map" ]; then
