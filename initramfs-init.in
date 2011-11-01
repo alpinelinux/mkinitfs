@@ -248,7 +248,7 @@ resolve_dev() {
 relocate_alpine_mnt() {
 	local fstab="$1"
 	local mnt=$(find_mnt $ALPINE_DEV $fstab)
-	if [ "$ALPINE_MNT" != "$mnt" ]; then
+	if [ -n "$mnt" ] && [ "$ALPINE_MNT" != "$mnt" ]; then
 		mkdir -p "$mnt"
 		mount -o move $ALPINE_MNT $mnt
 		ALPINE_MNT=$mnt
