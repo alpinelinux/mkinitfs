@@ -269,6 +269,12 @@ find_fs_type() {
 	done
 }
 
+# find the dirs under ALPINE_MNT that are boot repositories
+find_boot_repositories() {
+	find $ALPINE_MNT -name .boot_repository -type f -maxdepth 3 \
+		| sed 's:/.boot_repository$::'
+}
+
 # gotta start from somewhere :)
 echo "Alpine Init $VERSION"
 
@@ -429,8 +435,7 @@ retry_mount -o ro $mount_opts $ALPINE_DEV $ALPINE_MNT >/dev/null 2>&1
 eend $?
 
 # generate apk repositories file 
-echo "$(find $ALPINE_MNT -name .boot_repository -type f -maxdepth 3 \
-	| sed 's:/.boot_repository$::')" > /tmp/repositories
+find_boot_repositories > /tmp/repositories
 
 # early console?
 if [ "$SINGLEMODE" = "yes" ]; then
@@ -526,13 +531,9 @@ mkdir -p $sysroot/etc/apk/keys/
 cp -a /etc/apk/keys $sysroot/etc/apk
 
 # generate repo opts for apk
-if [ ! -f $sysroot/etc/apk/repositories ]; then
-	mv /tmp/repositories $sysroot/etc/apk/
-else
-	for i in $(cat /tmp/repositories); do
-		repo_opt="$repo_opt --repository $i"
-	done
-fi
+for i in $(cat /tmp/repositories); do
+	repo_opt="$repo_opt --repository $i"
+done
 
 # install new root
 ebegin "Installing packages to root filesystem"
@@ -563,6 +564,11 @@ fi
 # remount ALPINE_MNT according default fstab from package
 if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ]; then
 	relocate_alpine_mnt "$sysroot"/etc/fstab
+fi
+
+# generate repositories if none exists. this needs to be done after relocation
+if ! [ -f "$sysroot"/etc/apk/repositories ]; then
+	find_boot_repositories > "$sysroot"/etc/apk/repositories
 fi
 
 # respect mount options in fstab for ALPINE_MNT (e.g if user wants rw)
