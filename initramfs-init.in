@@ -572,11 +572,12 @@ if ! [ -f "$sysroot"/etc/apk/repositories ]; then
 fi
 
 # respect mount options in fstab for ALPINE_MNT (e.g if user wants rw)
-opts=$(awk "\$2 == \"$ALPINE_MNT\" {print \$4}" $sysroot/etc/fstab)
-if [ -n "$opts" ]; then
-	mount -o remount,$opts "$ALPINE_MNT"
+if [ -f "$sysroot"/etc/fstab ]; then
+	opts=$(awk "\$2 == \"$ALPINE_MNT\" {print \$4}" $sysroot/etc/fstab)
+	if [ -n "$opts" ]; then
+		mount -o remount,$opts "$ALPINE_MNT"
+	fi
 fi
-
 
 # fix inittab if alternative console
 setup_inittab_console $CONSOLE
