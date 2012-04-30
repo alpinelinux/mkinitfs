@@ -484,7 +484,12 @@ if [ -f "$ovl" ]; then
 	[ -d "$sysroot/root" ] && chmod 700 "$sysroot/root"
 	pkgs="$pkgs $(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)"
 	rm -f "$sysroot"/etc/lbu/packages.list
-	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world $sysroot/etc/apk/world 2>/dev/null)"
+	for world in etc/apk/world var/lib/apk/world; do
+		if [ -e "$sysroot/$world" ]; then
+			pkgs="$pkgs $(cat $sysroot/$world)"
+			break;
+		fi
+	done
 else
 	# add some boot services by default
 	rc_add devfs sysinit
