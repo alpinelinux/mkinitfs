@@ -543,7 +543,11 @@ ebegin "Installing packages to root filesystem"
 if [ "$KOPT_chart" = yes ]; then
 	pkgs="$pkgs acct"
 fi
-apkflags="--initdb --quiet --progress --force --no-network"
+apkflags="--initdb --progress --force --no-network"
+if [ -n "$KOPT_quiet" ]; then
+	apkflags="$apkflags --quiet"
+fi
+
 if [ "$KOPT_keep_apk_new" != yes ]; then
 	apkflags="$apkflags --clean-protected"
 	[ -n "$ovlfiles" ] && apkflags="$apkflags --overlay-from-stdin"
