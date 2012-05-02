@@ -84,6 +84,7 @@ unpack_apkovl() {
 	fi
 
 	# we need openssl. let apk handle deps
+	find_boot_repositories > /tmp/repositories
 	apk add --quiet --initdb --repositories-file /tmp/repositories openssl\
 		|| return 1
 
@@ -434,9 +435,6 @@ fi
 retry_mount -o ro $mount_opts $ALPINE_DEV $ALPINE_MNT >/dev/null 2>&1
 eend $?
 
-# generate apk repositories file 
-find_boot_repositories > /tmp/repositories
-
 # early console?
 if [ "$SINGLEMODE" = "yes" ]; then
 	echo "Entering single mode. Type 'exit' to continue booting."
@@ -542,6 +540,9 @@ pkgs="$pkgs alpine-base"
 # copy keys so apk finds them. apk looks for stuff relative --root
 mkdir -p $sysroot/etc/apk/keys/
 cp -a /etc/apk/keys $sysroot/etc/apk
+
+# generate apk repositories file. needs to be done after relocation
+find_boot_repositories > /tmp/repositories
 
 # generate repo opts for apk
 for i in $(cat /tmp/repositories); do
