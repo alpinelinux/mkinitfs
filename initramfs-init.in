@@ -490,6 +490,14 @@ if [ -f "$ovl" ]; then
 			break;
 		fi
 	done
+
+	# fix up inittab from pre openrc times (alpine v1.8)
+	if [ -f "$sysroot"/etc/inittab ]; then
+		sed -i -e 's|:/etc/init.d/rcS|:/sbin/rc sysinit|' \
+			-e 's|:/etc/init.d/rcL|:/sbin/rc default|' \
+			-e 's|:/etc/init.d/rcK|:/sbin/rc shutdown|' \
+			"$sysroot"/etc/inittab
+	fi
 else
 	# add some boot services by default
 	rc_add devfs sysinit
