@@ -24,13 +24,19 @@ resolve_links() {
 }
 
 find_deps() {
-	bin=$1
-	resolve_links $(ldd $bin 2>/dev/null | awk -F'=>' '{print $2}' | sed 's/(.*//')
+	local bin=$1
+	resolve_links $(ldd $bin 2>/dev/null | awk -F'=>' '{print $2}' | sed 's/(.*//') | while read f; do
+		case $f in
+		/*) echo $f;;
+		*) find_path $f
+		esac
+	done
 }
 
 while [ $# -gt 0 ]; do
 	find_deps $1 || exit 1
+	which $1
 	shift
-done
+done | sort -u
 
 
