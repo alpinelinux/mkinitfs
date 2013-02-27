@@ -284,17 +284,28 @@ echo "Alpine Init $VERSION"
 # acpi_osi="!Windows 2006"
 eval set -- `cat /proc/cmdline`
 
-while [ $# -gt 0 ]; do
-	case "$1" in
-		s|single|1)
-			SINGLEMODE=yes ;;
-		console=*)
-			CONSOLE="$CONSOLE ${1#console=}";;
-		*=*)    eval "KOPT_${1%%=*}='${1#*=}'" ;;
-		no*)    eval "KOPT_$(echo ${1#no} | sed 's: :_:g')=no" ;;
-		*)      eval "KOPT_$(echo $1 | sed 's: :_:g')=yes" ;;
+myopts="alpine_dev autodetect autoraid chart cryptroot debug_init dma init_args
+	keep_apk_new modules ovl_dev pkgs quiet root_size root usbdelay"
+
+for opt; do
+	case "$opt" in
+	s|single|1)
+		SINGLEMODE=yes
+		continue
+		;;
+	console=*)
+		CONSOLE="$CONSOLE ${opt#console=}"
+		continue
+		;;
 	esac
-	shift
+
+	for i in $myopts; do
+		case "$opt" in
+		$i=*)	eval "KOPT_${i}='${opt#*=}'";;
+		$i)	eval "KOPT_${i}=yes";;
+		no$i)	eval "KOPT_${i}=no";;
+		esac
+	done
 done
 
 # enable debugging if requested
