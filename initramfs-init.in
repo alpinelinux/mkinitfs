@@ -180,7 +180,6 @@ setup_inittab_console(){
 		local line=
 		local term=
 		case "$tty" in
-			tty0)	continue;;
 			ttyS*)
 				[ "$speed" = "$1" ] && speed=9600
 				term=vt100
