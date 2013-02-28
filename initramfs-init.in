@@ -191,6 +191,9 @@ setup_inittab_console(){
 		esac
 		shift
 
+                # skip "current console" from beign added to inittab
+		[ "$tty" = "tty0" ] && continue
+
 		# do nothing if inittab already have the tty set up
 		grep -q "^$tty:" $sysroot/etc/inittab && continue
 		echo "# enable login on alternative console" >> $sysroot/etc/inittab
