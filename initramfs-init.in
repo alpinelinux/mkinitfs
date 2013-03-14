@@ -286,8 +286,9 @@ echo "Alpine Init $VERSION"
 # acpi_osi="!Windows 2006"
 eval set -- `cat /proc/cmdline`
 
-myopts="alpine_dev autodetect autoraid chart cryptroot debug_init dma init_args
-	keep_apk_new modules ovl_dev pkgs quiet root_size root usbdelay"
+myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
+	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
+	usbdelay"
 
 for opt; do
 	case "$opt" in
