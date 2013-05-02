@@ -275,7 +275,7 @@ configure_ip() {
 	IFS=':'
 	eval set -- $KOPT_ip
 	IFS=$OIFS
- 
+
 	local client_ip="$1"
 	local gw_ip="$3"
 	local netmask="$4"
@@ -286,7 +286,7 @@ configure_ip() {
 		autoconf="dhcp"
 		client_ip=
 	fi
- 
+
 	[ -n "$device" ] || device=$(ip_choose_if)
 	[ -n "$device" ] || return
 
@@ -427,7 +427,6 @@ if [ -n "$KOPT_ovl_dev" ] ; then
 	if [ "$OVL_DEV_FS" = "$OVL_DEV" ]; then
 		unset OVL_DEV_FS
 	fi
-
 fi
 
 case "$ALPINE_DEV" in
@@ -708,7 +707,7 @@ if [ "$KOPT_keep_apk_new" != yes ]; then
 fi
 
 if [ -n "$ovlfiles" ]; then
-	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles>/dev/null 
+	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles>/dev/null
 else
 	apk add --root $sysroot $repo_opt $apkflags $pkgs >/dev/null
 fi
