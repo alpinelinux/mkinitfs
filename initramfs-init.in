@@ -689,9 +689,7 @@ apkflags="--initdb --progress --force"
 if [ -z "$ALPINE_REPO" ]; then
 	apkflags="$apkflags --no-network"
 else
-	# HTTP: convince apk to behave
-	apk add --root $sysroot $repo_opt $apkflags
-	apk update --root $sysroot $repo_opt
+	apkflags="$apkflags --update-cache"
 fi
 
 if [ -n "$KOPT_quiet" ]; then
