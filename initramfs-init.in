@@ -281,19 +281,21 @@ configure_ip() {
 	local netmask="$4"
 	local device="$6"
 	local autoconf="$7"
-	[ "$client_ip" = "off" -o "$client_ip" = "none" ] && return
-	if [ "$client_ip" = "dhcp" ]; then
-		autoconf="dhcp"
-		client_ip=
-	fi
+	case "$client_ip" in
+		off|none|'') return;;
+		dhcp) autoconf="dhcp";;
+	esac
 
 	[ -n "$device" ] || device=$(ip_choose_if)
-	[ -n "$device" ] || return
+	if [ -z "$device" ]; then
+		echo "ERROR: IP requested but no network device was found"
+		return 1
+	fi
 
 	if [ "$autoconf" = "dhcp" ]; then
 		if [ ! -e /usr/share/udhcpc/default.script ]; then
 			echo "ERROR: DHCP requested but not present in initrd"
-			return
+			return 1
 		fi
 		# automatic configuration
 		ebegin "Obtaining IP via DHCP ($device)..."
