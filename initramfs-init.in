@@ -367,7 +367,7 @@ eval set -- `cat /proc/cmdline`
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
 	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
-	usbdelay ip alpine_repo"
+	usbdelay ip alpine_repo apkovl"
 
 for opt; do
 	case "$opt" in
@@ -422,18 +422,18 @@ if [ "$ALPINE_DEV_FS" = "$ALPINE_DEV" ]; then
 fi
 
 # /dev/blah:ext3
+if [ -n "$KOPT_ovl_dev" ] ; then
+	OVL_DEV=${KOPT_ovl_dev%%:*}
+	OVL_DEV_FS=${KOPT_ovl_dev##*:}
+	if [ "$OVL_DEV_FS" = "$OVL_DEV" ]; then
+		unset OVL_DEV_FS
+	fi
+fi
+
 # http://.../blah.apkovl.tar.gz
-case "$KOPT_ovl_dev" in
-	'') ;;
-	http://*|https://*|ftp://*)
-		OVL_DEV="$KOPT_ovl_dev"
-		;;
-	*:*)
-		OVL_DEV="${KOPT_ovl_dev%%:*}"
-		OVL_DEV_FS="${KOPT_ovl_dev##*:}"
-		;;
-	*) 	OVL_DEV="${KOPT_ovl_dev}"
-		;;
+case "$KOPT_apkovl" in
+	http://*|https://|ftp://*)
+		OVL_DEV="$KOPT_apkovl";;
 esac
 
 case "$ALPINE_DEV" in
