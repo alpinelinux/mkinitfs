@@ -421,13 +421,18 @@ fi
 
 # /dev/blah:ext3
 # http://.../blah.apkovl.tar.gz
-if [ -n "$KOPT_ovl_dev" ] ; then
-	OVL_DEV=${KOPT_ovl_dev%%:*}
-	OVL_DEV_FS=${KOPT_ovl_dev##*:}
-	if [ "$OVL_DEV_FS" = "$OVL_DEV" ]; then
-		unset OVL_DEV_FS
-	fi
-fi
+case "$KOPT_ovl_dev" in
+	'') ;;
+	http://*|https://*|ftp://*)
+		OVL_DEV="$KOPT_ovl_dev"
+		;;
+	*:*)
+		OVL_DEV="${KOPT_ovl_dev%%:*}"
+		OVL_DEV_FS="${KOPT_ovl_dev##*:}"
+		;;
+	*) 	OVL_DEV="${KOPT_ovl_dev}"
+		;;
+esac
 
 case "$ALPINE_DEV" in
 	UUID=*|LABEL=*) ;;
@@ -437,15 +442,6 @@ case "$ALPINE_DEV" in
 		ALPINE_DEV="${KOPT_alpine_dev:4}"
 		;;
 	*) ALPINE_DEV=/dev/$ALPINE_DEV ;;
-esac
-
-case "$OVL_DEV" in
-	http|https)
-		OVL_DEV_FS="$OVL_DEV"
-		OVL_DEV="$KOPT_ovl_dev"
-		OVL_DEV_IS_NETWORK=y
-		;;
-	*) ;;
 esac
 
 # The following values are supported:
@@ -568,11 +564,15 @@ if [ -n "$KOPT_root_size" ]; then
 fi
 mount -t tmpfs $root_opts tmpfs $sysroot
 
-if [ -n "$OVL_DEV_IS_NETWORK" ]; then
-	ovl=/tmp/boot.apkovl.tar.gz
-	wget -O "$ovl" "$OVL_DEV"
-else
-	if [ -n "$OVL_DEV" ]; then
+case "$OVL_DEV" in
+	'')
+		find_ovl_dev
+		;;
+	http://*|https://*|ftp://*)
+		ovl=/tmp/boot.apkovl.tar.gz
+		wget -O "$ovl" "$OVL_DEV" || ovl=
+		;;
+	*)
 		mkdir -p /media/$OVL_DEV
 		unset mount_opts
 		if [ -n "$OVL_DEV_FS" ]; then
@@ -582,10 +582,9 @@ else
 		retry_mount -o ro $mount_opts /dev/$OVL_DEV /media/$OVL_DEV \
 			>/dev/null 2>&1
 		ovl=$(find_ovl /media/$OVL_DEV)
-	else
-		find_ovl_dev
-	fi
-fi
+		;;
+esac
+
 if ! [ -f "$ovl" ]; then
 	ovl=$(find_ovl $ALPINE_MNT)
 fi
