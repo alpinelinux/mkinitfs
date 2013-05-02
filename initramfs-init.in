@@ -281,8 +281,8 @@ configure_ip() {
 	local netmask="$4"
 	local device="$6"
 	local autoconf="$7"
-	[ "$client_ip" == "off" -o "$client_ip" == "none" ] && return
-	if [ "$client_ip" == "dhcp" ]; then
+	[ "$client_ip" = "off" -o "$client_ip" = "none" ] && return
+	if [ "$client_ip" = "dhcp" ]; then
 		autoconf="dhcp"
 		client_ip=
 	fi
@@ -290,7 +290,7 @@ configure_ip() {
 	[ -n "$device" ] || device=$(ip_choose_if)
 	[ -n "$device" ] || return
 
-	if [ "$autoconf" == "dhcp" ]; then
+	if [ "$autoconf" = "dhcp" ]; then
 		if [ ! -e /usr/share/udhcpc/default.script ]; then
 			echo "ERROR: DHCP requested but not present in initrd"
 			return
@@ -448,7 +448,7 @@ esac
 #   alpine_repo=auto         -- default, search for .boot_repository
 #   alpine_repo=http://...   -- network repository
 ALPINE_REPO=${KOPT_alpine_repo}
-[ "$ALPINE_REPO" == "auto" ] && ALPINE_REPO=
+[ "$ALPINE_REPO" = "auto" ] && ALPINE_REPO=
 
 # look for standard mountpoint locations
 ALPINE_MNT=$(find_mnt $ALPINE_DEV /etc/fstab)
