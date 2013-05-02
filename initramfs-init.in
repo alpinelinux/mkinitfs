@@ -435,7 +435,6 @@ case "$ALPINE_DEV" in
 		# nfs:IP:EXPORT
 		ALPINE_DEV_FS="$ALPINE_DEV"
 		ALPINE_DEV="${KOPT_alpine_dev:4}"
-		ALPINE_DEV_IS_NETWORK=y
 		;;
 	*) ALPINE_DEV=/dev/$ALPINE_DEV ;;
 esac
@@ -457,7 +456,7 @@ ALPINE_REPO=${KOPT_alpine_repo}
 
 # look for standard mountpoint locations
 ALPINE_MNT=$(find_mnt $ALPINE_DEV /etc/fstab)
-[ -z "$ALPINE_MNT" -a -n "$ALPINE_DEV_IS_NETWORK" ] && ALPINE_MNT=/media/alpine_dev
+[ -z "$ALPINE_MNT" ] && [ "$ALPINE_DEV_FS" = nfs ] && ALPINE_MNT=/media/alpine
 [ -z "$ALPINE_MNT" ] && ALPINE_MNT=/media/${ALPINE_DEV##*/}
 
 # hide kernel messages
@@ -550,7 +549,7 @@ fi
 
 if [ -n "$ALPINE_DEV_FS" ]; then
 	mount_opts="-t $ALPINE_DEV_FS"
-	[ "$ALPINE_DEV_FS" == "nfs" ] && mount_opts="$mount_opts -o nolock"
+	[ "$ALPINE_DEV_FS" = "nfs" ] && mount_opts="$mount_opts -o nolock"
 fi
 
 retry_mount -o ro $mount_opts $ALPINE_DEV $ALPINE_MNT >/dev/null 2>&1
