@@ -568,9 +568,6 @@ if [ -n "$KOPT_root_size" ]; then
 fi
 mount -t tmpfs $root_opts tmpfs $sysroot
 
-OVL_MNT=/media/$OVL_DEV
-[ -n "$OVL_DEV_IS_NETWORK" ] && OVL_MNT=/media/ovl_dev
-
 if [ -n "$OVL_DEV_IS_NETWORK" ]; then
 	ovl=/tmp/boot.apkovl.tar.gz
 	wget -O "$ovl" "$OVL_DEV"
