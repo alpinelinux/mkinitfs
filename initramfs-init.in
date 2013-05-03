@@ -52,6 +52,11 @@ find_ovl() {
 	local ovl
 	local lines
 
+	if [ -n "$APKOVL" ]; then
+		[ -f "$mnt/$APKOVL" ] && echo "$mnt/$APKOVL"
+		return
+	fi
+
 	# look for apkovl's on mounted media
 	ovl=$( ls -1 "$mnt"/*.apkovl.tar.gz* 2>/dev/null ) || return 1
 	lines=$(echo "$ovl" | wc -l)
@@ -434,6 +439,19 @@ fi
 case "$KOPT_apkovl" in
 	http://*|https://|ftp://*)
 		OVL_DEV="$KOPT_apkovl";;
+	*:*:*)	# apkovl=sda1:ext4:/subdir/host.apkovl.tar.gz
+		OVL_DEV="${KOPT_apkovl%%:*}"
+		OVL_DEV_FS="${KOPT_apkovl%:*}"
+		OVL_DEV_FS="${OVL_DEV_FS#*:}"
+		APKOVL="${KOPT_apkovl##*:}"
+		;;
+	*:*)	# apkovl=sda1:/subdir/host.apkovl.tar.gz
+		OVL_DEV=${KOPT_apkovl%%:*}
+		APKOVL=${KOPT_apkovl##*:}
+		;;
+	*)	# apkovl=subdir/host.apkovl.tar.gz
+		APKOVL="${KOPT_apkovl}"
+		;;
 esac
 
 case "$ALPINE_DEV" in
