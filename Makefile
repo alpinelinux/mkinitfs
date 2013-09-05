@@ -22,6 +22,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/jfs \
 		modules.d/kms \
 		modules.d/lvm \
+		modules.d/network \
 		modules.d/ocfs2 \
 		modules.d/raid \
 		modules.d/reiserfs \
@@ -34,6 +35,7 @@ CONF_FILES	:= mkinitfs.conf \
 		files.d/bootchart \
 		files.d/base \
 		files.d/cryptsetup \
+		files.d/network \
 		files.d/keymap \
 		files.d/kms \
 		files.d/lvm
