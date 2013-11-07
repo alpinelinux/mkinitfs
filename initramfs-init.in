@@ -22,13 +22,13 @@ mount -t sysfs -o noexec,nosuid,nodev sysfs /sys
 # some helpers
 ebegin() {
 	last_emsg="$*"
-	[ -n "$KOPT_quiet" ] && return 0
+	[ "$KOPT_quiet" = yes ] && return 0
 	echo -n " * $last_emsg: "
 }
 eend() {
 	local msg
 	if [ "$1" = 0 ] || [ $# -lt 1 ] ; then
-		[ -n "$KOPT_quiet" ] && return 0
+		[ "$KOPT_quiet" = yes ] && return 0
 		echo "ok."
 	else
 		shift
@@ -363,9 +363,6 @@ find_boot_repositories() {
 	fi
 }
 
-# gotta start from somewhere :)
-echo "Alpine Init $VERSION"
-
 # read the kernel options. We use eval set so we can handle things like
 # acpi_osi="!Windows 2006"
 eval set -- `cat /proc/cmdline`
@@ -394,6 +391,8 @@ for opt; do
 		esac
 	done
 done
+
+[ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
 
 # enable debugging if requested
 [ -n "$KOPT_debug_init" ] && set -x
@@ -598,7 +597,7 @@ case "$OVL_DEV" in
 		if [ -n "$OVL_DEV_FS" ]; then
 			mount_opts="-t $OVL_DEV_FS"
 		fi
-		
+
 		retry_mount -o ro $mount_opts /dev/$OVL_DEV /media/$OVL_DEV \
 			>/dev/null 2>&1
 		ovl=$(find_ovl /media/$OVL_DEV)
@@ -651,7 +650,7 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 	rc_add hostname boot
 	rc_add bootmisc boot
 	rc_add syslog boot
-	
+
 	rc_add mount-ro shutdown
 	rc_add killprocs shutdown
 	rc_add savecache shutdown
@@ -696,8 +695,6 @@ done
 
 # install new root
 ebegin "Installing packages to root filesystem"
-# insert newline unless quiet to fix progress bar
-[ -n "$KOPT_quiet" ] || echo ""
 
 if [ "$KOPT_chart" = yes ]; then
 	pkgs="$pkgs acct"
@@ -710,7 +707,7 @@ else
 	apkflags="$apkflags --update-cache"
 fi
 
-if [ -n "$KOPT_quiet" ]; then
+if [ "$KOPT_quiet" = yes ]; then
 	apkflags="$apkflags --quiet"
 fi
 
@@ -720,9 +717,9 @@ if [ "$KOPT_keep_apk_new" != yes ]; then
 fi
 
 if [ -n "$ovlfiles" ]; then
-	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles>/dev/null
+	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles
 else
-	apk add --root $sysroot $repo_opt $apkflags $pkgs >/dev/null
+	apk add --root $sysroot $repo_opt $apkflags $pkgs
 fi
 eend $?
 
