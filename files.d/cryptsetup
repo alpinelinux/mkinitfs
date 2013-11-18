@@ -6,3 +6,4 @@
 /lib/libssl.so.*
 /lib/libcrypto.so.*
 /lib/libz.so.*
+/lib/libdl.so.*
