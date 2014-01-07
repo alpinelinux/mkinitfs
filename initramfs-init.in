@@ -688,6 +688,14 @@ cp -a /etc/apk/keys $sysroot/etc/apk
 # generate apk repositories file. needs to be done after relocation
 find_boot_repositories > /tmp/repositories
 
+# silently fix apk arch in case the apkovl does not match
+if [ -r "$sysroot"/etc/apk/arch ]; then
+	apk_arch="$(apk --print-arch)"
+	if [ -n "$apk_arch" ]; then
+		echo "$apk_arch" > "$sysroot"/etc/apk/arch
+	fi
+fi
+
 # generate repo opts for apk
 for i in $(cat /tmp/repositories); do
 	repo_opt="$repo_opt --repository $i"
