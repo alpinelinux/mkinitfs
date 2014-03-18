@@ -12,15 +12,6 @@ group="$datadir"/group
 
 startdir=$PWD
 
-_cp() {
-	local i
-	for i in "$@"; do
-		local dest="$tmpdir"/${i%/*}
-		mkdir -p "$dest"
-		cp -flLpR "$basedir"/"$i" "$dest" 2>/dev/null || cp -pR "$basedir"/"$i" "$dest"
-	done
-}
-
 feature_files() {
 	local suffix="$1"
 	local dir="$features_dir"
@@ -51,8 +42,8 @@ initfs_base() {
 
 	cd "${basedir:-/}"
 	for file in $(feature_files files); do
-		_cp $file
-	done
+		echo $file
+	done | cpio -pdm "$tmpdir"
 
 	# copy init
 	cd $startdir
@@ -116,9 +107,10 @@ initfs_kmods() {
 		depmod -b "${basedir:-/}" $kernel
 	fi
 	files=$(find_kmods)
+	cd ${basedir:-/}
 	for file in $files; do
-		_cp $file
-	done
+		echo $file
+	done | cpio -pdm "$tmpdir"
 	depmod $kernel -b "$tmpdir"
 }
 
