@@ -17,6 +17,7 @@ CONF_FILES	:= mkinitfs.conf \
 		modules.d/ext2 \
 		modules.d/ext3 \
 		modules.d/ext4 \
+		modules.d/f2fs \
 		modules.d/floppy \
 		modules.d/gfs2 \
 		modules.d/jfs \
@@ -40,7 +41,7 @@ CONF_FILES	:= mkinitfs.conf \
 		files.d/kms \
 		files.d/lvm
 
-SCRIPTS		:= $(SBIN_FILES) initramfs-init 
+SCRIPTS		:= $(SBIN_FILES) initramfs-init
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
 
 GIT_REV := $(shell test -d .git && git describe || echo exported)
