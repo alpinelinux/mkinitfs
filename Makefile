@@ -8,38 +8,38 @@ datadir		?= $(datarootdir)/mkinitfs
 SBIN_FILES	:= mkinitfs bootchartd mkinitfs-rundep
 SHARE_FILES	:= initramfs-init fstab passwd group
 CONF_FILES	:= mkinitfs.conf \
-		modules.d/ata \
-		modules.d/base \
-		modules.d/btrfs \
-		modules.d/cdrom \
-		modules.d/cramfs \
-		modules.d/cryptsetup \
-		modules.d/ext2 \
-		modules.d/ext3 \
-		modules.d/ext4 \
-		modules.d/f2fs \
-		modules.d/floppy \
-		modules.d/gfs2 \
-		modules.d/jfs \
-		modules.d/kms \
-		modules.d/lvm \
-		modules.d/network \
-		modules.d/ocfs2 \
-		modules.d/raid \
-		modules.d/reiserfs \
-		modules.d/scsi \
-		modules.d/squashfs \
-		modules.d/ubifs \
-		modules.d/usb \
-		modules.d/virtio \
-		modules.d/xfs \
-		files.d/bootchart \
-		files.d/base \
-		files.d/cryptsetup \
-		files.d/network \
-		files.d/keymap \
-		files.d/kms \
-		files.d/lvm
+		features.d/ata.modules \
+		features.d/base.files \
+		features.d/base.modules \
+		features.d/bootchart.files \
+		features.d/btrfs.modules \
+		features.d/cdrom.modules \
+		features.d/cramfs.modules \
+		features.d/cryptsetup.files \
+		features.d/cryptsetup.modules \
+		features.d/ext2.modules \
+		features.d/ext3.modules \
+		features.d/ext4.modules \
+		features.d/f2fs.modules \
+		features.d/floppy.modules \
+		features.d/gfs2.modules \
+		features.d/jfs.modules \
+		features.d/keymap.files \
+		features.d/kms.files \
+		features.d/kms.modules \
+		features.d/lvm.files \
+		features.d/lvm.modules \
+		features.d/network.files \
+		features.d/network.modules \
+		features.d/ocfs2.modules \
+		features.d/raid.modules \
+		features.d/reiserfs.modules \
+		features.d/scsi.modules \
+		features.d/squashfs.modules \
+		features.d/ubifs.modules \
+		features.d/usb.modules \
+		features.d/virtio.modules \
+		features.d/xfs.modules
 
 SCRIPTS		:= $(SBIN_FILES) initramfs-init
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))

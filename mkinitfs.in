@@ -29,13 +29,14 @@ _cp() {
 }
 
 feature_files() {
-	local dir="$1"
-	local glob file 
+	local suffix="$1"
+	local dir="$features_dir"
+	local glob file
 	for f in $features; do
-		if [ ! -f "$dir/$f" ]; then
+		if [ ! -f "$dir/$f.$suffix" ]; then
 			continue
 		fi
-		for glob in $(sed 's:^/\+::' "$dir/$f"); do
+		for glob in $(sed 's:^/\+::' "$dir/$f.$suffix"); do
 			for file in $glob; do
 				if [ -d $file ]; then
 					find $file -type f
@@ -56,7 +57,7 @@ initfs_base() {
 	[ -z "$list_sources" ] && mkdir -p $dirs
 
 	cd "${basedir:-/}"
-	for file in $(feature_files "$filelists_dir"); do
+	for file in $(feature_files files); do
 		_cp $file
 	done
 
@@ -107,12 +108,12 @@ BEGIN {
 END {
 	for (i in mod)
 		recursedeps(i);
-}' 
+}'
 }
 
 find_kmods() {
 	cd "$kerneldir" || return 1
-	for file in $(feature_files $modulelists_dir); do
+	for file in $(feature_files modules); do
 		if ! [ -e ${file} ]; then
 			echo "$file: No such file or directory" >&2
 			continue
@@ -193,14 +194,15 @@ done
 shift $(( $OPTIND - 1 ))
 
 . $(readlink -f "$config")
-filelists_dir=${filelists_dir:-"$sysconfdir/files.d"}
-modulelists_dir=${modules_dir:-"$sysconfdir/modules.d"}
+features_dir=${features_dir:-"$sysconfdir/features.d"}
 [ -n "$myfeatures" ] && features="$myfeatures"
 
 if [ -n "$list_features" ]; then
-	for i in $filelists_dir $modulelists_dir; do
-		( [ -d "$i" ] && cd $i && ls )
-	done | sort | uniq
+	for i in $features_dir/*.files $features_dir/*.modules; do
+		[ -e "$i" ] || continue
+		local file=${i##*/}
+		echo ${file%.*}
+	done | sort -u
 	exit 0
 fi
 
