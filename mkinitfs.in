@@ -40,6 +40,7 @@ initfs_base() {
 	done
 	mkdir -p $dirs
 
+	local oldpwd="$PWD"
 	cd "${basedir:-/}"
 	for file in $(feature_files files); do
 		echo $file
@@ -51,6 +52,7 @@ initfs_base() {
 	for i in "$fstab" "$passwd" "$group"; do
 		install -Dm644 "$i" "$tmpdir"/etc/${i##*/} || return 1
 	done
+	cd "$oldpwd"
 }
 
 find_kmod_deps() {
@@ -89,6 +91,7 @@ END {
 }
 
 find_kmods() {
+	local oldpwd="$PWD"
 	cd "$kerneldir" || return 1
 	for file in $(feature_files modules); do
 		if ! [ -e ${file} ]; then
@@ -97,6 +100,7 @@ find_kmods() {
 		fi
 		echo $file
 	done | find_kmod_deps
+	cd "$oldpwd"
 }
 
 initfs_kmods() {
@@ -107,11 +111,13 @@ initfs_kmods() {
 		depmod -b "${basedir:-/}" $kernel
 	fi
 	files=$(find_kmods)
+	local oldpwd="$PWD"
 	cd ${basedir:-/}
 	for file in $files; do
 		echo $file
 	done | cpio -pdm "$tmpdir"
 	depmod $kernel -b "$tmpdir"
+	cd "$oldpwd"
 }
 
 initfs_apk_keys() {
