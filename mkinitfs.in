@@ -14,13 +14,6 @@ startdir=$PWD
 
 _cp() {
 	local i
-	if [ -n "$list_sources" ]; then
-		for i in "$@"; do
-			echo "$basedir"/"$i"
-		done
-		return
-	fi
-
 	for i in "$@"; do
 		local dest="$tmpdir"/${i%/*}
 		mkdir -p "$dest"
@@ -54,7 +47,7 @@ initfs_base() {
 	    etc/apk media/floppy media/usb newroot; do
 		dirs="$dirs $tmpdir/$i"
 	done
-	[ -z "$list_sources" ] && mkdir -p $dirs
+	mkdir -p $dirs
 
 	cd "${basedir:-/}"
 	for file in $(feature_files files); do
@@ -62,18 +55,11 @@ initfs_base() {
 	done
 
 	# copy init
-	if [ -z "$list_sources" ]; then
-		cd $startdir
-		install -m755 "$init" "$tmpdir"/init || return 1
-		for i in "$fstab" "$passwd" "$group"; do
-			install -Dm644 "$i" "$tmpdir"/etc/${i##*/} || return 1
-		done
-	else
-		echo "$init"
-		echo "$fstab"
-		echo "$passwd"
-		echo "$group"
-	fi
+	cd $startdir
+	install -m755 "$init" "$tmpdir"/init || return 1
+	for i in "$fstab" "$passwd" "$group"; do
+		install -Dm644 "$i" "$tmpdir"/etc/${i##*/} || return 1
+	done
 }
 
 find_kmod_deps() {
@@ -124,7 +110,7 @@ find_kmods() {
 
 initfs_kmods() {
 	local glob= file= files= dirs=
-	[ -z "$list_sources" ] && rm -rf "$tmpdir"/lib/modules
+	rm -rf "$tmpdir"/lib/modules
 	# make sure we have modules.dep
 	if ! [ -f "$kerneldir"/modules.dep ]; then
 		depmod -b "${basedir:-/}" $kernel
@@ -133,17 +119,19 @@ initfs_kmods() {
 	for file in $files; do
 		_cp $file
 	done
-	[ -z "$list_sources" ] && depmod $kernel -b "$tmpdir"
+	depmod $kernel -b "$tmpdir"
 }
 
 initfs_apk_keys() {
-	[ -n "$list_sources" ] && return
 	mkdir -p "$tmpdir"/etc/apk/keys
 	cp "$basedir"/etc/apk/keys/* "$tmpdir"/etc/apk/keys/
 }
 
 initfs_cpio() {
-	[ -n "$list_sources" ] && return
+	if [ -n "$list_sources" ]; then
+		(cd "$tmpdir" && find . )
+		return
+	fi
 	rm -f $outfile
 	umask 0022
 	(cd "$tmpdir" && find . | cpio -o -H newc | gzip) > $outfile
