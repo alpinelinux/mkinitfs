@@ -20,7 +20,7 @@ feature_files() {
 		if [ ! -f "$features_dir/$f.$suffix" ]; then
 			continue
 		fi
-		for glob in $(sed -e "s|^/*|$dir|" "$features_dir/$f.$suffix"); do
+		for glob in $(sed -e '/^$/d' -e '/^#/d' -e "s|^/*|$dir|" "$features_dir/$f.$suffix"); do
 			for file in $glob; do
 				if [ -d $file ]; then
 					find $file -type f
