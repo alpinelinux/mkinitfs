@@ -13,23 +13,25 @@ group="$datadir"/group
 startdir=$PWD
 
 feature_files() {
-	local suffix="$1"
-	local dir="$features_dir"
+	local dir="$1"
+	local suffix="$2"
 	local glob file
 	for f in $features; do
-		if [ ! -f "$dir/$f.$suffix" ]; then
+		if [ ! -f "$features_dir/$f.$suffix" ]; then
 			continue
 		fi
-		for glob in $(sed 's:^/\+::' "$dir/$f.$suffix"); do
+		for glob in $(sed -e "s|^/*|$dir|" "$features_dir/$f.$suffix"); do
 			for file in $glob; do
 				if [ -d $file ]; then
 					find $file -type f
-				else
+				elif [ -e "$file" ]; then
 					echo $file
+				elif [ "${file##*/}" != '*' ]; then
+					echo "$file: No such file or directory. Skipped" >&2
 				fi
 			done
 		done
-	done
+	done | sort -u
 }
 
 initfs_base() {
@@ -42,9 +44,9 @@ initfs_base() {
 
 	local oldpwd="$PWD"
 	cd "${basedir}"
-	for file in $(feature_files files); do
-		echo "${file#/}"
-	done | cpio -pdm "$tmpdir"
+	for file in $(feature_files "$basedir" files); do
+		echo "${file#$basedir}"
+	done | cpio -pdm "$tmpdir" || return 1
 
 	# copy init
 	cd $startdir
@@ -64,7 +66,7 @@ function recursedeps(k,		j, dep) {
 	split(deps[k], dep, " ");
 	for (j in dep)
 		recursedeps(dep[j]);
-	print(prepend k);
+	print(k);
 }
 
 BEGIN {
@@ -93,12 +95,8 @@ END {
 find_kmods() {
 	local oldpwd="$PWD"
 	cd "$kerneldir" || return 1
-	for file in $(feature_files modules); do
-		if ! [ -e ${file} ]; then
-			echo "$file: No such file or directory" >&2
-			continue
-		fi
-		echo $file
+	for file in $(feature_files "${kerneldir}/" modules); do
+		echo ${file#$basedir}
 	done | find_kmod_deps
 	cd "$oldpwd"
 }
@@ -110,12 +108,11 @@ initfs_kmods() {
 	if ! [ -f "$kerneldir"/modules.dep ]; then
 		depmod -b "${basedir}" $kernel
 	fi
-	files=$(find_kmods)
 	local oldpwd="$PWD"
 	cd "${basedir}"
-	for file in $files; do
+	for file in $(find_kmods); do
 		echo "${file#/}"
-	done | cpio -pdm "$tmpdir"
+	done | cpio -pdm "$tmpdir" || return 1
 	depmod $kernel -b "$tmpdir"
 	cd "$oldpwd"
 }
