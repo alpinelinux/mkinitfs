@@ -227,14 +227,16 @@ fi
 if [ -z "$list_sources" ] && [ -z "$quiet" ]; then
 	echo "==> initramfs: creating $outfile"
 fi
-initfs_base || exit 1
-initfs_kmods || exit 1
-initfs_apk_keys || exit 1
-initfs_cpio || exit 1
 
+initfs_base \
+	&& initfs_kmods \
+	&& initfs_apk_keys \
+	&& initfs_cpio
+rc=$?
 
 # cleanup
 if [ -z "$keeptmp" ]; then
 	[ -d "$tmpdir" ] && rm -rf "$tmpdir"
 fi
 
+exit $rc
