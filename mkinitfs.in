@@ -41,7 +41,7 @@ initfs_base() {
 	mkdir -p $dirs
 
 	local oldpwd="$PWD"
-	cd "${basedir:-/}"
+	cd "${basedir}"
 	for file in $(feature_files files); do
 		echo "${file#/}"
 	done | cpio -pdm "$tmpdir"
@@ -56,7 +56,7 @@ initfs_base() {
 }
 
 find_kmod_deps() {
-	awk -v prepend="/lib/modules/$kernel/" -v modulesdep="$basedir/lib/modules/$kernel/modules.dep" '
+	awk -v prepend="/lib/modules/$kernel/" -v modulesdep="${basedir}lib/modules/$kernel/modules.dep" '
 function recursedeps(k,		j, dep) {
 	if (k in visited)
 		return;
@@ -108,11 +108,11 @@ initfs_kmods() {
 	rm -rf "$tmpdir"/lib/modules
 	# make sure we have modules.dep
 	if ! [ -f "$kerneldir"/modules.dep ]; then
-		depmod -b "${basedir:-/}" $kernel
+		depmod -b "${basedir}" $kernel
 	fi
 	files=$(find_kmods)
 	local oldpwd="$PWD"
-	cd ${basedir:-/}
+	cd "${basedir}"
 	for file in $files; do
 		echo "${file#/}"
 	done | cpio -pdm "$tmpdir"
@@ -122,7 +122,7 @@ initfs_kmods() {
 
 initfs_apk_keys() {
 	mkdir -p "$tmpdir"/etc/apk/keys
-	cp "$basedir"/etc/apk/keys/* "$tmpdir"/etc/apk/keys/
+	cp "${basedir}etc/apk/keys/"* "$tmpdir"/etc/apk/keys/
 }
 
 initfs_cpio() {
@@ -192,15 +192,19 @@ if [ -n "$list_features" ]; then
 	exit 0
 fi
 
+basedir="${basedir%/}/"
+[ "${basedir}" = "${basedir#/}" ] && basedir="${PWD}/${basedir}"
+
+
 [ -n "$1" ] && kernel="$1"
 [ -z "$kernel" ] && kernel=$(uname -r)
-kerneldir="$basedir/lib/modules/$kernel"
+kerneldir="${basedir}lib/modules/$kernel"
 
 imagename=${kernel##*-}
 [ "$imagename" = "$kernel" ] && imagename=initrd
 
 if [ -z "$outfile" ]; then
-	outfile="$basedir"/boot/${imagename}.gz
+	outfile="${basedir}boot/${imagename}.gz"
 fi
 
 if [ ! -d "$kerneldir" ]; then
