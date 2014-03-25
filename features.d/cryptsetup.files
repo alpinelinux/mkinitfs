@@ -1,10 +1,1 @@
 /sbin/cryptsetup
-/lib/libcryptsetup.so.*
-/lib/libpopt.so.*
-/lib/libuuid.so.*
-/lib/libdevmapper.*
-/lib/libssl.so.*
-/lib/libcrypto.so.*
-/lib/libz.so.*
-/lib/libdl.so.*
-/lib/libpthread*.so*
