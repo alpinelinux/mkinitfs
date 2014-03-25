@@ -31,7 +31,7 @@ feature_files() {
 				fi
 			done
 		done
-	done | sort -u
+	done
 }
 
 initfs_base() {
@@ -44,12 +44,14 @@ initfs_base() {
 
 	local oldpwd="$PWD"
 	cd "${basedir}"
-	for file in $(feature_files "$basedir" files); do
-		echo "${file#$basedir}"
-	done | cpio -pdm "$tmpdir" || return 1
+	lddtree -R "$basedir" -l --no-auto-root \
+		$(feature_files "$basedir" files) \
+		\
+		| sed -e "s|^$basedir||" | sort -u \
+		| cpio -pdm "$tmpdir" || return 1
 
 	# copy init
-	cd $startdir
+	cd "$startdir"
 	install -m755 "$init" "$tmpdir"/init || return 1
 	for i in "$fstab" "$passwd" "$group"; do
 		install -Dm644 "$i" "$tmpdir"/etc/${i##*/} || return 1
@@ -112,7 +114,7 @@ initfs_kmods() {
 	cd "${basedir}"
 	for file in $(find_kmods); do
 		echo "${file#/}"
-	done | cpio -pdm "$tmpdir" || return 1
+	done | sort -u | cpio -pdm "$tmpdir" || return 1
 	depmod $kernel -b "$tmpdir"
 	cd "$oldpwd"
 }
