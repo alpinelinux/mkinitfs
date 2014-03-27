@@ -68,7 +68,7 @@ function recursedeps(k,		j, dep) {
 	split(deps[k], dep, " ");
 	for (j in dep)
 		recursedeps(dep[j]);
-	print(k);
+	print(prepend k);
 }
 
 BEGIN {
@@ -98,7 +98,7 @@ find_kmods() {
 	local oldpwd="$PWD"
 	cd "$kerneldir" || return 1
 	for file in $(feature_files "${kerneldir}/" modules); do
-		echo ${file#$basedir}
+		echo ${file#${kerneldir%/}/}
 	done | find_kmod_deps
 	cd "$oldpwd"
 }
