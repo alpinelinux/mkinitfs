@@ -199,11 +199,11 @@ basedir="${basedir%/}/"
 [ -z "$kernel" ] && kernel=$(uname -r)
 kerneldir="${basedir}lib/modules/$kernel"
 
-imagename=${kernel##*-}
-[ "$imagename" = "$kernel" ] && imagename=initrd
+kflavor=${kernel##*-}
+[ "$kflavor" = "$kernel" ] && kflavor=vanilla
 
 if [ -z "$outfile" ]; then
-	outfile="${basedir}boot/${imagename}.gz"
+	outfile="${basedir}boot/initramfs-${kflavor}"
 fi
 
 if [ ! -d "$kerneldir" ]; then
