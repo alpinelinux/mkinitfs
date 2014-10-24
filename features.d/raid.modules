@@ -1,4 +1,3 @@
 kernel/drivers/md/raid*
 kernel/drivers/block/cciss*
 kernel/drivers/block/sx8*
-kernel/drivers/block/cpqarray*
