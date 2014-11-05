@@ -369,7 +369,7 @@ eval set -- `cat /proc/cmdline`
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
 	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
-	usbdelay ip alpine_repo apkovl"
+	usbdelay ip alpine_repo apkovl alpine_start"
 
 for opt; do
 	case "$opt" in
@@ -522,9 +522,10 @@ if [ -n "$KOPT_root" ]; then
 	# let usb settle in case we boot from usb disks
 	[ -n "$KOPT_usbdelay" ] && sleep "$KOPT_usbdelay"
 	wait_usb
-	start_raid
-	start_cryptsetup
-	start_lvm
+	start=${KOPT_alpine_start:-raid,cryptsetup,lvm}
+	for i in ${start//,/ }; do
+		start_$i
+	done
 	ebegin "Mounting root"
 	retry_mount -o ro $KOPT_root $sysroot 2>/dev/null
 	eend $?
@@ -549,9 +550,10 @@ fi
 configure_ip
 
 # incase we have alpine_dev on raid device...
-start_raid
-start_cryptsetup
-start_lvm
+start=${KOPT_alpine_start:-raid,cryptsetup,lvm}
+for i in ${start//,/ }; do
+	start_$i
+done
 
 # locate boot media and mount it
 ebegin "Mounting boot media"
