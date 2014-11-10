@@ -157,23 +157,43 @@ rc_add() {
 	ln -sf /etc/init.d/$1 $sysroot/etc/runlevels/$2/$1
 }
 
+find_ovl_blkdev() {
+	local fsmoddir=/lib/modules/$(uname -r)/kernel/fs
+	blkid | while read line; do
+		mod=
+		UUID=
+		TYPE=
+		dev=${line%%: *}
+		eval ${line#$dev:}
+		for i in $fsmoddir/$TYPE.ko $fsmoddir/*/$TYPE.ko; do
+			[ -f $fsmoddir/*/$TYPE.ko ] && mod=$i && break
+		done
+		[ -n "$mod" ] || continue
+		mnt=/media/${UUID:-${dev##*/}}
+		mkdir -p "$mnt"
+		mount -o ro -t "$TYPE" "$dev" "$mnt" 2>/dev/null || continue
+		ovl=$(find_ovl "$mnt")
+		if [ -f "$ovl" ]; then
+			echo "$ovl"
+			break
+		fi
+		umount "$mnt"
+	done
+}
+
 # we have issues with some slow usb 1 hosts so we add 1 second delay
 # with possibility to increase delay at boot prompt with usbdelay=<sec>
-find_ovl_dev() {
+find_ovl_delayed_usb() {
 	local n i
 	# look for apkovl
 	for n in $(seq 0 ${KOPT_usbdelay:-1}); do
 		# wait for usb to settle if needed
 		wait_usb
-		for i in usb floppy cdrom; do
-			mount -o ro /media/$i 2>/dev/null || continue
-			ovl=$(find_ovl /media/$i)
-			if [ -f "$ovl" ]; then
-				ovl_unmount="$ovl_unmount /media/$i"
-				return
-			fi
-			umount /media/$i 2>/dev/null
-		done
+		ovl=$(find_ovl_blkdev)
+		if [ -f "$ovl" ]; then
+			ovl_unmount="${ovl%/*}"
+			return
+		fi
 		sleep 1
 	done
 }
@@ -587,7 +607,10 @@ mount -t tmpfs $root_opts tmpfs $sysroot
 
 case "$OVL_DEV" in
 	'')
-		find_ovl_dev
+		ovl=$(find_ovl $ALPINE_MNT)
+		if ! [ -f "$ovl" ]; then
+			find_ovl_delayed_usb
+		fi
 		;;
 	http://*|https://*|ftp://*)
 		ovl=/tmp/boot.apkovl.tar.gz
@@ -606,9 +629,6 @@ case "$OVL_DEV" in
 		;;
 esac
 
-if ! [ -f "$ovl" ]; then
-	ovl=$(find_ovl $ALPINE_MNT)
-fi
 
 # parse pkgs=pkg1,pkg2
 if [ -n "$KOPT_pkgs" ]; then
