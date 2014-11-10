@@ -49,8 +49,6 @@ scan_drivers() {
 
 find_ovl() {
 	local mnt="$1"
-	local ovl
-	local lines
 
 	if [ -n "$APKOVL" ]; then
 		[ -f "$mnt/$APKOVL" ] && echo "$mnt/$APKOVL"
@@ -58,14 +56,13 @@ find_ovl() {
 	fi
 
 	# look for apkovl's on mounted media
-	ovl=$( ls -1 "$mnt"/*.apkovl.tar.gz* 2>/dev/null ) || return 1
-	lines=$(echo "$ovl" | wc -l)
+	set -- "$mnt"/*.apkovl.tar.gz*
 
-	if [ $lines -gt 1 ] ; then
+	if [ $# -gt 1 ] ; then
 		echo "ERROR: More than one apkovl file was found on $(basename $mnt). None will be read." >&2
 		return 1
 	fi
-	echo "$ovl"
+	echo "$1"
 }
 
 retry_mount() {
