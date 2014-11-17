@@ -258,8 +258,8 @@ start_cryptsetup() {
 start_lvm() {
 	[ -x /sbin/lvm ] || return
 	modprobe dm-mod
-	lvm vgscan --mknodes --ignorelockingfailure >/dev/null 2>&1 &&\
-		lvm vgchange --ignorelockingfailure -a y >/dev/null 2>&1
+	lvm vgscan --mknodes --ignorelockingfailure >/dev/null 2>&1
+	lvm vgchange --ignorelockingfailure -a y >/dev/null 2>&1
 }
 
 # determine the default interface to use if ip=dhcp is set
