@@ -387,7 +387,7 @@ eval set -- `cat /proc/cmdline`
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
 	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
-	usbdelay ip alpine_repo apkovl alpine_start nofbcon splash"
+	usbdelay ip alpine_repo apkovl alpine_start splash"
 
 for opt; do
 	case "$opt" in
@@ -524,12 +524,6 @@ fi
 scan_drivers
 scan_drivers
 eend 0
-
-if [ -z "$KOPT_nofbcon" ] && [ -e /sys/class/graphics/fb0 ]; then
-	ebegin "Setting up framebuffer console"
-	modprobe -q fbcon &>/dev/null
-	eend 0
-fi
 
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
