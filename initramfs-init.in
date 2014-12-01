@@ -496,7 +496,9 @@ ALPINE_MNT=$(find_mnt $ALPINE_DEV /etc/fstab)
 [ "$KOPT_quiet" = yes ] && dmesg -n 1
 
 # optional blacklist
-for i in ${KOPT_blacklist/,/ }; do echo "blacklist $i" >> /etc/modprobe.d/boot-opt-blacklist.conf; done
+for i in ${KOPT_blacklist/,/ }; do
+	echo "blacklist $i" >> /etc/modprobe.d/boot-opt-blacklist.conf
+done
 
 # setup /dev
 ebegin "Starting mdev"
