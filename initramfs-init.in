@@ -677,9 +677,17 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 	rm -f "$sysroot/etc/.default_boot_services"
 fi
 
-if [ "$KOPT_splash" != "no" -a -e $ALPINE_MNT/fbsplash.ppm -a -e $ALPINE_MNT/fbsplash.cfg ]; then
+if [ "$KOPT_splash" != "no" -a -e $ALPINE_MNT/fbsplash.ppm ]; then
+	local config
 	ebegin "Starting bootsplash (from $ALPINE_MNT)"
-	setsid fbsplash -T 16 -s $ALPINE_MNT/fbsplash.ppm -i $ALPINE_MNT/fbsplash.cfg -f $sysroot/$splashfile &
+	mkfifo $sysroot/$splashfile
+	if [ -e $ALPINE_MNT/fbsplash.cfg ]; then
+		config=$ALPINE_MNT/fbsplash.cfg
+	else
+		config=/tmp/fbsplash.cfg
+		echo "IMAGE_ALIGN=CM" > $config
+	fi
+	setsid fbsplash -T 16 -s $ALPINE_MNT/fbsplash.ppm -i $config -f $sysroot/$splashfile &
 	eend 0
 else
 	KOPT_splash="no"
