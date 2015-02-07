@@ -387,7 +387,8 @@ eval set -- `cat /proc/cmdline`
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
 	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
-	usbdelay ip alpine_repo apkovl alpine_start splash blacklist"
+	usbdelay ip alpine_repo apkovl alpine_start splash blacklist
+	overlaytmpfs"
 
 for opt; do
 	case "$opt" in
@@ -544,7 +545,16 @@ if [ -n "$KOPT_root" ]; then
 		start_$i
 	done
 	ebegin "Mounting root"
-	retry_mount -o ro $KOPT_root $sysroot 2>/dev/null
+	if [ "$KOPT_overlaytmpfs" = "yes" ]; then
+		mkdir -p /media/root-ro /media/root-rw $sysroot/media/root-ro $sysroot/media/root-rw
+		retry_mount -o ro $KOPT_root /media/root-ro 2>/dev/null
+		mount -t tmpfs root-tmpfs /media/root-rw
+		mkdir -p /media/root-rw/work /media/root-rw/root
+		mount -t overlay -o lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work overlayfs $sysroot
+	else
+		retry_mount -o ro $KOPT_root $sysroot 2>/dev/null
+	fi
+
 	eend $?
 	cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
 		if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
