@@ -251,7 +251,7 @@ start_cryptsetup() {
 	modprobe dm-crypt
 	if [ -n "$KOPT_cryptroot" ]; then
 		modprobe dm-crypt
-		cryptsetup luksOpen "$KOPT_cryptroot" "$KOPT_cryptdm"
+		cryptsetup luksOpen $(resolve_dev "$KOPT_cryptroot") "$KOPT_cryptdm"
 	fi
 }
 
