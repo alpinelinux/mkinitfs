@@ -608,11 +608,16 @@ if [ "$SINGLEMODE" = "yes" ]; then
 fi
 
 # mount tmpfs sysroot
-root_opts="-o mode=0755"
+rootflags="mode=0755"
 if [ -n "$KOPT_root_size" ]; then
-	root_opts="$root_opts,size=$KOPT_root_size"
+	echo "WARNING: the boot option root_size is deprecated. Use rootflags instead"
+	rootflags="$rootflags,size=$KOPT_root_size"
 fi
-mount -t tmpfs $root_opts tmpfs $sysroot
+if [ -n "$KOPT_rootflags" ]; then
+	rootflags="$rootflags,$KOPT_rootflags"
+fi
+
+mount -t tmpfs -o $rootflags tmpfs $sysroot
 
 case "$OVL_DEV" in
 	'')
