@@ -381,9 +381,9 @@ find_boot_repositories() {
 	fi
 }
 
-# read the kernel options. We use eval set so we can handle things like
-# acpi_osi="!Windows 2006"
-eval set -- `cat /proc/cmdline`
+# read the kernel options. we need surve things like:
+#  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
+set -- $(cat /proc/cmdline)
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
 	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
