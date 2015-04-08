@@ -387,8 +387,8 @@ eval set -- `cat /proc/cmdline`
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
 	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
-	rootfstype rootflags usbdelay ip alpine_repo apkovl alpine_start
-	splash blacklist overlaytmpfs"
+	usbdelay ip alpine_repo apkovl alpine_start splash blacklist
+	overlaytmpfs rootfstype rootflags"
 
 for opt; do
 	case "$opt" in
@@ -551,20 +551,10 @@ if [ -n "$KOPT_root" ]; then
 		mount -t tmpfs root-tmpfs /media/root-rw
 		mkdir -p /media/root-rw/work /media/root-rw/root
 		mount -t overlay -o lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work overlayfs $sysroot
-	elif [ -n $KOPT_rootfstype ]; then
-		if [ -n $KOPT_rootflags ]; then
-			rootflags="$KOPT_rootflags"
-		else
-			rootflags="ro"
-		fi
-		retry_mount -t $KOPT_rootfstype -o $rootflags $KOPT_root $sysroot 2>/dev/null
 	else
-		if [ -n $KOPT_rootflags ]; then
-			rootflags="$KOPT_rootflags"
-		else
-			rootflags="ro"
-		fi
-		retry_mount -o $rootflags $KOPT_root $sysroot 2>/dev/null
+		retry_mount ${KOPT_rootfstype:+-t} ${KOPT_rootfstype} \
+			-o ${KOPT_rootflags:-ro} \
+			$KOPT_root $sysroot 2>/dev/null
 	fi
 
 	eend $?
