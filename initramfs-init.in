@@ -503,7 +503,8 @@ done
 
 # setup /dev
 ebegin "Starting mdev"
-mount -t tmpfs -o exec,nosuid,mode=0755,size=1M mdev /dev
+mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
+	|| mount -t tmpfs -o exec,nosuid,mode=0755,size=2M tmpfs /dev
 echo "/sbin/mdev" > /proc/sys/kernel/hotplug
 mdev -s
 RC=$?
