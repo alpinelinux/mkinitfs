@@ -115,6 +115,11 @@ initfs_kmods() {
 	for file in $(find_kmods); do
 		echo "${file#/}"
 	done | sort -u | cpio -pdm "$tmpdir" || return 1
+	for file in modules.order modules.builtin; do
+		if [ -f "$kerneldir"/$file ]; then
+			cp "$kerneldir"/$file "$tmpdir"/lib/modules/$kernel/
+		fi
+	done
 	depmod $kernel -b "$tmpdir"
 	cd "$oldpwd"
 }
