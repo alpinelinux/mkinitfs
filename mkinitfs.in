@@ -36,7 +36,7 @@ feature_files() {
 
 initfs_base() {
 	local i= dirs= glob= file=
-	for i in dev proc sys sbin bin .modloop lib/modules media/cdrom \
+	for i in dev proc sys sbin bin run .modloop lib/modules media/cdrom \
 	    etc/apk media/floppy media/usb newroot; do
 		dirs="$dirs $tmpdir/$i"
 	done
