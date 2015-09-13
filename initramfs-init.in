@@ -227,12 +227,14 @@ setup_inittab_console(){
 
 start_raid() {
 	local n= i=
+	local mdadm_flags=
 	case "$KOPT_root" in
 		/dev/md*) n=${KOPT_root#/dev/md} ;;
 	esac
 	case "$KOPT_autoraid" in
 		[0-9]*) n="$n $(echo $KOPT_autoraid | tr ',' ' ')" ;;
 	esac
+	[ "$KOPT_quiet" = yes ] && mdadm_flags="$mdadm_flags -q"
 	# if kernel can autostart the raid he will
 	for i in $n; do
 		mknod /dev/md$i b 9 $i
@@ -241,7 +243,7 @@ start_raid() {
 	# kernel cannot autostart newer versions of mdadm metadata
 	# so we also check if mdadm binary is there
 	if [ -x /sbin/mdadm ]; then
-		mdadm --assemble --scan
+		mdadm $mdadm_flags --assemble --scan
 	fi
 }
 
