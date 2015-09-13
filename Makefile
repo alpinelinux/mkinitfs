@@ -32,6 +32,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/network.files \
 		features.d/network.modules \
 		features.d/ocfs2.modules \
+		features.d/raid.files\
 		features.d/raid.modules \
 		features.d/reiserfs.modules \
 		features.d/scsi.modules \
