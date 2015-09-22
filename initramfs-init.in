@@ -7,7 +7,7 @@ sysroot=/sysroot
 splashfile=/.splash.ctrl
 
 /bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
-	/media/cdrom /media/usb /tmp
+	/media/cdrom /media/usb /tmp /run
 /bin/busybox --install -s
 
 # basic environment
