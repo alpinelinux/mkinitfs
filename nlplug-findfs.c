@@ -6,8 +6,10 @@
  * Copyright (c) 2015 Natanael Copa <ncopa@alpinelinux.org>
  */
 
+#include <dirent.h>
 #include <err.h>
 #include <errno.h>
+#include <limits.h>
 #include <poll.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -376,6 +378,37 @@ int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 	return dispatch_uevent(&ev, conf);
 }
 
+void trigger_events(const char *dir)
+{
+	DIR *d = opendir(dir);
+	struct dirent *entry;
+
+	if (d == NULL)
+		return;
+
+	while ((entry = readdir(d)) != NULL) {
+		char path[PATH_MAX];
+		if (!(entry->d_type & DT_DIR) \
+		    && strcmp(entry->d_name, "uevent") != 0)
+			continue;
+
+		if (entry->d_name[0] == '.')
+			continue;
+
+		snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
+
+		if (entry->d_type & DT_DIR)
+			trigger_events(path);
+		else {
+			int fd = open(path, O_WRONLY);
+			dbg("trigger %s (%i)", path, fd);
+			write(fd, "add", 3);
+			close(fd);
+		}
+	}
+	closedir(d);
+}
+
 void usage(void)
 {
 	errx(1, "usage: %s [-dku] [-f subsystem] [-s device] [-m dir] PATH\n", argv0);
@@ -389,7 +422,6 @@ int main(int argc, char *argv[])
 	int event_count = 0;
 	size_t total_bytes;
 	int ret = 1;
-	char *trigger_argv[2] = {0,0};
 	char *program_argv[2] = {0,0};
 
 
@@ -419,9 +451,6 @@ int main(int argc, char *argv[])
 	case 's':
 		conf.search_device = EARGF(usage());
 		break;
-	case 't':
-		trigger_argv[0] = EARGF(usage());
-		break;
 	default:
 		usage();
 	} ARGEND;
@@ -437,9 +466,8 @@ int main(int argc, char *argv[])
 	fds.fd = init_netlink_socket();
 	fds.events = POLLIN;
 
-	/* trigger events here */
-	if (trigger_argv[0])
-		run_child(trigger_argv);
+	trigger_events("/sys/bus");
+	trigger_events("/sys/devices");
 
 	while ((r = poll(&fds, 1, EVENT_TIMEOUT)) > 0) {
 		size_t len;
