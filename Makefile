@@ -5,7 +5,7 @@ sysconfdir	?= /etc/mkinitfs
 datarootdir	?= /usr/share
 datadir		?= $(datarootdir)/mkinitfs
 
-SBIN_FILES	:= mkinitfs bootchartd
+SBIN_FILES	:= mkinitfs bootchartd nlplug-findfs
 SHARE_FILES	:= initramfs-init fstab passwd group
 CONF_FILES	:= mkinitfs.conf \
 		features.d/ata.modules \
@@ -42,7 +42,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/virtio.modules \
 		features.d/xfs.modules
 
-SCRIPTS		:= $(SBIN_FILES) initramfs-init
+SCRIPTS		:= mkinitfs bootchartd initramfs-init
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
 
 GIT_REV := $(shell test -d .git && git describe || echo exported)
@@ -63,7 +63,8 @@ SED_REPLACE	:= -e 's:@VERSION@:$(FULL_VERSION):g' \
 		-e 's:@datadir@:$(datadir):g'
 
 
-all:	$(SCRIPTS)
+
+all:	$(SBIN_FILES) $(SCRIPTS)
 
 clean:
 	rm -f $(SCRIPTS)
@@ -71,6 +72,24 @@ clean:
 help:
 	@echo mkinitfs $(VERSION)
 	@echo "usage: make install [DESTDIR=]"
+
+CFLAGS ?= -Wall -Werror -g
+CFLAGS += -D_GNU_SOURCE -DDEBUG
+
+PKGCONF		?= pkg-config
+BLKID_CFLAGS	:= $(shell $(PKGCONF) --cflags blkid)
+BLKID_LIBS	:= $(shell $(PKGCONF) --libs blkid)
+LIBKMOD_CFLAGS	:= $(shell $(PKGCONF) --cflags libkmod)
+LIBKMOD_LIBS	:= $(shell $(PKGCONF) --libs libkmod)
+
+CFLAGS		+= $(BLKID_CFLAGS) $(LIBKMOD_CFLAGS)
+LIBS		= $(BLKID_LIBS) $(LIBKMOD_LIBS)
+
+%.o: %.c
+	$(CC) $(CFLAGS) -o $@ -c $<
+
+nlplug-findfs: nlplug-findfs.o
+	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .SUFFIXES:	.in
 .in:
