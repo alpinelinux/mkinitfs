@@ -11,11 +11,13 @@
 #include <errno.h>
 #include <limits.h>
 #include <poll.h>
+#include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <unistd.h>
 
+#include <sys/eventfd.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
 #include <sys/types.h>
@@ -118,7 +120,7 @@ static int init_netlink_socket(void)
 
 	/* kernel will not create events bigger than 16kb, but we need
 	   buffer up all events during coldplug */
-	slen = 1024*1024;
+	slen = 512*1024;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &slen,
 				sizeof(slen)) < 0) {
 		err(1, "setsockopt");
@@ -372,7 +374,6 @@ int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 
 		if (strcmp(key, "PATH")) {
 			setenv(key, value, 1);
-		//	dbg("%s = \"%s\"", key, value);
 		}
 	}
 	return dispatch_uevent(&ev, conf);
@@ -401,12 +402,21 @@ void trigger_events(const char *dir)
 			trigger_events(path);
 		else {
 			int fd = open(path, O_WRONLY);
-			dbg("trigger %s (%i)", path, fd);
 			write(fd, "add", 3);
 			close(fd);
 		}
 	}
 	closedir(d);
+}
+
+void *trigger_thread(void *data)
+{
+	int fd = *(int *)data;
+	uint64_t ok = 1;
+	trigger_events("/sys/bus");
+	trigger_events("/sys/devices");
+	write(fd, &ok, sizeof(ok));
+	return NULL;
 }
 
 void usage(int rc)
@@ -430,14 +440,15 @@ void usage(int rc)
 
 int main(int argc, char *argv[])
 {
-	struct pollfd fds;
+	struct pollfd fds[2];
+	int numfds = 2;
 	int r;
 	struct ueventconf conf;
 	int event_count = 0;
 	size_t total_bytes;
 	int ret = 1;
 	char *program_argv[2] = {0,0};
-
+	pthread_t tid;
 
 	memset(&conf, 0, sizeof(conf));
 	conf.program_argv = program_argv;
@@ -476,13 +487,15 @@ int main(int argc, char *argv[])
 
 	initsignals();
 
-	fds.fd = init_netlink_socket();
-	fds.events = POLLIN;
+	fds[0].fd = init_netlink_socket();
+	fds[0].events = POLLIN;
 
-	trigger_events("/sys/bus");
-	trigger_events("/sys/devices");
+	fds[1].fd = eventfd(0, EFD_CLOEXEC);
+	fds[1].events = POLLIN;
 
-	while ((r = poll(&fds, 1, EVENT_TIMEOUT)) > 0) {
+	pthread_create(&tid, NULL, trigger_thread, &fds[1].fd);
+
+	while ((r = poll(fds, numfds, EVENT_TIMEOUT)) > 0) {
 		size_t len;
 		struct iovec iov;
 		char cbuf[CMSG_SPACE(sizeof(struct ucred))];
@@ -492,7 +505,14 @@ int main(int argc, char *argv[])
 		struct msghdr hdr;
 		struct sockaddr_nl cnls;
 
-		if (!(fds.revents & POLLIN))
+		if (numfds > 1 && fds[1].revents & POLLIN) {
+			close(fds[1].fd);
+			fds[1].fd = -1;
+			numfds--;
+			pthread_join(tid, NULL);
+		}
+
+		if (!(fds[0].revents & POLLIN))
 			continue;
 
 		iov.iov_base = &buf;
@@ -505,7 +525,7 @@ int main(int argc, char *argv[])
 		hdr.msg_name = &cnls;
 		hdr.msg_namelen = sizeof(cnls);
 
-		len = recvmsg(fds.fd, &hdr, 0);
+		len = recvmsg(fds[0].fd, &hdr, 0);
 		if (len < 0) {
 			if (errno == EINTR)
 				continue;
@@ -531,7 +551,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 
-		if (fds.revents & POLLHUP) {
+		if (fds[0].revents & POLLHUP) {
 			dbg("parent hung up\n");
 			break;
 		}
