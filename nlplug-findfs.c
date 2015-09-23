@@ -409,9 +409,23 @@ void trigger_events(const char *dir)
 	closedir(d);
 }
 
-void usage(void)
+void usage(int rc)
 {
-	errx(1, "usage: %s [-dku] [-f subsystem] [-s device] [-m dir] PATH\n", argv0);
+	printf("coldplug system til given device is found\n"
+	"usage: %s [options] DEVICE [DIR]\n"
+	"\n"
+	"If DIR is specified the found DEVICE will be mounted on DIR\n"
+	"\n"
+	"options:\n"
+	" -c CRYPTDEVICE  run cryptsetup luksOpen when CRYPTDEVICE is found\n"
+	" -h              show this help\n"
+	" -m CRYPTNAME    use CRYPTNAME name for crypto device mapping\n"
+	" -d              enable debugging ouput\n"
+	" -f SUBSYSTEM    filter subsystem\n"
+	" -p PROGRAM      use PROGRAM as handler for every event with DEVNAME\n"
+	"\n", argv0);
+
+	exit(rc);
 }
 
 int main(int argc, char *argv[])
@@ -427,32 +441,31 @@ int main(int argc, char *argv[])
 
 	memset(&conf, 0, sizeof(conf));
 	conf.program_argv = program_argv;
-	argv0 = argv[0];
+	argv0 = strrchr(argv[0], '/');
+	if (argv0++ == NULL)
+		argv0 = argv[0];
 
 	ARGBEGIN {
 	case 'c':
-		conf.crypt_device = EARGF(usage());
+		conf.crypt_device = EARGF(usage(1));
 		break;
-	case 'C':
-		conf.crypt_name = EARGF(usage());
+	case 'h':
+		usage(0);
+		break;
+	case 'm':
+		conf.crypt_name = EARGF(usage(1));
 		break;
 	case 'd':
 		dodebug = 1;
 		break;
-	case 'm':
-		conf.mountpoint = EARGF(usage());
-		break;
 	case 'f':
-		conf.subsystem_filter = EARGF(usage());
+		conf.subsystem_filter = EARGF(usage(1));
 		break;
 	case 'p':
-		conf.program_argv[0] = EARGF(usage());
-		break;
-	case 's':
-		conf.search_device = EARGF(usage());
+		conf.program_argv[0] = EARGF(usage(1));
 		break;
 	default:
-		usage();
+		usage(1);
 	} ARGEND;
 
 	if (argc > 0)
