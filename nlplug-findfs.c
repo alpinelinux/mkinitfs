@@ -379,7 +379,12 @@ int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 	return dispatch_uevent(&ev, conf);
 }
 
-void trigger_events(const char *dir)
+struct recurse_opts {
+	const char *searchname;
+	void (*callback)(const char *);
+};
+
+void recurse_dir(const char *dir, struct recurse_opts *opts)
 {
 	DIR *d = opendir(dir);
 	struct dirent *entry;
@@ -389,32 +394,40 @@ void trigger_events(const char *dir)
 
 	while ((entry = readdir(d)) != NULL) {
 		char path[PATH_MAX];
-		if (!(entry->d_type & DT_DIR) \
-		    && strcmp(entry->d_name, "uevent") != 0)
+		if (entry->d_type & DT_DIR) {
+			if (entry->d_name[0] == '.')
+				continue;
+		} else if (opts->searchname
+			   && strcmp(entry->d_name, opts->searchname) != 0) {
 			continue;
-
-		if (entry->d_name[0] == '.')
-			continue;
+		}
 
 		snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
-
 		if (entry->d_type & DT_DIR)
-			trigger_events(path);
-		else {
-			int fd = open(path, O_WRONLY);
-			write(fd, "add", 3);
-			close(fd);
-		}
+			recurse_dir(path, opts);
+		else
+			opts->callback(path);
 	}
 	closedir(d);
+}
+
+void trigger_uevent_cb(const char *path)
+{
+	int fd = open(path, O_WRONLY);
+	write(fd, "add", 3);
+	close(fd);
 }
 
 void *trigger_thread(void *data)
 {
 	int fd = *(int *)data;
 	uint64_t ok = 1;
-	trigger_events("/sys/bus");
-	trigger_events("/sys/devices");
+	struct recurse_opts opts = {
+		.searchname = "uevent",
+		.callback = trigger_uevent_cb,
+	};
+	recurse_dir("/sys/bus", &opts);
+	recurse_dir("/sys/devices", &opts);
 	write(fd, &ok, sizeof(ok));
 	return NULL;
 }
