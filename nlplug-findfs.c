@@ -20,6 +20,7 @@
 #include <sys/eventfd.h>
 #include <sys/mount.h>
 #include <sys/socket.h>
+#include <sys/stat.h>
 #include <sys/types.h>
 #include <sys/uio.h>
 #include <sys/wait.h>
@@ -76,6 +77,7 @@ struct ueventconf {
 	char *subsystem_filter;
 	int modalias_count;
 	int fork_count;
+	char *bootrepos;
 };
 
 
@@ -230,17 +232,131 @@ void start_cryptsetup(char *devnode, char *cryptdm)
 	run_child(cryptsetup_argv);
 }
 
-int is_searchdev(char *devname, const char *searchdev, const char *mountpoint)
+static int is_mounted(const char *devnode) {
+	char line[PATH_MAX];
+	FILE *f = fopen("/proc/mounts", "r");
+	int r = 0;
+	if (f == NULL)
+		return 0;
+	while (fgets(line, sizeof(line), f) != NULL) {
+		strtok(line, " ");
+		if (strcmp(devnode, line) == 0) {
+			r = 1;
+			break;
+		}
+	}
+	fclose(f);
+	return r;
+}
+
+struct recurse_opts {
+	const char *searchname;
+	void (*callback)(const char *, const void *);
+	void *userdata;
+};
+
+void recurse_dir(const char *dir, struct recurse_opts *opts)
+{
+	DIR *d = opendir(dir);
+	struct dirent *entry;
+
+	if (d == NULL)
+		return;
+
+	while ((entry = readdir(d)) != NULL) {
+		char path[PATH_MAX];
+		if (entry->d_type & DT_DIR) {
+			if (entry->d_name[0] == '.')
+				continue;
+		} else if (opts->searchname
+			   && strcmp(entry->d_name, opts->searchname) != 0) {
+			continue;
+		}
+
+		snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
+		if (entry->d_type & DT_DIR)
+			recurse_dir(path, opts);
+		else
+			opts->callback(path, opts->userdata);
+	}
+	closedir(d);
+}
+
+struct bootrepos {
+	char *outfile;
+	int count;
+};
+
+void bootrepo_cb(const char *path, const void *data)
+{
+	struct bootrepos *repos = (struct bootrepos *)data;
+	int fd = open(repos->outfile, O_WRONLY | O_CREAT | O_APPEND);
+	if (fd == -1)
+		err(1, "%s", repos->outfile);
+
+	write(fd, path, strlen(path) - strlen("/.boot_repository"));
+	write(fd, "\n", 1);
+	close(fd);
+	dbg("added boot repository %s to %s\n", path, repos->outfile);
+	repos->count++;
+}
+
+
+static int find_bootrepos(const char *devnode, const char *type,
+			 char *filename)
+{
+	char mountdir[PATH_MAX] = "";
+	char *devname;
+	int r;
+	struct bootrepos repos = {
+		.outfile = filename,
+		.count = 0,
+	};
+	struct recurse_opts opts = {
+		.searchname = ".boot_repository",
+		.callback = bootrepo_cb,
+		.userdata = &repos,
+	};
+
+
+	/* skip already mounted devices */
+	if (is_mounted(devnode)) {
+		dbg("%s is mounted (%s). skipping\n", devnode, type);
+		return 0;
+	}
+	devname = strrchr(devnode, '/');
+
+	if (devname)
+		snprintf(mountdir, sizeof(mountdir), "/media%s", devname);
+
+	dbg("mounting %s on %s. (%s)\n", devnode, mountdir, type);
+	mkdir(mountdir, 0755);
+
+	r = mount(devnode, mountdir, type, MS_RDONLY, NULL);
+	if (r < 0)
+		return 0;
+
+	recurse_dir(mountdir, &opts);
+	if (repos.count == 0) {
+		dbg("no boot repos found on %s\n", devnode);
+		umount(mountdir);
+	}
+
+	return repos.count;
+}
+
+int is_searchdev(char *devname, const char *searchdev, const char *mountpoint,
+		 char *bootrepos)
 {
 	static blkid_cache cache = NULL;
 	char *type = NULL, *label = NULL, *uuid = NULL;
 	char devnode[256];
 	int rc = 0;
 
-	if (searchdev == NULL)
+	if (searchdev == NULL && bootrepos == NULL)
 		return 0;
 
-	if (strcmp(devname, searchdev) == 0) {
+	if (searchdev && strcmp(devname, searchdev) == 0) {
 		return 1;
 	}
 
@@ -250,12 +366,14 @@ int is_searchdev(char *devname, const char *searchdev, const char *mountpoint)
 	snprintf(devnode, sizeof(devnode), "/dev/%s", devname);
 	type = blkid_get_tag_value(cache, "TYPE", devnode);
 
-	if (strncmp("LABEL=", searchdev, 6) == 0) {
-		label = blkid_get_tag_value(cache, "LABEL", devnode);
-		rc = label && strcmp(label, searchdev+6) == 0;
-	} else if (strncmp("UUID=", searchdev, 5) == 0) {
-		uuid = blkid_get_tag_value(cache, "UUID", devnode);
-		rc = (uuid && strcmp(uuid, searchdev+5) == 0);
+	if (searchdev != NULL) {
+		if (strncmp("LABEL=", searchdev, 6) == 0) {
+			label = blkid_get_tag_value(cache, "LABEL", devnode);
+			rc = label && strcmp(label, searchdev+6) == 0;
+		} else if (strncmp("UUID=", searchdev, 5) == 0) {
+			uuid = blkid_get_tag_value(cache, "UUID", devnode);
+			rc = (uuid && strcmp(uuid, searchdev+5) == 0);
+		}
 	}
 
 	if (type || label || uuid) {
@@ -273,6 +391,8 @@ int is_searchdev(char *devname, const char *searchdev, const char *mountpoint)
 			start_mdadm(devnode);
 		} else if (strcmp("LVM2_member", type) == 0) {
 			start_lvm2(devnode);
+		} else if (bootrepos) {
+			rc = find_bootrepos(devnode, type, bootrepos);
 		}
 	}
 
@@ -317,10 +437,11 @@ int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 			snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s",
 				ev->devname);
 			if (is_searchdev(ev->devname, conf->search_device,
-			    conf->mountpoint))
+			    conf->mountpoint, conf->bootrepos)) {
 				return 1;
+			}
 
-			if (is_searchdev(ev->devname, conf->crypt_device, NULL))
+			if (is_searchdev(ev->devname, conf->crypt_device, NULL, NULL))
 				start_cryptsetup(ev->devnode, conf->crypt_name);
 		}
 	}
@@ -379,39 +500,7 @@ int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 	return dispatch_uevent(&ev, conf);
 }
 
-struct recurse_opts {
-	const char *searchname;
-	void (*callback)(const char *);
-};
-
-void recurse_dir(const char *dir, struct recurse_opts *opts)
-{
-	DIR *d = opendir(dir);
-	struct dirent *entry;
-
-	if (d == NULL)
-		return;
-
-	while ((entry = readdir(d)) != NULL) {
-		char path[PATH_MAX];
-		if (entry->d_type & DT_DIR) {
-			if (entry->d_name[0] == '.')
-				continue;
-		} else if (opts->searchname
-			   && strcmp(entry->d_name, opts->searchname) != 0) {
-			continue;
-		}
-
-		snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
-		if (entry->d_type & DT_DIR)
-			recurse_dir(path, opts);
-		else
-			opts->callback(path);
-	}
-	closedir(d);
-}
-
-void trigger_uevent_cb(const char *path)
+void trigger_uevent_cb(const char *path, const void *data)
 {
 	int fd = open(path, O_WRONLY);
 	write(fd, "add", 3);
@@ -425,6 +514,7 @@ void *trigger_thread(void *data)
 	struct recurse_opts opts = {
 		.searchname = "uevent",
 		.callback = trigger_uevent_cb,
+		.userdata = NULL,
 	};
 	recurse_dir("/sys/bus", &opts);
 	recurse_dir("/sys/devices", &opts);
@@ -470,6 +560,9 @@ int main(int argc, char *argv[])
 		argv0 = argv[0];
 
 	ARGBEGIN {
+	case 'b':
+		conf.bootrepos = EARGF(usage(1));
+		break;
 	case 'c':
 		conf.crypt_device = EARGF(usage(1));
 		break;
