@@ -78,7 +78,6 @@ struct ueventconf {
 	char *search_device;
 	char *crypt_device;
 	char *crypt_name;
-	char *mountpoint;
 	char *subsystem_filter;
 	int modalias_count;
 	int fork_count;
@@ -386,8 +385,8 @@ static int find_bootrepos(const char *devnode, const char *type,
 	return rc;
 }
 
-int searchdev(char *devname, const char *searchdev, const char *mountpoint,
-	      char *bootrepos, const char *apkovls)
+int searchdev(char *devname, const char *searchdev, char *bootrepos,
+	      const char *apkovls)
 {
 	static blkid_cache cache = NULL;
 	char *type = NULL, *label = NULL, *uuid = NULL;
@@ -439,10 +438,6 @@ int searchdev(char *devname, const char *searchdev, const char *mountpoint,
 		}
 	}
 
-	if (rc && type && mountpoint)
-		if (mount(devnode, mountpoint, type, MS_RDONLY, NULL))
-			err(1, "mount %s on %s", devnode, mountpoint);
-
 	if (type)
 		free(type);
 	if (label)
@@ -482,13 +477,12 @@ int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 			snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s",
 				 ev->devname);
 			rc = searchdev(ev->devname, conf->search_device,
-				       conf->mountpoint, conf->bootrepos,
-				       conf->apkovls);
+				       conf->bootrepos, conf->apkovls);
 			if (rc)
 				return rc;
 
-			if (searchdev(ev->devname, conf->crypt_device,
-				      NULL, NULL, 0))
+			if (searchdev(ev->devname, conf->crypt_device, NULL,
+				      NULL))
 				start_cryptsetup(ev->devnode, conf->crypt_name);
 		}
 	}
@@ -572,9 +566,7 @@ void *trigger_thread(void *data)
 void usage(int rc)
 {
 	printf("coldplug system til given device is found\n"
-	"usage: %s [options] DEVICE [DIR]\n"
-	"\n"
-	"If DIR is specified the found DEVICE will be mounted on DIR\n"
+	"usage: %s [options] DEVICE\n"
 	"\n"
 	"options:\n"
 	" -a OUTFILE      add paths to found apkovls to OUTFILE\n"
@@ -639,9 +631,6 @@ int main(int argc, char *argv[])
 
 	if (argc > 0)
 		conf.search_device = argv[0];
-
-	if (argc > 1)
-		conf.mountpoint = argv[1];
 
 	initsignals();
 
