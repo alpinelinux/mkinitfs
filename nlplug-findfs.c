@@ -617,7 +617,7 @@ int main(int argc, char *argv[])
 	struct ueventconf conf;
 	int event_count = 0;
 	size_t total_bytes;
-	int ret = 1, found = 0;
+	int found = 0;
 	char *program_argv[2] = {0,0};
 	pthread_t tid;
 
@@ -722,10 +722,8 @@ int main(int argc, char *argv[])
 		found |= process_uevent(buf, len, &conf);
 
 		if ((found & FOUND_DEVICE)
-		    || ((found & FOUND_BOOTREPO) && (found & FOUND_APKOVL))) {
-			ret = 0;
+		    || ((found & FOUND_BOOTREPO) && (found & FOUND_APKOVL)))
 			break;
-		}
 
 		if (fds[0].revents & POLLHUP) {
 			dbg("parent hung up\n");
@@ -742,7 +740,7 @@ int main(int argc, char *argv[])
 		conf.fork_count,
 		event_count, total_bytes);
 
-	return ret;
+	return found ? 0 : 1;
 }
 
 
