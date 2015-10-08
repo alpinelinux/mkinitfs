@@ -264,38 +264,49 @@ struct recurse_opts {
 	void *userdata;
 };
 
-void recurse_dir(const char *dir, struct recurse_opts *opts)
+/* pathbuf needs hold PATH_MAX chars */
+void recurse_dir(char *pathbuf, struct recurse_opts *opts)
 {
-	DIR *d = opendir(dir);
+	DIR *d = opendir(pathbuf);
 	struct dirent *entry;
 
 	if (d == NULL)
 		return;
 
 	while ((entry = readdir(d)) != NULL) {
-		char path[PATH_MAX];
 		struct stat st;
+		size_t pathlen = strlen(pathbuf);
+		size_t namelen = strlen(entry->d_name);
 
 		/* d_type is not supported by all filesystems so we need
 		   lstat */
-		snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
-		if (lstat(path, &st) < 0) {
-			dbg("%s: %s", path, strerror(errno));
+		if (pathlen + 2 + namelen > PATH_MAX) {
+			dbg("path length overflow");
 			continue;
+		}
+
+		pathbuf[pathlen] = '/';
+		strcpy(&pathbuf[pathlen+1], entry->d_name);
+
+		if (lstat(pathbuf, &st) < 0) {
+			dbg("%s: %s", pathbuf, strerror(errno));
+			goto next;
 		}
 
 		if (S_ISDIR(st.st_mode)) {
 			if (entry->d_name[0] == '.')
-				continue;
+				goto next;
 		} else if (opts->searchname
 			   && strcmp(entry->d_name, opts->searchname) != 0) {
-			continue;
+			goto next;
 		}
 
 		if (S_ISDIR(st.st_mode))
-			recurse_dir(path, opts);
+			recurse_dir(pathbuf, opts);
 		else
-			opts->callback(path, opts->userdata);
+			opts->callback(pathbuf, opts->userdata);
+next:
+		pathbuf[pathlen] = '\0';
 	}
 	closedir(d);
 }
@@ -570,8 +581,11 @@ void *trigger_thread(void *data)
 		.callback = trigger_uevent_cb,
 		.userdata = NULL,
 	};
-	recurse_dir("/sys/bus", &opts);
-	recurse_dir("/sys/devices", &opts);
+	char path[PATH_MAX] = "/sys/bus";
+
+	recurse_dir(path, &opts);
+	strcpy(path, "/sys/devices");
+	recurse_dir(path, &opts);
 	write(fd, &ok, sizeof(ok));
 	return NULL;
 }
