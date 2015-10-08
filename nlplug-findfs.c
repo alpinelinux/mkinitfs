@@ -530,6 +530,7 @@ void usage(int rc)
 	"If DIR is specified the found DEVICE will be mounted on DIR\n"
 	"\n"
 	"options:\n"
+	" -b OUTFILE      mount and search for .boot_repository\n"
 	" -c CRYPTDEVICE  run cryptsetup luksOpen when CRYPTDEVICE is found\n"
 	" -h              show this help\n"
 	" -m CRYPTNAME    use CRYPTNAME name for crypto device mapping\n"
