@@ -274,7 +274,17 @@ void recurse_dir(const char *dir, struct recurse_opts *opts)
 
 	while ((entry = readdir(d)) != NULL) {
 		char path[PATH_MAX];
-		if (entry->d_type & DT_DIR) {
+		struct stat st;
+
+		/* d_type is not supported by all filesystems so we need
+		   lstat */
+		snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
+		if (lstat(path, &st) < 0) {
+			dbg("%s: %s", path, strerror(errno));
+			continue;
+		}
+
+		if (S_ISDIR(st.st_mode)) {
 			if (entry->d_name[0] == '.')
 				continue;
 		} else if (opts->searchname
@@ -282,8 +292,7 @@ void recurse_dir(const char *dir, struct recurse_opts *opts)
 			continue;
 		}
 
-		snprintf(path, sizeof(path), "%s/%s", dir, entry->d_name);
-		if (entry->d_type & DT_DIR)
+		if (S_ISDIR(st.st_mode))
 			recurse_dir(path, opts);
 		else
 			opts->callback(path, opts->userdata);
