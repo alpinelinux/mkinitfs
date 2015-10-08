@@ -9,6 +9,7 @@
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
+#include <glob.h>
 #include <limits.h>
 #include <poll.h>
 #include <pthread.h>
@@ -33,6 +34,10 @@
 #include "arg.h"
 
 #define EVENT_TIMEOUT 2000
+
+#define FOUND_DEVICE	0x1
+#define FOUND_BOOTREPO	0x2
+#define FOUND_APKOVL	0x4
 
 static int dodebug;
 char *argv0;
@@ -78,6 +83,7 @@ struct ueventconf {
 	int modalias_count;
 	int fork_count;
 	char *bootrepos;
+	char *apkovls;
 };
 
 
@@ -301,15 +307,43 @@ void bootrepo_cb(const char *path, const void *data)
 	repos->count++;
 }
 
+static int find_apkovl(const char *dir, const char *outfile)
+{
+	char pattern[PATH_MAX];
+	glob_t gl;
+	int r, fd;
+
+	if (outfile == NULL)
+		return 0;
+
+	snprintf(pattern, sizeof(pattern), "%s/*.apkovl.tar.gz*", dir);
+
+	r = glob(pattern, 0, NULL, &gl);
+	if (r != 0)
+		return 0;
+
+	fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND);
+	if (fd == -1)
+		err(1, "%s", outfile);
+
+	for (r = 0; r < gl.gl_pathc; r++) {
+		dbg("Found apkovl: %s", gl.gl_pathv[r]);
+		write(fd, gl.gl_pathv[r], strlen(gl.gl_pathv[r]));
+		write(fd, "\n", 1);
+	}
+	close(fd);
+	globfree(&gl);
+	return FOUND_APKOVL;
+}
 
 static int find_bootrepos(const char *devnode, const char *type,
-			 char *filename)
+			 char *bootrepos, const char *apkovls)
 {
 	char mountdir[PATH_MAX] = "";
 	char *devname;
-	int r;
+	int r, rc = 0;
 	struct bootrepos repos = {
-		.outfile = filename,
+		.outfile = bootrepos,
 		.count = 0,
 	};
 	struct recurse_opts opts = {
@@ -321,7 +355,7 @@ static int find_bootrepos(const char *devnode, const char *type,
 
 	/* skip already mounted devices */
 	if (is_mounted(devnode)) {
-		dbg("%s is mounted (%s). skipping\n", devnode, type);
+		dbg("%s is mounted (%s). skipping", devnode, type);
 		return 0;
 	}
 	devname = strrchr(devnode, '/');
@@ -329,35 +363,42 @@ static int find_bootrepos(const char *devnode, const char *type,
 	if (devname)
 		snprintf(mountdir, sizeof(mountdir), "/media%s", devname);
 
-	dbg("mounting %s on %s. (%s)\n", devnode, mountdir, type);
+	dbg("mounting %s on %s. (%s)", devnode, mountdir, type);
 	mkdir(mountdir, 0755);
 
 	r = mount(devnode, mountdir, type, MS_RDONLY, NULL);
-	if (r < 0)
+	if (r < 0) {
+		dbg("Failed to mount %s on %s: %s",
+		    devnode, mountdir, strerror(errno));
 		return 0;
-
-	recurse_dir(mountdir, &opts);
-	if (repos.count == 0) {
-		dbg("no boot repos found on %s\n", devnode);
-		umount(mountdir);
 	}
 
-	return repos.count;
+	recurse_dir(mountdir, &opts);
+	if (repos.count > 0)
+		rc |= FOUND_BOOTREPO;
+
+	if (find_apkovl(mountdir, apkovls))
+		rc |= FOUND_APKOVL;
+
+	if (rc == 0)
+		umount(mountdir);
+
+	return rc;
 }
 
-int is_searchdev(char *devname, const char *searchdev, const char *mountpoint,
-		 char *bootrepos)
+int searchdev(char *devname, const char *searchdev, const char *mountpoint,
+	      char *bootrepos, const char *apkovls)
 {
 	static blkid_cache cache = NULL;
 	char *type = NULL, *label = NULL, *uuid = NULL;
 	char devnode[256];
 	int rc = 0;
 
-	if (searchdev == NULL && bootrepos == NULL)
+	if (searchdev == NULL && bootrepos == NULL && apkovls == NULL)
 		return 0;
 
 	if (searchdev && strcmp(devname, searchdev) == 0) {
-		return 1;
+		return FOUND_DEVICE;
 	}
 
 	if (cache == NULL)
@@ -369,10 +410,12 @@ int is_searchdev(char *devname, const char *searchdev, const char *mountpoint,
 	if (searchdev != NULL) {
 		if (strncmp("LABEL=", searchdev, 6) == 0) {
 			label = blkid_get_tag_value(cache, "LABEL", devnode);
-			rc = label && strcmp(label, searchdev+6) == 0;
+			if (label && strcmp(label, searchdev+6) == 0)
+				rc = FOUND_DEVICE;
 		} else if (strncmp("UUID=", searchdev, 5) == 0) {
 			uuid = blkid_get_tag_value(cache, "UUID", devnode);
-			rc = (uuid && strcmp(uuid, searchdev+5) == 0);
+			if (uuid && strcmp(uuid, searchdev+5) == 0)
+				rc = FOUND_DEVICE;
 		}
 	}
 
@@ -392,12 +435,12 @@ int is_searchdev(char *devname, const char *searchdev, const char *mountpoint,
 		} else if (strcmp("LVM2_member", type) == 0) {
 			start_lvm2(devnode);
 		} else if (bootrepos) {
-			rc = find_bootrepos(devnode, type, bootrepos);
+			rc = find_bootrepos(devnode, type, bootrepos, apkovls);
 		}
 	}
 
 	if (rc && type && mountpoint)
-		if(mount(devnode, mountpoint, type, MS_RDONLY, NULL))
+		if (mount(devnode, mountpoint, type, MS_RDONLY, NULL))
 			err(1, "mount %s on %s", devnode, mountpoint);
 
 	if (type)
@@ -434,14 +477,18 @@ int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 
 		if (ev->subsystem && strcmp(ev->subsystem, "block") == 0
 		    && strcmp(ev->action, "add") == 0) {
-			snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s",
-				ev->devname);
-			if (is_searchdev(ev->devname, conf->search_device,
-			    conf->mountpoint, conf->bootrepos)) {
-				return 1;
-			}
+			int rc;
 
-			if (is_searchdev(ev->devname, conf->crypt_device, NULL, NULL))
+			snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s",
+				 ev->devname);
+			rc = searchdev(ev->devname, conf->search_device,
+				       conf->mountpoint, conf->bootrepos,
+				       conf->apkovls);
+			if (rc)
+				return rc;
+
+			if (searchdev(ev->devname, conf->crypt_device,
+				      NULL, NULL, 0))
 				start_cryptsetup(ev->devnode, conf->crypt_name);
 		}
 	}
@@ -530,7 +577,8 @@ void usage(int rc)
 	"If DIR is specified the found DEVICE will be mounted on DIR\n"
 	"\n"
 	"options:\n"
-	" -b OUTFILE      mount and search for .boot_repository\n"
+	" -a OUTFILE      add paths to found apkovls to OUTFILE\n"
+	" -b OUTFILE      add found boot repositories to OUTFILE\n"
 	" -c CRYPTDEVICE  run cryptsetup luksOpen when CRYPTDEVICE is found\n"
 	" -h              show this help\n"
 	" -m CRYPTNAME    use CRYPTNAME name for crypto device mapping\n"
@@ -550,7 +598,7 @@ int main(int argc, char *argv[])
 	struct ueventconf conf;
 	int event_count = 0;
 	size_t total_bytes;
-	int ret = 1;
+	int ret = 1, found = 0;
 	char *program_argv[2] = {0,0};
 	pthread_t tid;
 
@@ -561,6 +609,9 @@ int main(int argc, char *argv[])
 		argv0 = argv[0];
 
 	ARGBEGIN {
+	case 'a':
+		conf.apkovls = EARGF(usage(1));;
+		break;
 	case 'b':
 		conf.bootrepos = EARGF(usage(1));
 		break;
@@ -652,9 +703,11 @@ int main(int argc, char *argv[])
 			continue;
 
 		event_count++;
-		if (process_uevent(buf, len, &conf)) {
+		found |= process_uevent(buf, len, &conf);
+
+		if ((found & FOUND_DEVICE)
+		    || ((found & FOUND_BOOTREPO) && (found & FOUND_APKOVL))) {
 			ret = 0;
-			dbg("FOUND %s", conf.search_device);
 			break;
 		}
 
