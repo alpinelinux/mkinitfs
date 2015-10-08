@@ -6,6 +6,10 @@
  * Copyright (c) 2015 Natanael Copa <ncopa@alpinelinux.org>
  */
 
+#ifndef _GNU_SOURCE
+#define _GNU_SOURCE
+#endif
+
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
@@ -121,7 +125,8 @@ static int init_netlink_socket(void)
 	nls.nl_pid = getpid();
 	nls.nl_groups = -1;
 
-	fd = socket(PF_NETLINK, SOCK_DGRAM, NETLINK_KOBJECT_UEVENT);
+	fd = socket(PF_NETLINK, SOCK_DGRAM | SOCK_NONBLOCK | SOCK_CLOEXEC,
+		    NETLINK_KOBJECT_UEVENT);
 	if (fd < 0)
 		err(1, "socket");
 
@@ -141,7 +146,6 @@ static int init_netlink_socket(void)
 	if (bind(fd, (void *)&nls, sizeof(nls)))
 		err(1, "bind");
 
-	fcntl(fd, F_SETFD, FD_CLOEXEC);
 	return fd;
 }
 
