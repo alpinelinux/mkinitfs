@@ -37,7 +37,7 @@
 
 #include "arg.h"
 
-#define EVENT_TIMEOUT 2000
+#define DEFAULT_EVENT_TIMEOUT 250
 
 #define FOUND_DEVICE	0x1
 #define FOUND_BOOTREPO	0x2
@@ -87,6 +87,7 @@ struct ueventconf {
 	int fork_count;
 	char *bootrepos;
 	char *apkovls;
+	int timeout;
 };
 
 
@@ -604,6 +605,7 @@ void usage(int rc)
 	" -d              enable debugging ouput\n"
 	" -f SUBSYSTEM    filter subsystem\n"
 	" -p PROGRAM      use PROGRAM as handler for every event with DEVNAME\n"
+	" -t TIMEOUT      timeout after TIMEOUT milliseconds without uevents\n"
 	"\n", argv0);
 
 	exit(rc);
@@ -623,6 +625,7 @@ int main(int argc, char *argv[])
 
 	memset(&conf, 0, sizeof(conf));
 	conf.program_argv = program_argv;
+	conf.timeout = DEFAULT_EVENT_TIMEOUT;
 	argv0 = strrchr(argv[0], '/');
 	if (argv0++ == NULL)
 		argv0 = argv[0];
@@ -652,6 +655,9 @@ int main(int argc, char *argv[])
 	case 'p':
 		conf.program_argv[0] = EARGF(usage(1));
 		break;
+	case 't':
+		conf.timeout = atoi(EARGF(usage(1)));
+		break;
 	default:
 		usage(1);
 	} ARGEND;
@@ -669,7 +675,7 @@ int main(int argc, char *argv[])
 
 	pthread_create(&tid, NULL, trigger_thread, &fds[1].fd);
 
-	while ((r = poll(fds, numfds, EVENT_TIMEOUT)) > 0) {
+	while ((r = poll(fds, numfds, conf.timeout)) > 0) {
 		size_t len;
 		struct iovec iov;
 		char cbuf[CMSG_SPACE(sizeof(struct ucred))];
