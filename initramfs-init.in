@@ -42,30 +42,6 @@ eend() {
 	fi
 }
 
-scan_drivers() {
-	if [ "$KOPT_autodetect" != no ] ; then
-		find /sys -name modalias | xargs sort -u | xargs modprobe -a 2> /dev/null
-	fi
-}
-
-find_ovl() {
-	local mnt="$1"
-
-	if [ -n "$APKOVL" ]; then
-		[ -f "$mnt/$APKOVL" ] && echo "$mnt/$APKOVL"
-		return
-	fi
-
-	# look for apkovl's on mounted media
-	set -- "$mnt"/*.apkovl.tar.gz*
-
-	if [ $# -gt 1 ] ; then
-		echo "ERROR: More than one apkovl file was found on $(basename $mnt). None will be read." >&2
-		return 1
-	fi
-	echo "$1"
-}
-
 retry_mount() {
 	# usb might need some time to settle so we retry a few times
 	for i in $(seq 0 9); do
@@ -87,7 +63,6 @@ unpack_apkovl() {
 	fi
 
 	# we need openssl. let apk handle deps
-	find_boot_repositories > /tmp/repositories
 	apk add --quiet --initdb --repositories-file /tmp/repositories openssl\
 		|| return 1
 
@@ -136,64 +111,10 @@ find_mnt() {
 	MNTOPTS=
 }
 
-# Wait for usb to settle
-wait_usb() {
-	if [ -n "$USB_DONE" ] || ! dmesg | grep '^usb-storage: waiting' >/dev/null; then
-		return 0
-	fi
-	ebegin "Waiting for USB device to settle"
-	while ! dmesg | grep 'usb-storage: device scan complete' >/dev/null; do
-		sleep 1
-	done
-	USB_DONE=yes
-	eend 0
-}
-
 #  add a boot service to $sysroot
 rc_add() {
 	mkdir -p $sysroot/etc/runlevels/$2
 	ln -sf /etc/init.d/$1 $sysroot/etc/runlevels/$2/$1
-}
-
-find_ovl_blkdev() {
-	local fsmoddir=/lib/modules/$(uname -r)/kernel/fs
-	blkid | while read line; do
-		mod=
-		UUID=
-		TYPE=
-		dev=${line%%: *}
-		eval ${line#$dev:}
-		for i in $fsmoddir/$TYPE.ko $fsmoddir/*/$TYPE.ko; do
-			[ -f $fsmoddir/*/$TYPE.ko ] && mod=$i && break
-		done
-		[ -n "$mod" ] || continue
-		mnt=/media/${UUID:-${dev##*/}}
-		mkdir -p "$mnt"
-		mount -o ro -t "$TYPE" "$dev" "$mnt" 2>/dev/null || continue
-		ovl=$(find_ovl "$mnt")
-		if [ -f "$ovl" ]; then
-			echo "$ovl"
-			break
-		fi
-		umount "$mnt"
-	done
-}
-
-# we have issues with some slow usb 1 hosts so we add 1 second delay
-# with possibility to increase delay at boot prompt with usbdelay=<sec>
-find_ovl_delayed_usb() {
-	local n i
-	# look for apkovl
-	for n in $(seq 0 ${KOPT_usbdelay:-1}); do
-		# wait for usb to settle if needed
-		wait_usb
-		ovl=$(find_ovl_blkdev)
-		if [ -f "$ovl" ]; then
-			ovl_unmount="${ovl%/*}"
-			return
-		fi
-		sleep 1
-	done
 }
 
 setup_inittab_console(){
@@ -223,46 +144,6 @@ setup_inittab_console(){
 		echo "$tty::respawn:/sbin/getty $line $speed $tty $term" \
 			>> $sysroot/etc/inittab
 	done
-}
-
-start_raid() {
-	local n= i=
-	local mdadm_flags=
-	case "$KOPT_root" in
-		/dev/md*) n=${KOPT_root#/dev/md} ;;
-	esac
-	case "$KOPT_autoraid" in
-		[0-9]*) n="$n $(echo $KOPT_autoraid | tr ',' ' ')" ;;
-	esac
-	[ "$KOPT_quiet" = yes ] && mdadm_flags="$mdadm_flags -q"
-	# if kernel can autostart the raid he will
-	for i in $n; do
-		mknod /dev/md$i b 9 $i
-		raidautorun /dev/md$i
-	done
-	# kernel cannot autostart newer versions of mdadm metadata
-	# so we also check if mdadm binary is there
-	if [ -x /sbin/mdadm ]; then
-		mdadm $mdadm_flags --assemble --scan
-	fi
-}
-
-# start cryptsetup if exists
-start_cryptsetup() {
-	[ -x /sbin/cryptsetup ] || return
-	modprobe dm-crypt
-	if [ -n "$KOPT_cryptroot" ]; then
-		modprobe dm-crypt
-		cryptsetup luksOpen $(resolve_dev "$KOPT_cryptroot") "$KOPT_cryptdm"
-	fi
-}
-
-# start lvm if exists
-start_lvm() {
-	[ -x /sbin/lvm ] || return
-	modprobe dm-mod
-	lvm vgscan --mknodes --ignorelockingfailure >/dev/null 2>&1
-	lvm vgchange --ignorelockingfailure -a y >/dev/null 2>&1
 }
 
 # determine the default interface to use if ip=dhcp is set
@@ -334,10 +215,6 @@ configure_ip() {
 		ip_set "$device" "$client_ip" "$netmask" "$gw_ip"
 		eend $?
 	fi
-	MAC_ADDRESS=$(cat /sys/class/net/$device/address)
-	MACHINE_UUID=$(cat /sys/class/dmi/id/product_uuid)
-	OVL_DEV="${OVL_DEV/{MAC\}/$MAC_ADDRESS}"
-	OVL_DEV="${OVL_DEV/{UUID\}/$MACHINE_UUID}"
 }
 
 # resolve an uuid or symlink to the real device
@@ -348,29 +225,15 @@ resolve_dev() {
 	esac
 }
 
-# relocate ALPINE_MNT according given fstab
-relocate_alpine_mnt() {
-	local fstab="$1"
-	local mnt=$(find_mnt $ALPINE_DEV $fstab)
-	if [ -n "$mnt" ] && [ "$ALPINE_MNT" != "$mnt" ]; then
+# relocate mountpoint according given fstab
+relocate_mount() {
+	local dir="${1%%/}"
+	local fstab="$2"
+	local mnt=$(find_mnt $dir $fstab)
+	if [ -n "$mnt" ] && [ "$dir" != "$mnt" ]; then
 		mkdir -p "$mnt"
-		mount -o move $ALPINE_MNT $mnt
-		ALPINE_MNT=$mnt
+		mount -o move "$dir" "$mnt"
 	fi
-}
-
-# detect filesystem type on given device/UUID
-find_fs_type() {
-	local dev=$(findfs $1)
-	local i=
-	for i in $(blkid $dev); do
-		case $i in
-		TYPE=*) eval "$i"
-			echo $TYPE
-			return
-			;;
-		esac
-	done
 }
 
 # find the dirs under ALPINE_MNT that are boot repositories
@@ -378,7 +241,7 @@ find_boot_repositories() {
 	if [ -n "$ALPINE_REPO" ]; then
 		echo "$ALPINE_REPO"
 	else
-		find $ALPINE_MNT -name .boot_repository -type f -maxdepth 3 \
+		find /media/* -name .boot_repository -type f -maxdepth 3 \
 			| sed 's:/.boot_repository$::'
 	fi
 }
@@ -440,63 +303,14 @@ if [ "$KOPT_dma" = no ]; then
 	modprobe libata dma=0
 fi
 
-ALPINE_DEV=${KOPT_alpine_dev%%:*}
-ALPINE_DEV_FS=${KOPT_alpine_dev##*:}
-if [ "$ALPINE_DEV_FS" = "$ALPINE_DEV" ]; then
-	unset ALPINE_DEV_FS
-fi
-
-# /dev/blah:ext3
-if [ -n "$KOPT_ovl_dev" ] ; then
-	OVL_DEV=${KOPT_ovl_dev%%:*}
-	OVL_DEV_FS=${KOPT_ovl_dev##*:}
-	if [ "$OVL_DEV_FS" = "$OVL_DEV" ]; then
-		unset OVL_DEV_FS
-	fi
-fi
-
-# http://.../blah.apkovl.tar.gz
-case "$KOPT_apkovl" in
-	http://*|https://|ftp://*)
-		OVL_DEV="$KOPT_apkovl";;
-	*:*:*)	# apkovl=sda1:ext4:/subdir/host.apkovl.tar.gz
-		OVL_DEV="${KOPT_apkovl%%:*}"
-		OVL_DEV_FS="${KOPT_apkovl%:*}"
-		OVL_DEV_FS="${OVL_DEV_FS#*:}"
-		APKOVL="${KOPT_apkovl##*:}"
-		;;
-	*:*)	# apkovl=sda1:/subdir/host.apkovl.tar.gz
-		OVL_DEV=${KOPT_apkovl%%:*}
-		APKOVL=${KOPT_apkovl##*:}
-		;;
-	*)	# apkovl=subdir/host.apkovl.tar.gz
-		APKOVL="${KOPT_apkovl}"
-		;;
-esac
-
-case "$ALPINE_DEV" in
-	UUID=*|LABEL=*) ;;
-	nfs)
-		# nfs:IP:EXPORT
-		ALPINE_DEV_FS="$ALPINE_DEV"
-		ALPINE_DEV="${KOPT_alpine_dev:4}"
-		;;
-	*) ALPINE_DEV=/dev/$ALPINE_DEV ;;
-esac
-
 # The following values are supported:
 #   alpine_repo=auto         -- default, search for .boot_repository
 #   alpine_repo=http://...   -- network repository
 ALPINE_REPO=${KOPT_alpine_repo}
 [ "$ALPINE_REPO" = "auto" ] && ALPINE_REPO=
 
-# look for standard mountpoint locations
-ALPINE_MNT=$(find_mnt $ALPINE_DEV /etc/fstab)
-[ -z "$ALPINE_MNT" ] && [ "$ALPINE_DEV_FS" = nfs ] && ALPINE_MNT=/media/alpine
-[ -z "$ALPINE_MNT" ] && ALPINE_MNT=/media/${ALPINE_DEV##*/}
-
 # hide kernel messages
-[ "$KOPT_quiet" = yes ] && dmesg -n 1
+#[ "$KOPT_quiet" = yes ] && dmesg -n 1
 
 # optional blacklist
 for i in ${KOPT_blacklist/,/ }; do
@@ -504,12 +318,8 @@ for i in ${KOPT_blacklist/,/ }; do
 done
 
 # setup /dev
-ebegin "Starting mdev"
 mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
 	|| mount -t tmpfs -o exec,nosuid,mode=0755,size=2M tmpfs /dev
-echo "/sbin/mdev" > /proc/sys/kernel/hotplug
-mdev -s
-RC=$?
 [ -d /dev/pts ] || mkdir -m 755 /dev/pts
 [ -c /dev/ptmx ] || mknod -m 666 /dev/ptmx c 5 2
 # make sure /dev/null is setup correctly
@@ -518,7 +328,6 @@ RC=$?
 mount -t devpts -o gid=5,mode=0620,noexec,nosuid devpts /dev/pts
 [ -d /dev/shm ] || mkdir /dev/shm
 mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
-eend $RC
 
 # load available drivers to get access to modloop media
 ebegin "Loading boot drivers"
@@ -530,8 +339,6 @@ if [ -f /etc/modules ] ; then
 		modprobe -q $module $args
 	done
 fi
-scan_drivers
-scan_drivers
 eend 0
 
 # check if root=... was set
@@ -540,24 +347,27 @@ if [ -n "$KOPT_root" ]; then
 		echo "Entering single mode. Type 'exit' to continue booting."
 		sh
 	fi
-	# let usb settle in case we boot from usb disks
-	[ -n "$KOPT_usbdelay" ] && sleep "$KOPT_usbdelay"
-	wait_usb
-	start=${KOPT_alpine_start:-raid,cryptsetup,lvm}
-	for i in ${start//,/ }; do
-		start_$i
-	done
+
+	if [ -n "$KOPT_cryptroot" ]; then
+		cryptopts="-c ${KOPT_cryptroot}"
+		if [ -n "$KOPT_cryptdm" ]; then
+			cryptopts="$cryptopts -m ${KOPT_cryptdm}"
+		fi
+	fi
 	ebegin "Mounting root"
 	if [ "$KOPT_overlaytmpfs" = "yes" ]; then
-		mkdir -p /media/root-ro /media/root-rw $sysroot/media/root-ro $sysroot/media/root-rw
-		retry_mount -o ro $KOPT_root /media/root-ro 2>/dev/null
+		mkdir -p /media/root-ro /media/root-rw $sysroot/media/root-ro \
+			$sysroot/media/root-rw
+		nlplug-findfs $KOPT_root \
+			&& mount -o ro $KOPT_root /media/root-ro
 		mount -t tmpfs root-tmpfs /media/root-rw
 		mkdir -p /media/root-rw/work /media/root-rw/root
 		mount -t overlay -o lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work overlayfs $sysroot
 	else
-		retry_mount ${KOPT_rootfstype:+-t} ${KOPT_rootfstype} \
+		nlplug-findfs $KOPT_root
+		mount ${KOPT_rootfstype:+-t} ${KOPT_rootfstype} \
 			-o ${KOPT_rootflags:-ro} \
-			$KOPT_root $sysroot 2>/dev/null
+			$KOPT_root $sysroot
 	fi
 
 	eend $?
@@ -573,35 +383,11 @@ if [ -n "$KOPT_root" ]; then
 	exec /bin/busybox sh
 fi
 
-# we only want to wait for usb if really needed at this point
-if [ -z "${ALPINE_DEV##*usb*}" ]; then
-	wait_usb
-fi
-
-# IP. This shouldn't be needed if root= is set.
-configure_ip
-
-# incase we have alpine_dev on raid device...
-start=${KOPT_alpine_start:-raid,cryptsetup,lvm}
-for i in ${start//,/ }; do
-	start_$i
-done
-
 # locate boot media and mount it
 ebegin "Mounting boot media"
-mkdir -p $ALPINE_MNT
-
-# try detect the filesystem
-if [ -z "$ALPINE_DEV_FS" ]; then
-	ALPINE_DEV_FS=$(find_fs_type $ALPINE_DEV)
-fi
-
-if [ -n "$ALPINE_DEV_FS" ]; then
-	mount_opts="-t $ALPINE_DEV_FS"
-	[ "$ALPINE_DEV_FS" = "nfs" ] && mount_opts="$mount_opts -o nolock"
-fi
-
-retry_mount -o ro $mount_opts $ALPINE_DEV $ALPINE_MNT >/dev/null 2>&1
+nlplug-findfs ${KOPT_debug_init:+-d} \
+	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
+	-b /tmp/repositories -a /tmp/apkovls
 eend $?
 
 # early console?
@@ -622,27 +408,24 @@ fi
 
 mount -t tmpfs -o $rootflags tmpfs $sysroot
 
-case "$OVL_DEV" in
+case "$KOPT_apkovl" in
 	'')
-		ovl=$(find_ovl $ALPINE_MNT)
-		if ! [ -f "$ovl" ]; then
-			find_ovl_delayed_usb
+		if [ -e /tmp/apkovls ]; then
+			ovl=$(head -n 1 /tmp/apkovls)
 		fi
 		;;
 	http://*|https://*|ftp://*)
-		ovl=/tmp/boot.apkovl.tar.gz
-		wget -O "$ovl" "$OVL_DEV" || ovl=
+		configure_ip
+
+		MAC_ADDRESS=$(cat /sys/class/net/$device/address)
+		MACHINE_UUID=$(cat /sys/class/dmi/id/product_uuid)
+		url="${KOPT_apkovl/{MAC\}/$MAC_ADDRESS}"
+		url="${url/{UUID\}/$MACHINE_UUID}"
+		ovl=/tmp/${url##*/}
+		wget -O "$ovl" "$url" || ovl=
 		;;
 	*)
-		mkdir -p /media/$OVL_DEV
-		unset mount_opts
-		if [ -n "$OVL_DEV_FS" ]; then
-			mount_opts="-t $OVL_DEV_FS"
-		fi
-
-		retry_mount -o ro $mount_opts /dev/$OVL_DEV /media/$OVL_DEV \
-			>/dev/null 2>&1
-		ovl=$(find_ovl /media/$OVL_DEV)
+		ovl="$KOPT_apkovl"
 		;;
 esac
 
@@ -665,18 +448,8 @@ if [ -f "$ovl" ]; then
 	pkgs="$pkgs $(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)"
 	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world \
 		$sysroot/etc/apk/world 2>/dev/null)"
-	# clean up after upgrade
-	rm -f $sysroot/etc/lbu/packages.list \
-		$sysroot/var/lib/apk/world
-
-	# fix up inittab from pre openrc times (alpine v1.8)
-	if [ -f "$sysroot"/etc/inittab ]; then
-		sed -i -e 's|:/etc/init.d/rcS|:/sbin/rc sysinit|' \
-			-e 's|:/etc/init.d/rcL|:/sbin/rc default|' \
-			-e 's|:/etc/init.d/rcK|:/sbin/rc shutdown|' \
-			"$sysroot"/etc/inittab
-	fi
 fi
+
 if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 	# add some boot services by default
 	rc_add devfs sysinit
@@ -697,17 +470,24 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 	rm -f "$sysroot/etc/.default_boot_services"
 fi
 
-if [ "$KOPT_splash" != "no" -a -e $ALPINE_MNT/fbsplash.ppm ]; then
+if [ "$KOPT_splash" != "no" ]; then
+	for fbsplash in /media/*/fbsplash.ppm; do
+		if [ -e "$fbsplash" ]; then
+			break;
+		fi
+	done
+fi
+
+if [ -n "$fbsplash" ] && [ -e "$fbsplash" ]; then
 	local config
-	ebegin "Starting bootsplash (from $ALPINE_MNT)"
+	ebegin "Starting bootsplash"
 	mkfifo $sysroot/$splashfile
-	if [ -e $ALPINE_MNT/fbsplash.cfg ]; then
-		config=$ALPINE_MNT/fbsplash.cfg
-	else
+	config="${fbsplash%.*}.cfg"
+	if ! [ -e "$config" ]; then
 		config=/tmp/fbsplash.cfg
 		echo "IMAGE_ALIGN=CM" > $config
 	fi
-	setsid fbsplash -T 16 -s $ALPINE_MNT/fbsplash.ppm -i $config -f $sysroot/$splashfile &
+	setsid fbsplash -T 16 -s "$fsplash" -i $config -f $sysroot/$splashfile &
 	eend 0
 else
 	KOPT_splash="no"
@@ -725,7 +505,12 @@ if [ -f $sysroot/etc/fstab ]; then
 	# move the ALPINE_MNT if ALPINE_DEV is specified in users fstab
 	# this is so a generated /etc/apk/repositories will use correct
 	# mount dir
-	relocate_alpine_mnt "$sysroot"/etc/fstab
+
+	if [ -e /tmp/repositores ]; then
+		cut -d/ -f1-3 < /tmp/repositories | while read dir; do
+			relocate_mount "$dir" "$sysroot"/etc/fstab
+		done
+	fi
 fi
 
 # in case we upgrade we might need those:
@@ -790,9 +575,11 @@ if [ -n "$ovl_unmount" ]; then
 	umount $ovl_unmount 2>/dev/null
 fi
 
-# remount ALPINE_MNT according default fstab from package
-if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ]; then
-	relocate_alpine_mnt "$sysroot"/etc/fstab
+# remount according default fstab from package
+if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ] && [ -f /tmp/repositories ]; then
+	cut -d/ -f1-3 < /tmp/repositories | while read dir; do
+		relocate_mount "$dir" "$sysroot"/etc/fstab
+	done
 fi
 
 # generate repositories if none exists. this needs to be done after relocation
@@ -812,10 +599,10 @@ fi
 setup_inittab_console $CONSOLE
 
 # copy alpine release info
-if ! [ -f "$sysroot"/etc/alpine-release ] && [ -f $ALPINE_MNT/.alpine-release ]; then
-	cp $ALPINE_MNT/.alpine-release $sysroot/
-	ln -sf /.alpine-release $sysroot/etc/alpine-release
-fi
+#if ! [ -f "$sysroot"/etc/alpine-release ] && [ -f $ALPINE_MNT/.alpine-release ]; then
+#	cp $ALPINE_MNT/.alpine-release $sysroot/
+#	ln -sf /.alpine-release $sysroot/etc/alpine-release
+#fi
 
 ! [ -f "$sysroot"/etc/resolv.conf ] && [ -f /etc/resolv.conf ] && \
   cp /etc/resolv.conf "$sysroot"/etc
