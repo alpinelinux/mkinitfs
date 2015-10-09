@@ -358,13 +358,13 @@ if [ -n "$KOPT_root" ]; then
 	if [ "$KOPT_overlaytmpfs" = "yes" ]; then
 		mkdir -p /media/root-ro /media/root-rw $sysroot/media/root-ro \
 			$sysroot/media/root-rw
-		nlplug-findfs $KOPT_root \
+		nlplug-findfs -p /sbin/mdev $KOPT_root \
 			&& mount -o ro $KOPT_root /media/root-ro
 		mount -t tmpfs root-tmpfs /media/root-rw
 		mkdir -p /media/root-rw/work /media/root-rw/root
 		mount -t overlay -o lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work overlayfs $sysroot
 	else
-		nlplug-findfs $KOPT_root
+		nlplug-findfs -p /sbin/mdev $KOPT_root
 		mount ${KOPT_rootfstype:+-t} ${KOPT_rootfstype} \
 			-o ${KOPT_rootflags:-ro} \
 			$KOPT_root $sysroot
@@ -385,7 +385,7 @@ fi
 
 # locate boot media and mount it
 ebegin "Mounting boot media"
-nlplug-findfs ${KOPT_debug_init:+-d} \
+nlplug-findfs -p /sbin/mdev ${KOPT_debug_init:+-d} \
 	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
 	-b /tmp/repositories -a /tmp/apkovls
 eend $?
