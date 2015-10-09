@@ -37,7 +37,8 @@
 
 #include "arg.h"
 
-#define DEFAULT_EVENT_TIMEOUT 250
+#define DEFAULT_EVENT_TIMEOUT	250
+#define USB_STORAGE_TIMEOUT	2000
 
 #define FOUND_DEVICE	0x1
 #define FOUND_BOOTREPO	0x2
@@ -74,6 +75,7 @@ struct uevent {
 	char *devname;
 	char *major;
 	char *minor;
+	char *driver;
 	char devnode[256];
 };
 
@@ -475,6 +477,8 @@ int searchdev(char *devname, const char *searchdev, char *bootrepos,
 
 int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 {
+	static int timeout_increment = USB_STORAGE_TIMEOUT;
+
 	if (conf->subsystem_filter && ev->subsystem
 	    && strcmp(ev->subsystem, conf->subsystem_filter) != 0) {
 		dbg("subsystem '%s' filtered out (by '%s').",
@@ -488,6 +492,10 @@ int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 	if (ev->modalias != NULL && strcmp(ev->action, "add") == 0) {
 		load_kmod(ev->modalias);
 		conf->modalias_count++;
+
+	} else if (ev->driver != NULL && strcmp(ev->driver, "usb-storage") == 0) {
+		conf->timeout += timeout_increment;
+		timeout_increment = 0;
 
 	} else if (ev->devname != NULL) {
 		if (conf->program_argv[0] != NULL) {
@@ -557,6 +565,8 @@ int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 			ev.major = value;
 		} else if (strcmp(key, "MINOR") == 0) {
 			ev.minor = value;
+		} else if (strcmp(key, "DRIVER") == 0) {
+			ev.driver = value;
 		}
 
 		if (strcmp(key, "PATH")) {
