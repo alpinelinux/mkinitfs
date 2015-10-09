@@ -4,3 +4,4 @@
 /sbin/apk
 /etc/modprobe.d/*.conf
 /etc/mdev.conf
+/sbin/nlplug-findfs
