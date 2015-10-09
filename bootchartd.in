@@ -46,7 +46,7 @@ do_logging()
 	# Enable process accounting if configured
 	if [ "$PROCESS_ACCOUNTING" = "yes" ]; then
 		[ -e kernel_pacct ] || : > kernel_pacct
-		accton kernel_pacct
+		accton kernel_pacct > /dev/null
 	fi
 
 	# open file descriptors
@@ -98,7 +98,7 @@ do_logging()
 		i=$(($i + 1))
 	done
 
-	[ -e kernel_pacct ] && accton
+	[ -e kernel_pacct ] && accton off > /dev/null
 }
 
 # Stop the boot logger.  The lock file is removed to force the loggers in
@@ -151,19 +151,18 @@ finalize()
 
 	# Package log files
 	tar -zcf "$BOOTLOG_DEST" header $pacct *.log
-	rm "$LOGDIR"/*
-	rmdir "$LOGDIR"
+	rm -rf "$LOGDIR"
 }
 
 case "$1" in
 start-initfs)
 	NEWROOT="$2"
+	mkdir -p "$LOGDIR"
 	(
 		cleanup=true
 		trap "not_stop_logging=false" USR1
 		trap "cleanup=false; not_stop_logging=false" USR2
 
-		mkdir "$LOGDIR"
 		cd "$LOGDIR"
 		do_logging
 		if $cleanup; then
@@ -171,18 +170,16 @@ start-initfs)
 			finalize
 		fi
 	) &
-	echo $! > $LOGDIR/bootchart.pid
+	echo $! > "$LOGDIR"/bootchart.pid
 	;;
 stop-initfs)
 	NEWROOT="$2"
-
-	cd "$LOGDIR"
-	mkdir "$NEWROOT$LOGDIR"
-	cp /sbin/bootchartd $NEWROOT/sbin
-	PID=`cat bootchart.pid`
+	[ -x "$NEWROOT"/sbin/bootchartd ] || cp -a /sbin/bootchartd "$NEWROOT"/sbin
+	rm -rf "$NEWROOT/$LOGDIR"
+	PID=$(cat "$LOGDIR"/bootchart.pid)
 	kill -USR2 $PID
 	wait $PID
-	mv * "$NEWROOT$LOGDIR"
+	mv "$LOGDIR" "$NEWROOT"
 	;;
 start-rootfs)
 	(
