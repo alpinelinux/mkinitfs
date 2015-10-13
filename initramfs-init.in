@@ -728,11 +728,6 @@ if [ -f $sysroot/etc/fstab ]; then
 	relocate_alpine_mnt "$sysroot"/etc/fstab
 fi
 
-# in case we upgrade we might need those:
-rc_add hwdrivers sysinit
-rc_add modloop sysinit
-
-
 # hack so we get openrc
 pkgs="$pkgs alpine-base"
 
