@@ -698,7 +698,7 @@ int main(int argc, char *argv[])
 
 	pthread_create(&tid, NULL, trigger_thread, &fds[1].fd);
 
-	while ((r = poll(fds, numfds, conf.timeout)) > 0) {
+	while ((r = poll(fds, numfds, conf.timeout)) > 0 || numfds > 1) {
 		size_t len;
 		struct iovec iov;
 		char cbuf[CMSG_SPACE(sizeof(struct ucred))];
