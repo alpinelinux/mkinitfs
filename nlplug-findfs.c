@@ -300,7 +300,7 @@ void recurse_dir(char *pathbuf, struct recurse_opts *opts)
 				goto next;
 			}
 			is_dir = S_ISDIR(st.st_mode);
-		else
+		} else
 			is_dir = entry->d_type & DT_DIR;
 
 		if (is_dir) {
@@ -636,7 +636,7 @@ int main(int argc, char *argv[])
 	struct ueventconf conf;
 	int event_count = 0;
 	size_t total_bytes;
-	int found = 0;
+	int found = 0, trigger_running = 0;
 	char *program_argv[2] = {0,0};
 	pthread_t tid;
 
@@ -691,8 +691,9 @@ int main(int argc, char *argv[])
 	fds[1].events = POLLIN;
 
 	pthread_create(&tid, NULL, trigger_thread, &fds[1].fd);
+	trigger_running = 1;
 
-	while ((r = poll(fds, numfds, conf.timeout)) > 0 || numfds > 1) {
+	while (trigger_running || !((found & FOUND_DEVICE) || ((found & FOUND_BOOTREPO) && (found & FOUND_APKOVL)))) {
 		size_t len;
 		struct iovec iov;
 		char cbuf[CMSG_SPACE(sizeof(struct ucred))];
@@ -702,10 +703,20 @@ int main(int argc, char *argv[])
 		struct msghdr hdr;
 		struct sockaddr_nl cnls;
 
+		r = poll(fds, numfds, trigger_running ? -1 : conf.timeout);
+		if (r == -1)
+			err(1, "poll");
+
+		if (r == 0) {
+			dbg("exit due to timeout");
+			break;
+		}
+
 		if (numfds > 1 && fds[1].revents & POLLIN) {
 			close(fds[1].fd);
 			fds[1].fd = -1;
 			numfds--;
+			trigger_running = 0;
 			pthread_join(tid, NULL);
 		}
 
@@ -744,20 +755,12 @@ int main(int argc, char *argv[])
 		event_count++;
 		found |= process_uevent(buf, len, &conf);
 
-		if ((found & FOUND_DEVICE)
-		    || ((found & FOUND_BOOTREPO) && (found & FOUND_APKOVL)))
-			break;
-
 		if (fds[0].revents & POLLHUP) {
 			dbg("parent hung up\n");
 			break;
 		}
 	}
-	if (r == -1)
-		err(1, "poll");
 
-	if (r == 0)
-		dbg("exit due to timeout");
 	dbg("modaliases: %i, forks: %i, events: %i, total bufsize: %zu",
 		conf.modalias_count,
 		conf.fork_count,
