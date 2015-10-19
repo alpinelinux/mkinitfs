@@ -662,12 +662,7 @@ if [ -f "$ovl" ]; then
 	eend $? $errstr || ovlfiles=
 	# hack, incase /root/.ssh was included in apkovl
 	[ -d "$sysroot/root" ] && chmod 700 "$sysroot/root"
-	pkgs="$pkgs $(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)"
-	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world \
-		$sysroot/etc/apk/world 2>/dev/null)"
-	# clean up after upgrade
-	rm -f $sysroot/etc/lbu/packages.list \
-		$sysroot/var/lib/apk/world
+	pkgs="$pkgs $(cat $sysroot/etc/apk/world 2>/dev/null)"
 
 	# fix up inittab from pre openrc times (alpine v1.8)
 	if [ -f "$sysroot"/etc/inittab ]; then
