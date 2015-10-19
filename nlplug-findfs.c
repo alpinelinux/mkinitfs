@@ -693,7 +693,7 @@ int main(int argc, char *argv[])
 	pthread_create(&tid, NULL, trigger_thread, &fds[1].fd);
 	trigger_running = 1;
 
-	while (trigger_running || !((found & FOUND_DEVICE) || ((found & FOUND_BOOTREPO) && (found & FOUND_APKOVL)))) {
+	while (1) {
 		size_t len;
 		struct iovec iov;
 		char cbuf[CMSG_SPACE(sizeof(struct ucred))];
@@ -754,6 +754,12 @@ int main(int argc, char *argv[])
 
 		event_count++;
 		found |= process_uevent(buf, len, &conf);
+
+		if ((found & FOUND_DEVICE)
+		    || ((found & FOUND_BOOTREPO) && (found & FOUND_APKOVL))) {
+			dbg("setting timeout to 0");
+			conf.timeout = 0;
+		}
 
 		if (fds[0].revents & POLLHUP) {
 			dbg("parent hung up\n");
