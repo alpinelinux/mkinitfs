@@ -487,7 +487,7 @@ if [ -n "$fbsplash" ] && [ -e "$fbsplash" ]; then
 		config=/tmp/fbsplash.cfg
 		echo "IMAGE_ALIGN=CM" > $config
 	fi
-	setsid fbsplash -T 16 -s "$fsplash" -i $config -f $sysroot/$splashfile &
+	setsid fbsplash -T 16 -s "$fbsplash" -i $config -f $sysroot/$splashfile &
 	eend 0
 else
 	KOPT_splash="no"
