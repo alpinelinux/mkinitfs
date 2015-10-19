@@ -265,7 +265,6 @@ struct recurse_opts {
 	const char *searchname;
 	void (*callback)(const char *, const void *);
 	void *userdata;
-	int fastdir;	/* avoid lstat on sysfs which we know support d_type */
 };
 
 /* pathbuf needs hold PATH_MAX chars */
@@ -278,7 +277,6 @@ void recurse_dir(char *pathbuf, struct recurse_opts *opts)
 		return;
 
 	while ((entry = readdir(d)) != NULL) {
-		struct stat st;
 		size_t pathlen = strlen(pathbuf);
 		size_t namelen = strlen(entry->d_name);
 		int is_dir;
@@ -293,19 +291,17 @@ void recurse_dir(char *pathbuf, struct recurse_opts *opts)
 		pathbuf[pathlen] = '/';
 		strcpy(&pathbuf[pathlen+1], entry->d_name);
 
-		if (opts->fastdir) {
-			/* avoid the lstat syscall for sysfs which we know
-			   support the d_type field. */
-			is_dir = entry->d_type & DT_DIR;
-		} else {
+		if (entry->d_type == DT_UNKNOWN) {
 			/* some filesystems like iso9660 does not support
 			   the d_type so we use lstat */
+			struct stat st;
 			if (lstat(pathbuf, &st) < 0) {
 				dbg("%s: %s", pathbuf, strerror(errno));
 				goto next;
 			}
 			is_dir = S_ISDIR(st.st_mode);
-		}
+		else
+			is_dir = entry->d_type & DT_DIR;
 
 		if (is_dir) {
 			if (entry->d_name[0] == '.')
@@ -387,7 +383,6 @@ static int find_bootrepos(const char *devnode, const char *type,
 		.searchname = ".boot_repository",
 		.callback = bootrepo_cb,
 		.userdata = &repos,
-		.fastdir = 0,
 	};
 
 
@@ -603,7 +598,6 @@ void *trigger_thread(void *data)
 		.searchname = "uevent",
 		.callback = trigger_uevent_cb,
 		.userdata = NULL,
-		.fastdir = 1,
 	};
 	char path[PATH_MAX] = "/sys/bus";
 
