@@ -773,11 +773,16 @@ if [ "$KOPT_keep_apk_new" != yes ]; then
 	apkflags="$apkflags --clean-protected"
 	[ -n "$ovlfiles" ] && apkflags="$apkflags --overlay-from-stdin"
 fi
+mkdir -p $sysroot/sys $sysroot/proc $sysroot/dev
+mount -o bind /sys $sysroot/sys
+mount -o bind /proc $sysroot/proc
+mount -o bind /dev $sysroot/dev
 if [ -n "$ovlfiles" ]; then
 	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles
 else
 	apk add --root $sysroot $repo_opt $apkflags $pkgs
 fi
+umount $sysroot/sys $sysroot/proc $sysroot/dev
 eend $?
 
 # unmount ovl mount if needed
