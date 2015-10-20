@@ -184,7 +184,7 @@ done
 shift $(( $OPTIND - 1 ))
 
 . $(readlink -f "$config")
-features_dir=${features_dir:-"$sysconfdir/features.d"}
+features_dir=${features_dir:-"${basedir%/:-}/${sysconfdir#/}/features.d"}
 [ -n "$myfeatures" ] && features="$myfeatures"
 
 if [ -n "$list_features" ]; then

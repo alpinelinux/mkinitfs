@@ -445,9 +445,7 @@ if [ -f "$ovl" ]; then
 	eend $? $errstr || ovlfiles=
 	# hack, incase /root/.ssh was included in apkovl
 	[ -d "$sysroot/root" ] && chmod 700 "$sysroot/root"
-	pkgs="$pkgs $(sed 's/\#.*//' $sysroot/etc/lbu/packages.list 2>/dev/null)"
-	pkgs="$pkgs $(cat $sysroot/var/lib/apk/world \
-		$sysroot/etc/apk/world 2>/dev/null)"
+	pkgs="$pkgs $(cat $sysroot/etc/apk/world 2>/dev/null)"
 fi
 
 if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
@@ -558,11 +556,16 @@ if [ "$KOPT_keep_apk_new" != yes ]; then
 	apkflags="$apkflags --clean-protected"
 	[ -n "$ovlfiles" ] && apkflags="$apkflags --overlay-from-stdin"
 fi
+mkdir -p $sysroot/sys $sysroot/proc $sysroot/dev
+mount -o bind /sys $sysroot/sys
+mount -o bind /proc $sysroot/proc
+mount -o bind /dev $sysroot/dev
 if [ -n "$ovlfiles" ]; then
 	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles
 else
 	apk add --root $sysroot $repo_opt $apkflags $pkgs
 fi
+umount $sysroot/sys $sysroot/proc $sysroot/dev
 eend $?
 
 # unmount ovl mount if needed
