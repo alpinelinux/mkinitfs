@@ -358,13 +358,13 @@ if [ -n "$KOPT_root" ]; then
 	if [ "$KOPT_overlaytmpfs" = "yes" ]; then
 		mkdir -p /media/root-ro /media/root-rw $sysroot/media/root-ro \
 			$sysroot/media/root-rw
-		nlplug-findfs -p /sbin/mdev $KOPT_root \
+		nlplug-findfs $cryptopts -p /sbin/mdev $KOPT_root \
 			&& mount -o ro $KOPT_root /media/root-ro
 		mount -t tmpfs root-tmpfs /media/root-rw
 		mkdir -p /media/root-rw/work /media/root-rw/root
 		mount -t overlay -o lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work overlayfs $sysroot
 	else
-		nlplug-findfs -p /sbin/mdev $KOPT_root
+		nlplug-findfs $cryptopts -p /sbin/mdev $KOPT_root
 		mount ${KOPT_rootfstype:+-t} ${KOPT_rootfstype} \
 			-o ${KOPT_rootflags:-ro} \
 			$KOPT_root $sysroot
