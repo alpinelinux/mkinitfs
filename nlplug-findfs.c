@@ -430,14 +430,15 @@ int searchdev(char *devname, const char *searchdev, char *bootrepos,
 	if (searchdev == NULL && bootrepos == NULL && apkovls == NULL)
 		return 0;
 
-	if (searchdev && strcmp(devname, searchdev) == 0) {
+	snprintf(devnode, sizeof(devnode), "/dev/%s", devname);
+	if (searchdev && (strcmp(devname, searchdev) == 0
+	                  || strcmp(devnode, searchdev) == 0)) {
 		return FOUND_DEVICE;
 	}
 
 	if (cache == NULL)
 		blkid_get_cache(&cache, NULL);
 
-	snprintf(devnode, sizeof(devnode), "/dev/%s", devname);
 	type = blkid_get_tag_value(cache, "TYPE", devnode);
 
 	if (searchdev != NULL) {
