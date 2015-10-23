@@ -45,6 +45,7 @@
 #define FOUND_APKOVL	0x4
 
 static int dodebug;
+static char *default_envp[2];
 char *argv0;
 
 #if defined(DEBUG)
@@ -65,6 +66,8 @@ static void dbg(const char *fmt, ...)
 #define dbg(...)
 #endif
 
+#define envcmp(env, key) (strncmp(env, key "=", strlen(key "=")) == 0)
+
 struct uevent {
 	char *buf;
 	size_t bufsize;
@@ -77,6 +80,7 @@ struct uevent {
 	char *minor;
 	char *driver;
 	char devnode[256];
+	char *envp[64];
 };
 
 struct ueventconf {
@@ -152,13 +156,13 @@ static int init_netlink_socket(void)
 	return fd;
 }
 
-void run_child(char **argv)
+void run_child(char **argv, char **envp)
 {
 	pid_t pid;
 
 	if (!(pid = fork())) {
 		dbg("running %s", argv[0]);
-		if (execv(argv[0], argv) < 0)
+		if (execve(argv[0], argv, envp) < 0)
 			err(1, argv[0]);
 		exit(0);
 	}
@@ -221,7 +225,7 @@ void start_mdadm(char *devnode)
 		devnode,
 		NULL
 	};
-	run_child(mdadm_argv);
+	run_child(mdadm_argv, default_envp);
 }
 
 void start_lvm2(char *devnode)
@@ -231,7 +235,7 @@ void start_lvm2(char *devnode)
 		"--activate" , "ay", "--noudevsync", "--sysinit",
 		NULL
 	};
-	run_child(lvm2_argv);
+	run_child(lvm2_argv, default_envp);
 }
 
 void start_cryptsetup(char *devnode, char *cryptdm)
@@ -241,7 +245,7 @@ void start_cryptsetup(char *devnode, char *cryptdm)
 		devnode, cryptdm ? cryptdm : "crypdm", NULL
 	};
 	load_kmod("dm-crypt");
-	run_child(cryptsetup_argv);
+	run_child(cryptsetup_argv, default_envp);
 }
 
 static int is_mounted(const char *devnode) {
@@ -507,7 +511,7 @@ int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 
 	} else if (ev->devname != NULL) {
 		if (conf->program_argv[0] != NULL) {
-			run_child(conf->program_argv);
+			run_child(conf->program_argv, ev->envp);
 			conf->fork_count++;
 		}
 
@@ -534,17 +538,17 @@ int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 {
 	struct uevent ev;
 
-	int i, slen = 0;
+	int i, nenvp, slen = 0;
 	char *key, *value;
 
 	memset(&ev, 0, sizeof(ev));
 	ev.buf = buf;
 	ev.bufsize = len;
-	clearenv();
-	setenv("PATH", "/sbin:/bin", 1);
+
+	nenvp = sizeof(default_envp) / sizeof(default_envp[0]) - 1;
+	memcpy(&ev.envp, default_envp, nenvp * sizeof(default_envp[0]));
 
 	for (i = 0; i < len; i += slen + 1) {
-
 		key = buf + i;
 		value = strchr(key, '=');
 		slen = strlen(buf+i);
@@ -558,29 +562,28 @@ int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 		if (!slen)
 			continue;
 
-		value[0] = '\0';
 		value++;
-
-		if (strcmp(key, "MODALIAS") == 0) {
+		if (envcmp(key, "MODALIAS")) {
 			ev.modalias = value;
-		} else if (strcmp(key, "ACTION") == 0) {
+		} else if (envcmp(key, "ACTION")) {
 			ev.action = value;
-		} else if (strcmp(key, "SUBSYSTEM") == 0) {
+		} else if (envcmp(key, "SUBSYSTEM")) {
 			ev.subsystem = value;
-		} else if (strcmp(key, "DEVNAME") == 0) {
+		} else if (envcmp(key, "DEVNAME")) {
 			ev.devname = value;
-		} else if (strcmp(key, "MAJOR") == 0) {
+		} else if (envcmp(key, "MAJOR")) {
 			ev.major = value;
-		} else if (strcmp(key, "MINOR") == 0) {
+		} else if (envcmp(key, "MINOR")) {
 			ev.minor = value;
-		} else if (strcmp(key, "DRIVER") == 0) {
+		} else if (envcmp(key, "DRIVER")) {
 			ev.driver = value;
 		}
 
-		if (strcmp(key, "PATH")) {
-			setenv(key, value, 1);
-		}
+		if (!envcmp(key, "PATH"))
+			ev.envp[nenvp++]= key;
 	}
+	ev.envp[nenvp++] = 0;
+
 	return dispatch_uevent(&ev, conf);
 }
 
@@ -640,6 +643,11 @@ int main(int argc, char *argv[])
 	int found = 0, trigger_running = 0;
 	char *program_argv[2] = {0,0};
 	pthread_t tid;
+
+	for (r = 0; environ[r]; r++) {
+		if (envcmp(environ[r], "PATH"))
+			default_envp[0] = environ[r];
+	}
 
 	memset(&conf, 0, sizeof(conf));
 	conf.program_argv = program_argv;
