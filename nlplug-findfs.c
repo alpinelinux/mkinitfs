@@ -156,7 +156,7 @@ static int init_netlink_socket(void)
 	return fd;
 }
 
-void run_child(char **argv, char **envp)
+static void run_child(char **argv, char **envp)
 {
 	pid_t pid;
 
@@ -173,7 +173,7 @@ void run_child(char **argv, char **envp)
 }
 
 
-int load_kmod(const char *modalias)
+static int load_kmod(const char *modalias)
 {
 	static struct kmod_ctx *ctx = NULL;
 	struct kmod_list *list = NULL;
@@ -216,7 +216,7 @@ int load_kmod(const char *modalias)
 	return count;
 }
 
-void start_mdadm(char *devnode)
+static void start_mdadm(char *devnode)
 {
 	char *mdadm_argv[] = {
 		"/sbin/mdadm",
@@ -228,7 +228,7 @@ void start_mdadm(char *devnode)
 	run_child(mdadm_argv, default_envp);
 }
 
-void start_lvm2(char *devnode)
+static void start_lvm2(char *devnode)
 {
 	char *lvm2_argv[] = {
 		"/sbin/lvm", "vgchange",
@@ -238,7 +238,7 @@ void start_lvm2(char *devnode)
 	run_child(lvm2_argv, default_envp);
 }
 
-void start_cryptsetup(char *devnode, char *cryptdm)
+static void start_cryptsetup(char *devnode, char *cryptdm)
 {
 	char *cryptsetup_argv[] = {
 		"/sbin/cryptsetup", "luksOpen",
@@ -272,7 +272,7 @@ struct recurse_opts {
 };
 
 /* pathbuf needs hold PATH_MAX chars */
-void recurse_dir(char *pathbuf, struct recurse_opts *opts)
+static void recurse_dir(char *pathbuf, struct recurse_opts *opts)
 {
 	DIR *d = opendir(pathbuf);
 	struct dirent *entry;
@@ -330,7 +330,7 @@ struct bootrepos {
 	int count;
 };
 
-void bootrepo_cb(const char *path, const void *data)
+static void bootrepo_cb(const char *path, const void *data)
 {
 	struct bootrepos *repos = (struct bootrepos *)data;
 	int fd = open(repos->outfile, O_WRONLY | O_CREAT | O_APPEND);
@@ -423,8 +423,8 @@ static int find_bootrepos(const char *devnode, const char *type,
 	return rc;
 }
 
-int searchdev(char *devname, const char *searchdev, char *bootrepos,
-	      const char *apkovls)
+static int searchdev(char *devname, const char *searchdev, char *bootrepos,
+		     const char *apkovls)
 {
 	static blkid_cache cache = NULL;
 	char *type = NULL, *label = NULL, *uuid = NULL;
@@ -487,7 +487,7 @@ int searchdev(char *devname, const char *searchdev, char *bootrepos,
 	return rc;
 }
 
-int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
+static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 {
 	static int timeout_increment = USB_STORAGE_TIMEOUT;
 
@@ -534,7 +534,7 @@ int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 	return 0;
 }
 
-int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
+static int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 {
 	struct uevent ev;
 
@@ -587,14 +587,14 @@ int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 	return dispatch_uevent(&ev, conf);
 }
 
-void trigger_uevent_cb(const char *path, const void *data)
+static void trigger_uevent_cb(const char *path, const void *data)
 {
 	int fd = open(path, O_WRONLY);
 	write(fd, "add", 3);
 	close(fd);
 }
 
-void *trigger_thread(void *data)
+static void *trigger_thread(void *data)
 {
 	int fd = *(int *)data;
 	uint64_t ok = 1;
@@ -612,7 +612,7 @@ void *trigger_thread(void *data)
 	return NULL;
 }
 
-void usage(int rc)
+static void usage(int rc)
 {
 	printf("coldplug system til given device is found\n"
 	"usage: %s [options] DEVICE\n"
@@ -783,5 +783,3 @@ int main(int argc, char *argv[])
 
 	return found ? 0 : 1;
 }
-
-
