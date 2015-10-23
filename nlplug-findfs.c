@@ -559,7 +559,7 @@ static int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 			continue;
 		}
 
-		if (!slen)
+		if (!slen || !value)
 			continue;
 
 		value++;
