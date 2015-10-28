@@ -124,6 +124,15 @@ initfs_kmods() {
 	cd "$oldpwd"
 }
 
+initfs_firmware() {
+	rm -rf "$tmpdir"/lib/firmware
+	mkdir -p "$tmpdir"/lib/firmware
+	find "$tmpdir"/lib/modules -type f -name "*.ko" | xargs modinfo -F firmware | sort -u | while read FW; do
+		[ -e "${basedir}/lib/firmware/${FW}" ] && install -pD "${basedir}/lib/firmware/${FW}" "$tmpdir"/lib/firmware/$FW
+	done
+	return 0
+}
+
 initfs_apk_keys() {
 	mkdir -p "$tmpdir"/etc/apk/keys
 	cp "${basedir}etc/apk/keys/"* "$tmpdir"/etc/apk/keys/
@@ -237,6 +246,7 @@ fi
 
 initfs_base \
 	&& initfs_kmods \
+	&& initfs_firmware \
 	&& initfs_apk_keys \
 	&& initfs_cpio
 rc=$?
