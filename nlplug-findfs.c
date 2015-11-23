@@ -799,7 +799,7 @@ int main(int argc, char *argv[])
 			err(1, "poll");
 		}
 		if (r == 0) {
-			dbg("exit due to timeout");
+			dbg("exit due to timeout (%i)", conf.timeout);
 			break;
 		}
 
@@ -848,7 +848,8 @@ int main(int argc, char *argv[])
 			if ((found & FOUND_DEVICE)
 			    || ((found & FOUND_BOOTREPO) &&
 				(found & FOUND_APKOVL))) {
-				dbg("setting timeout to 0");
+				if (conf.timeout)
+					dbg("FOUND! setting timeout to 0");
 				conf.timeout = 0;
 			}
 		}
