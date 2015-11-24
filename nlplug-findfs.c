@@ -506,35 +506,50 @@ static int find_bootrepos(const char *devnode, const char *type,
 	return rc;
 }
 
-static int searchdev(char *devname, const char *searchdev, char *bootrepos,
+static int is_same_device(const struct uevent *ev, const char *nodepath)
+{
+	struct stat st;
+	unsigned int maj, min;
+	if (stat(nodepath, &st) < 0)
+		return 0;
+
+	if (ev->major == NULL || ev->minor == NULL)
+		return 0;
+
+	maj = atoi(ev->major);
+	min = atoi(ev->minor);
+	return S_ISBLK(st.st_mode) && makedev(maj, min) == st.st_rdev;
+}
+
+
+static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
 		     const char *apkovls)
 {
 	static blkid_cache cache = NULL;
 	char *type = NULL, *label = NULL, *uuid = NULL;
-	char devnode[256];
 	int rc = 0;
 
 	if (searchdev == NULL && bootrepos == NULL && apkovls == NULL)
 		return 0;
 
-	snprintf(devnode, sizeof(devnode), "/dev/%s", devname);
-	if (searchdev && (strcmp(devname, searchdev) == 0
-	                  || strcmp(devnode, searchdev) == 0)) {
+	if (searchdev && (strcmp(ev->devname, searchdev) == 0
+			  || strcmp(ev->devnode, searchdev) == 0
+	                  || is_same_device(ev, searchdev))) {
 		return FOUND_DEVICE;
 	}
 
 	if (cache == NULL)
 		blkid_get_cache(&cache, NULL);
 
-	type = blkid_get_tag_value(cache, "TYPE", devnode);
+	type = blkid_get_tag_value(cache, "TYPE", ev->devnode);
 
 	if (searchdev != NULL) {
 		if (strncmp("LABEL=", searchdev, 6) == 0) {
-			label = blkid_get_tag_value(cache, "LABEL", devnode);
+			label = blkid_get_tag_value(cache, "LABEL", ev->devnode);
 			if (label && strcmp(label, searchdev+6) == 0)
 				rc = FOUND_DEVICE;
 		} else if (strncmp("UUID=", searchdev, 5) == 0) {
-			uuid = blkid_get_tag_value(cache, "UUID", devnode);
+			uuid = blkid_get_tag_value(cache, "UUID", ev->devnode);
 			if (uuid && strcmp(uuid, searchdev+5) == 0)
 				rc = FOUND_DEVICE;
 		}
@@ -544,7 +559,7 @@ static int searchdev(char *devname, const char *searchdev, char *bootrepos,
 		dbg("%s:\n"
 			"\ttype='%s'\n"
 			"\tlabel='%s'\n"
-			"\tuuid='%s'\n", devnode,
+			"\tuuid='%s'\n", ev->devnode,
 			type ? type : NULL,
 			label ? label : NULL,
 			uuid ? uuid : NULL);
@@ -552,11 +567,11 @@ static int searchdev(char *devname, const char *searchdev, char *bootrepos,
 
 	if (!rc && type) {
 		if (strcmp("linux_raid_member", type) == 0) {
-			start_mdadm(devnode);
+			start_mdadm(ev->devnode);
 		} else if (strcmp("LVM2_member", type) == 0) {
-			start_lvm2(devnode);
+			start_lvm2(ev->devnode);
 		} else if (bootrepos) {
-			rc = find_bootrepos(devnode, type, bootrepos, apkovls);
+			rc = find_bootrepos(ev->devnode, type, bootrepos, apkovls);
 		}
 	}
 
@@ -604,13 +619,12 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 
 			snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s",
 				 ev->devname);
-			rc = searchdev(ev->devname, conf->search_device,
+			rc = searchdev(ev, conf->search_device,
 				       conf->bootrepos, conf->apkovls);
 			if (rc)
 				return rc;
 
-			if (searchdev(ev->devname, conf->crypt_device, NULL,
-				      NULL))
+			if (searchdev(ev, conf->crypt_device, NULL, NULL))
 				start_cryptsetup(ev->devnode, conf->crypt_name);
 		}
 	}
