@@ -50,9 +50,13 @@
 #define TRIGGER_THREAD		0x1
 #define CRYPTSETUP_THREAD	0x2
 
+#define LVM_PATH	"/sbin/lvm"
+#define MDADM_PATH	"/sbin/mdadm"
+
 static int dodebug;
 static char *default_envp[2];
 char *argv0;
+static int use_mdadm, use_lvm;
 
 #if defined(DEBUG)
 #include <stdarg.h>
@@ -312,23 +316,25 @@ static int load_kmod(const char *modalias)
 static void start_mdadm(char *devnode)
 {
 	char *mdadm_argv[] = {
-		"/sbin/mdadm",
+		MDADM_PATH,
 		"--incremental",
 		"--quiet",
 		devnode,
 		NULL
 	};
-	spawn_command(&spawnmgr, mdadm_argv, 0);
+	if (use_mdadm)
+		spawn_command(&spawnmgr, mdadm_argv, 0);
 }
 
 static void start_lvm2(char *devnode)
 {
 	char *lvm2_argv[] = {
-		"/sbin/lvm", "vgchange",
+		LVM_PATH, "vgchange",
 		"--activate" , "ay", "--noudevsync", "--sysinit", "-q", "-q",
 		NULL
 	};
-	spawn_command(&spawnmgr, lvm2_argv, 0);
+	if (use_lvm)
+		spawn_command(&spawnmgr, lvm2_argv, 0);
 }
 
 
@@ -842,6 +848,9 @@ int main(int argc, char *argv[])
 	memset(&conf, 0, sizeof(conf));
 	conf.program_argv = program_argv;
 	conf.timeout = DEFAULT_EVENT_TIMEOUT;
+	use_lvm = access(LVM_PATH, X_OK) == 0;
+	use_mdadm = access(MDADM_PATH, X_OK) == 0;
+
 	argv0 = strrchr(argv[0], '/');
 	if (argv0++ == NULL)
 		argv0 = argv[0];
