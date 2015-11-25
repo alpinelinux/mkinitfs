@@ -45,6 +45,8 @@
 #define FOUND_BOOTREPO	0x2
 #define FOUND_APKOVL	0x4
 
+#define TRIGGER_THREAD		0x1
+
 static int dodebug;
 static char *default_envp[2];
 char *argv0;
@@ -694,7 +696,7 @@ static void trigger_uevent_cb(const char *path, const void *data)
 static void *trigger_thread(void *data)
 {
 	int fd = *(int *)data;
-	uint64_t ok = 1;
+	uint64_t ok = TRIGGER_THREAD;
 	struct recurse_opts opts = {
 		.searchname = "uevent",
 		.callback = trigger_uevent_cb,
@@ -737,7 +739,8 @@ int main(int argc, char *argv[])
 	struct ueventconf conf;
 	int event_count = 0;
 	size_t total_bytes = 0;
-	int found = 0, trigger_running = 0;
+	int found = 0;
+	unsigned int running_threads = 0;
 	char *program_argv[2] = {0,0};
 	pthread_t tid;
 	sigset_t sigchldmask;
@@ -803,10 +806,10 @@ int main(int argc, char *argv[])
 	fds[2].fd = eventfd(0, EFD_CLOEXEC);
 	fds[2].events = POLLIN;
 	pthread_create(&tid, NULL, trigger_thread, &fds[2].fd);
-	trigger_running = 1;
+	running_threads |= TRIGGER_THREAD;
 
 	while (1) {
-		r = poll(fds, numfds, (spawn_active(&spawnmgr) || trigger_running) ? -1 : conf.timeout);
+		r = poll(fds, numfds, (spawn_active(&spawnmgr) || running_threads) ? -1 : conf.timeout);
 		if (r == -1) {
 			if (errno == EINTR || errno == ERESTART)
 				continue;
@@ -885,11 +888,15 @@ int main(int argc, char *argv[])
 		}
 
 		if (fds[2].revents & POLLIN) {
+			uint64_t tmask = 0;
+			if (read(fds[2].fd, &tmask, sizeof(tmask)) < 0)
+				warn("eventfd");
+			dbg("terminating thread %x", tmask);
 			close(fds[2].fd);
 			fds[2].fd = -1;
 			fds[2].revents = 0;
 			numfds--;
-			trigger_running = 0;
+			running_threads &= ~tmask;
 			pthread_join(tid, NULL);
 		}
 	}
