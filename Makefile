@@ -81,9 +81,11 @@ BLKID_CFLAGS	:= $(shell $(PKGCONF) --cflags blkid)
 BLKID_LIBS	:= $(shell $(PKGCONF) --libs blkid)
 LIBKMOD_CFLAGS	:= $(shell $(PKGCONF) --cflags libkmod)
 LIBKMOD_LIBS	:= $(shell $(PKGCONF) --libs libkmod)
+CRYPTSETUP_CFLAGS := $(shell $(PKGCONF) --cflags libcryptsetup)
+CRYPTSETUP_LIBS	:= $(shell $(PKGCONF) --libs libcryptsetup)
 
-CFLAGS		+= $(BLKID_CFLAGS) $(LIBKMOD_CFLAGS)
-LIBS		= $(BLKID_LIBS) $(LIBKMOD_LIBS)
+CFLAGS		+= $(BLKID_CFLAGS) $(LIBKMOD_CFLAGS) $(CRYPTSETUP_CFLAGS)
+LIBS		= $(BLKID_LIBS) $(LIBKMOD_LIBS) $(CRYPTSETUP_LIBS)
 
 %.o: %.c
 	$(CC) $(CFLAGS) -o $@ -c $<

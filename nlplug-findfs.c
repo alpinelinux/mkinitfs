@@ -20,6 +20,7 @@
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
+#include <termios.h>
 #include <unistd.h>
 
 #include <sys/eventfd.h>
@@ -35,6 +36,7 @@
 
 #include <libkmod.h>
 #include <blkid.h>
+#include <libcryptsetup.h>
 
 #include "arg.h"
 
@@ -46,6 +48,7 @@
 #define FOUND_APKOVL	0x4
 
 #define TRIGGER_THREAD		0x1
+#define CRYPTSETUP_THREAD	0x2
 
 static int dodebug;
 static char *default_envp[2];
@@ -190,12 +193,17 @@ struct ueventconf {
 	char *search_device;
 	char *crypt_device;
 	char *crypt_name;
+	char crypt_devnode[256];
 	char *subsystem_filter;
 	int modalias_count;
 	int fork_count;
 	char *bootrepos;
 	char *apkovls;
 	int timeout;
+	int efd;
+	unsigned running_threads;
+	pthread_t cryptsetup_tid;
+	pthread_mutex_t cryptsetup_mutex;
 };
 
 
@@ -323,14 +331,90 @@ static void start_lvm2(char *devnode)
 	spawn_command(&spawnmgr, lvm2_argv, 0);
 }
 
-static void start_cryptsetup(char *devnode, char *cryptdm)
+
+static int read_pass(char *pass, size_t pass_size)
 {
-	char *cryptsetup_argv[] = {
-		"/sbin/cryptsetup", "luksOpen",
-		devnode, cryptdm ? cryptdm : "crypdm", NULL
-	};
+	struct termios old_flags, new_flags;
+	int r;
+
+	tcgetattr(STDIN_FILENO, &old_flags);
+	new_flags = old_flags;
+	new_flags.c_lflag &= ~ECHO;
+	new_flags.c_lflag |= ECHONL;
+
+	r = tcsetattr(STDIN_FILENO, TCSANOW, &new_flags);
+	if (r < 0) {
+		warn("tcsetattr");
+		return r;
+	}
+
+	if (fgets(pass, pass_size, stdin) == NULL) {
+		warn("fgets");
+		return -1;
+	}
+	pass[strlen(pass) - 1] = '\0';
+
+	if (tcsetattr(STDIN_FILENO, TCSANOW, &old_flags) < 0) {
+		warn("tcsetattr");
+		return r;
+	}
+
+	return 0;
+}
+
+static void *cryptsetup_thread(void *data)
+{
+	struct ueventconf *c = (struct ueventconf *)data;
+	uint64_t ok = CRYPTSETUP_THREAD;
+	struct crypt_device *cd;
+	int r, passwd_tries = 5;
+
+	r = crypt_init(&cd, c->crypt_devnode);
+	if (r < 0) {
+		warnx("crypt_init(%s)", c->crypt_devnode);
+		goto notify_out;
+	}
+
+	r = crypt_load(cd , CRYPT_LUKS1, NULL);
+	if (r < 0) {
+		warnx("crypt_load(%s)", c->crypt_devnode);
+		goto free_out;
+	}
+
+	while (passwd_tries > 0) {
+		char pass[1024];
+
+		printf("Enter passphrase for %s: ", c->crypt_devnode);
+		fflush(stdout);
+
+		if (read_pass(pass, sizeof(pass)) < 0)
+			goto free_out;
+		passwd_tries--;
+
+		pthread_mutex_lock(&c->cryptsetup_mutex);
+		r = crypt_activate_by_passphrase(cd, c->crypt_name,
+						 CRYPT_ANY_SLOT,
+						 pass, strlen(pass), 0);
+		pthread_mutex_unlock(&c->cryptsetup_mutex);
+
+		if (r == 0)
+			break;
+		printf("No key available with this passphrase.\n");
+	}
+
+free_out:
+	crypt_free(cd);
+notify_out:
+	write(c->efd, &ok, sizeof(ok));
+	return NULL;
+}
+
+static void start_cryptsetup(struct ueventconf *conf)
+{
+	dbg("starting cryptsetup %s -> %s", conf->crypt_devnode, conf->crypt_name);
 	load_kmod("dm-crypt");
-	spawn_command(&spawnmgr, cryptsetup_argv, 0);
+	pthread_create(&conf->cryptsetup_tid, NULL, cryptsetup_thread, conf);
+	conf->running_threads |= CRYPTSETUP_THREAD;
 }
 
 static int is_mounted(const char *devnode) {
@@ -621,13 +705,18 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 
 			snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s",
 				 ev->devname);
+			pthread_mutex_lock(&conf->cryptsetup_mutex);
 			rc = searchdev(ev, conf->search_device,
 				       conf->bootrepos, conf->apkovls);
+			pthread_mutex_unlock(&conf->cryptsetup_mutex);
 			if (rc)
 				return rc;
 
-			if (searchdev(ev, conf->crypt_device, NULL, NULL))
-				start_cryptsetup(ev->devnode, conf->crypt_name);
+			if (searchdev(ev, conf->crypt_device, NULL, NULL)) {
+				strncpy(conf->crypt_devnode, ev->devnode,
+					sizeof(conf->crypt_devnode));
+				start_cryptsetup(conf);
+			}
 		}
 	}
 	return 0;
@@ -740,7 +829,6 @@ int main(int argc, char *argv[])
 	int event_count = 0;
 	size_t total_bytes = 0;
 	int found = 0;
-	unsigned int running_threads = 0;
 	char *program_argv[2] = {0,0};
 	pthread_t tid;
 	sigset_t sigchldmask;
@@ -792,6 +880,10 @@ int main(int argc, char *argv[])
 	if (argc > 0)
 		conf.search_device = argv[0];
 
+	r = pthread_mutex_init(&conf.cryptsetup_mutex, NULL);
+	if (r < 0)
+		err(1, "pthread_mutex_init");
+
 	initsignals();
 	sigemptyset(&sigchldmask);
 	sigaddset(&sigchldmask, SIGCHLD);
@@ -805,11 +897,12 @@ int main(int argc, char *argv[])
 
 	fds[2].fd = eventfd(0, EFD_CLOEXEC);
 	fds[2].events = POLLIN;
+	conf.efd = fds[2].fd;
 	pthread_create(&tid, NULL, trigger_thread, &fds[2].fd);
-	running_threads |= TRIGGER_THREAD;
+	conf.running_threads |= TRIGGER_THREAD;
 
 	while (1) {
-		r = poll(fds, numfds, (spawn_active(&spawnmgr) || running_threads) ? -1 : conf.timeout);
+		r = poll(fds, numfds, (spawn_active(&spawnmgr) || conf.running_threads) ? -1 : conf.timeout);
 		if (r == -1) {
 			if (errno == EINTR || errno == ERESTART)
 				continue;
@@ -891,15 +984,19 @@ int main(int argc, char *argv[])
 			uint64_t tmask = 0;
 			if (read(fds[2].fd, &tmask, sizeof(tmask)) < 0)
 				warn("eventfd");
-			dbg("terminating thread %x", tmask);
-			close(fds[2].fd);
-			fds[2].fd = -1;
-			fds[2].revents = 0;
-			numfds--;
-			running_threads &= ~tmask;
-			pthread_join(tid, NULL);
+			if (tmask & TRIGGER_THREAD) {
+				dbg("terminating trigger thread");
+				pthread_join(tid, NULL);
+			}
+			if (tmask & CRYPTSETUP_THREAD) {
+				dbg("terminating cryptsetup thread");
+				pthread_join(conf.cryptsetup_tid, NULL);
+			}
+			conf.running_threads &= ~tmask;
 		}
 	}
+	close(fds[2].fd);
+	pthread_mutex_destroy(&conf.cryptsetup_mutex);
 
 	dbg("modaliases: %i, forks: %i, events: %i, total bufsize: %zu",
 		conf.modalias_count,
