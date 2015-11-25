@@ -85,28 +85,25 @@ unpack_apkovl() {
 # find mount dir for given device in an fstab
 # returns global MNTOPTS
 find_mnt() {
-	local search_dev="$1" fstab="$2"
+	local search_dev="$1"
+	local fstab="$2"
+	case "$search_dev" in
+	UUID*|LABEL*) search_dev=$(findfs "$search_dev");;
+	esac
 	MNTOPTS=
 	[ -r "$fstab" ] || return 1
-	local dev mnt fs chk
-	case "$search_dev" in
-		UUID=*|LABEL=*|/dev/*);;
-		*) search_dev=/dev/$search_dev;;
-	esac
-	local search_real_dev=$(resolve_dev $search_dev)
+	local search_maj_min=$(stat -L -c '%t,%T' $search_dev)
 	while read dev mnt fs MNTOPTS chk; do
-		local real_dev=$(resolve_dev $dev)
-		local i j
-		for i in "$search_dev" "$search_real_dev"; do
-			[ -z "$i" ] && continue
-			for j in "$dev" "$real_dev"; do
-				[ -z "$j" ] && continue
-				if [ "$i" = "$j" ]; then
-					echo "$mnt"
-					return
-				fi
-			done
-		done
+		case "$dev" in
+		UUID*|LABEL*) dev=$(findfs "$dev");;
+		esac
+		if [ -b "$dev" ]; then
+			local maj_min=$(stat -L -c '%t,%T' $dev)
+			if [ "$maj_min" = "$search_maj_min" ]; then
+				echo "$mnt"
+				return
+			fi
+		fi
 	done < $fstab
 	MNTOPTS=
 }
@@ -227,12 +224,16 @@ resolve_dev() {
 
 # relocate mountpoint according given fstab
 relocate_mount() {
-	local dir="${1%%/}"
+	local dir="${1}"
 	local fstab="$2"
-	local mnt=$(find_mnt $dir $fstab)
-	if [ -n "$mnt" ] && [ "$dir" != "$mnt" ]; then
-		mkdir -p "$mnt"
-		mount -o move "$dir" "$mnt"
+	local dev=$(df -P "$dir" | tail -1 | awk '{print $1}')
+	local mnt=$(find_mnt $dev $fstab)
+	if [ -n "$mnt" ]; then
+		local oldmnt=$(awk -v d=$dev '$1==d {print $2}' /proc/mounts)
+		if [ "$oldmnt" != "$mnt" ]; then
+			mkdir -p "$mnt"
+			mount -o move "$oldmnt" "$mnt"
+		fi
 	fi
 }
 
@@ -508,9 +509,9 @@ if [ -f $sysroot/etc/fstab ]; then
 	# mount dir
 
 	if [ -e /tmp/repositores ]; then
-		cut -d/ -f1-3 < /tmp/repositories | while read dir; do
+		while read dir; do
 			relocate_mount "$dir" "$sysroot"/etc/fstab
-		done
+		done < /tmp/repositories
 	fi
 fi
 
@@ -578,9 +579,9 @@ fi
 
 # remount according default fstab from package
 if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ] && [ -f /tmp/repositories ]; then
-	cut -d/ -f1-3 < /tmp/repositories | while read dir; do
+	while read dir; do
 		relocate_mount "$dir" "$sysroot"/etc/fstab
-	done
+	done < /tmp/repositories
 fi
 
 # generate repositories if none exists. this needs to be done after relocation
