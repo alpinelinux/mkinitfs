@@ -25,7 +25,6 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/gfs2.modules \
 		features.d/jfs.modules \
 		features.d/keymap.files \
-		features.d/kms.files \
 		features.d/kms.modules \
 		features.d/lvm.files \
 		features.d/lvm.modules \
