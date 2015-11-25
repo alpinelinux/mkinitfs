@@ -713,7 +713,8 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 				return rc;
 
 			if (searchdev(ev, conf->crypt_device, NULL, NULL)) {
-				strncpy(conf->crypt_devnode, ev->devnode,
+				strncpy(conf->crypt_devnode,
+					conf->crypt_device[0] == '/' ? conf->crypt_device : ev->devnode,
 					sizeof(conf->crypt_devnode));
 				start_cryptsetup(conf);
 			}
