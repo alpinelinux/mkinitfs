@@ -325,7 +325,7 @@ static void start_lvm2(char *devnode)
 {
 	char *lvm2_argv[] = {
 		"/sbin/lvm", "vgchange",
-		"--activate" , "ay", "--noudevsync", "--sysinit",
+		"--activate" , "ay", "--noudevsync", "--sysinit", "-q", "-q",
 		NULL
 	};
 	spawn_command(&spawnmgr, lvm2_argv, 0);
