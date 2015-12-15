@@ -1,2 +1,5 @@
 kernel/crypto/crc32c*
+kernel/arch/*/crypto/crc32*
+kernel/arch/*/crypto/crc32*
+kernel/crypto/crc32*
 kernel/fs/btrfs
