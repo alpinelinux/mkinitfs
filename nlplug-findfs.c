@@ -41,7 +41,8 @@
 #include "arg.h"
 
 #define DEFAULT_EVENT_TIMEOUT	250
-#define USB_STORAGE_TIMEOUT	2000
+/* usb mass storage needs 1 sec to settle */
+#define USB_STORAGE_TIMEOUT	1000
 
 #define FOUND_DEVICE	0x1
 #define FOUND_BOOTREPO	0x2
@@ -187,7 +188,6 @@ struct uevent {
 	char *devname;
 	char *major;
 	char *minor;
-	char *driver;
 	char devnode[256];
 	char *envp[64];
 };
@@ -270,7 +270,7 @@ static int init_netlink_socket(void)
 	return fd;
 }
 
-static int load_kmod(const char *modalias)
+static int load_kmod(const char *modalias, char *driver, size_t len)
 {
 	static struct kmod_ctx *ctx = NULL;
 	struct kmod_list *list = NULL;
@@ -307,6 +307,8 @@ static int load_kmod(const char *modalias)
 			fmt = "module '%s' failed";
 		}
 		dbg(fmt, kmod_module_get_name(mod));
+		if (driver)
+			strncpy(driver, kmod_module_get_name(mod), len);
 		kmod_module_unref(mod);
 	}
 	kmod_module_unref_list(list);
@@ -418,7 +420,7 @@ notify_out:
 static void start_cryptsetup(struct ueventconf *conf)
 {
 	dbg("starting cryptsetup %s -> %s", conf->crypt_devnode, conf->crypt_name);
-	load_kmod("dm-crypt");
+	load_kmod("dm-crypt", NULL, 0);
 	pthread_create(&conf->cryptsetup_tid, NULL, cryptsetup_thread, conf);
 	conf->running_threads |= CRYPTSETUP_THREAD;
 }
@@ -692,12 +694,16 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 		return 0;
 
 	if (ev->modalias != NULL && strcmp(ev->action, "add") == 0) {
-		load_kmod(ev->modalias);
+		char buf[128];
+		memset(buf, 0, sizeof(buf));
+		load_kmod(ev->modalias, buf, sizeof(buf)-1);
 		conf->modalias_count++;
 
-	} else if (ev->driver != NULL && strcmp(ev->driver, "usb-storage") == 0) {
-		conf->timeout += timeout_increment;
-		timeout_increment = 0;
+		/* increase timeout so usb drives gets time to settle */
+		if (strcmp(buf, "usb_storage") == 0) {
+			conf->timeout += timeout_increment;
+			timeout_increment = 0;
+		}
 
 	} else if (ev->devname != NULL) {
 		if (conf->program_argv[0] != NULL) {
@@ -770,8 +776,6 @@ static int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 			ev.major = value;
 		} else if (envcmp(key, "MINOR")) {
 			ev.minor = value;
-		} else if (envcmp(key, "DRIVER")) {
-			ev.driver = value;
 		}
 
 		if (!envcmp(key, "PATH"))
