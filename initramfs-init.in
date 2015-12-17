@@ -136,10 +136,15 @@ setup_inittab_console(){
 		[ "$tty" = "tty0" ] && continue
 
 		# do nothing if inittab already have the tty set up
-		grep -q "^$tty:" $sysroot/etc/inittab && continue
-		echo "# enable login on alternative console" >> $sysroot/etc/inittab
-		echo "$tty::respawn:/sbin/getty $line $speed $tty $term" \
-			>> $sysroot/etc/inittab
+		if ! grep -q "^$tty:" $sysroot/etc/inittab; then
+			echo "# enable login on alternative console" \
+				>> $sysroot/etc/inittab
+			echo "$tty::respawn:/sbin/getty $line $speed $tty $term" \
+				>> $sysroot/etc/inittab
+		fi
+		if [ -e "$sysroot"/etc/securetty ] && ! grep -q -w "$tty"; then
+			echo "$tty" >> "$sysroot"/etc/securetty
+		fi
 	done
 }
 
