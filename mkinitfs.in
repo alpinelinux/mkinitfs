@@ -46,7 +46,7 @@ initfs_base() {
 		$(feature_files "$basedir" files) \
 		\
 		| sed -e "s|^$basedir||" | sort -u \
-		| cpio -pdm "$tmpdir" || return 1
+		| cpio --quiet -pdm "$tmpdir" || return 1
 
 	# copy init
 	cd "$startdir"
@@ -112,7 +112,7 @@ initfs_kmods() {
 	cd "${basedir}"
 	for file in $(find_kmods); do
 		echo "${file#/}"
-	done | sort -u | cpio -pdm "$tmpdir" || return 1
+	done | sort -u | cpio --quiet -pdm "$tmpdir" || return 1
 	for file in modules.order modules.builtin; do
 		if [ -f "$kerneldir"/$file ]; then
 			cp "$kerneldir"/$file "$tmpdir"/lib/modules/$kernel/
@@ -143,7 +143,7 @@ initfs_cpio() {
 	fi
 	rm -f $outfile
 	umask 0022
-	(cd "$tmpdir" && find . | cpio -o -H newc | gzip) > $outfile
+	(cd "$tmpdir" && find . | cpio --quiet -o -H newc | gzip) > $outfile
 }
 
 usage() {
