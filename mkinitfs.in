@@ -26,8 +26,6 @@ feature_files() {
 					find $file -type f
 				elif [ -e "$file" ]; then
 					echo $file
-				elif [ "${file##*/}" != '*' ]; then
-					echo "$file: No such file or directory. Skipped" >&2
 				fi
 			done
 		done
