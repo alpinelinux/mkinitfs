@@ -1,5 +1,5 @@
 
-VERSION		:= 3.0.0
+VERSION		:= 3.0.1
 
 sysconfdir	?= /etc/mkinitfs
 datarootdir	?= /usr/share
