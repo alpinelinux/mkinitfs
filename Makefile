@@ -28,6 +28,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/kms.modules \
 		features.d/lvm.files \
 		features.d/lvm.modules \
+		features.d/mmc.modules \
 		features.d/network.files \
 		features.d/network.modules \
 		features.d/ocfs2.modules \
