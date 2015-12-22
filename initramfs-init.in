@@ -142,7 +142,7 @@ setup_inittab_console(){
 			echo "$tty::respawn:/sbin/getty $line $speed $tty $term" \
 				>> $sysroot/etc/inittab
 		fi
-		if [ -e "$sysroot"/etc/securetty ] && ! grep -q -w "$tty"; then
+		if [ -e "$sysroot"/etc/securetty ] && ! grep -q -w "$tty" "$sysroot"/etc/securetty; then
 			echo "$tty" >> "$sysroot"/etc/securetty
 		fi
 	done
