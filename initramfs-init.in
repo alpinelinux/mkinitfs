@@ -229,17 +229,22 @@ resolve_dev() {
 
 # relocate mountpoint according given fstab
 relocate_mount() {
-	local dir="${1}"
-	local fstab="$2"
-	local dev=$(df -P "$dir" | tail -1 | awk '{print $1}')
-	local mnt=$(find_mnt $dev $fstab)
-	if [ -n "$mnt" ]; then
-		local oldmnt=$(awk -v d=$dev '$1==d {print $2}' /proc/mounts)
-		if [ "$oldmnt" != "$mnt" ]; then
-			mkdir -p "$mnt"
-			mount -o move "$oldmnt" "$mnt"
-		fi
+	local fstab="${1}"
+	local dir=
+	if ! [ -e $repofile ]; then
+		return
 	fi
+	while read dir; do
+		local dev=$(df -P "$dir" | tail -1 | awk '{print $1}')
+		local mnt=$(find_mnt $dev $fstab)
+		if [ -n "$mnt" ]; then
+			local oldmnt=$(awk -v d=$dev '$1==d {print $2}' /proc/mounts)
+			if [ "$oldmnt" != "$mnt" ]; then
+				mkdir -p "$mnt"
+				mount -o move "$oldmnt" "$mnt"
+			fi
+		fi
+	done < $repofile
 }
 
 # find the dirs under ALPINE_MNT that are boot repositories
@@ -502,22 +507,19 @@ fi
 
 if [ -f $sysroot/etc/fstab ]; then
 	has_fstab=1
+	fstab=$sysroot/etc/fstab
 
 	# let user override tmpfs size in fstab in apkovl
 	mountopts=$(awk '$2 == "/" && $3 == "tmpfs" { print $4 }' $sysroot/etc/fstab)
 	if [ -n "$mountopts" ]; then
 		mount -o remount,$mountopts $sysroot
 	fi
-
 	# move the ALPINE_MNT if ALPINE_DEV is specified in users fstab
 	# this is so a generated /etc/apk/repositories will use correct
 	# mount dir
-
-	if [ -e $repofile ]; then
-		while read dir; do
-			relocate_mount "$dir" "$sysroot"/etc/fstab
-		done < $repofile
-	fi
+	relocate_mount "$sysroot"/etc/fstab
+elif [ -f /etc/fstab ]; then
+	relocate_mount /etc/fstab
 fi
 
 # hack so we get openrc
@@ -583,10 +585,8 @@ if [ -n "$ovl_unmount" ]; then
 fi
 
 # remount according default fstab from package
-if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ] && [ -f $repofile ]; then
-	while read dir; do
-		relocate_mount "$dir" "$sysroot"/etc/fstab
-	done < $repofile
+if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ]; then
+	relocate_mount "$sysroot"/etc/fstab
 fi
 
 # generate repositories if none exists. this needs to be done after relocation
