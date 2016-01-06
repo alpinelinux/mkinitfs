@@ -5,6 +5,7 @@ VERSION=@VERSION@
 SINGLEMODE=no
 sysroot=/sysroot
 splashfile=/.splash.ctrl
+repofile=/tmp/repositories
 
 /bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
 	/media/cdrom /media/usb /tmp /run
@@ -63,8 +64,7 @@ unpack_apkovl() {
 	fi
 
 	# we need openssl. let apk handle deps
-	apk add --quiet --initdb --repositories-file /tmp/repositories openssl\
-		|| return 1
+	apk add --quiet --initdb --repositories-file $repofile openssl || return 1
 
 	if ! openssl list-cipher-commands | grep "^$suffix$" > /dev/null; then
 		errstr="Cipher $suffix is not supported"
@@ -394,7 +394,7 @@ fi
 ebegin "Mounting boot media"
 nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
-	-b /tmp/repositories -a /tmp/apkovls
+	-b $repofile -a /tmp/apkovls
 eend $?
 
 # early console?
@@ -513,10 +513,10 @@ if [ -f $sysroot/etc/fstab ]; then
 	# this is so a generated /etc/apk/repositories will use correct
 	# mount dir
 
-	if [ -e /tmp/repositores ]; then
+	if [ -e $repofile ]; then
 		while read dir; do
 			relocate_mount "$dir" "$sysroot"/etc/fstab
-		done < /tmp/repositories
+		done < $repofile
 	fi
 fi
 
@@ -528,7 +528,7 @@ mkdir -p $sysroot/etc/apk/keys/
 cp -a /etc/apk/keys $sysroot/etc/apk
 
 # generate apk repositories file. needs to be done after relocation
-find_boot_repositories > /tmp/repositories
+find_boot_repositories > $repofile
 
 # silently fix apk arch in case the apkovl does not match
 if [ -r "$sysroot"/etc/apk/arch ]; then
@@ -539,7 +539,7 @@ if [ -r "$sysroot"/etc/apk/arch ]; then
 fi
 
 # generate repo opts for apk
-for i in $(cat /tmp/repositories); do
+for i in $(cat $repofile); do
 	repo_opt="$repo_opt --repository $i"
 done
 
@@ -583,10 +583,10 @@ if [ -n "$ovl_unmount" ]; then
 fi
 
 # remount according default fstab from package
-if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ] && [ -f /tmp/repositories ]; then
+if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ] && [ -f $repofile ]; then
 	while read dir; do
 		relocate_mount "$dir" "$sysroot"/etc/fstab
-	done < /tmp/repositories
+	done < $repofile
 fi
 
 # generate repositories if none exists. this needs to be done after relocation
