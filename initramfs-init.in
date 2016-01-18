@@ -43,15 +43,6 @@ eend() {
 	fi
 }
 
-retry_mount() {
-	# usb might need some time to settle so we retry a few times
-	for i in $(seq 0 9); do
-		mount $@ 2>/tmp/mount-error && return 0
-		sleep 1
-	done
-	return 1
-}
-
 unpack_apkovl() {
 	local ovl="$1"
 	local dest="$2"
@@ -217,14 +208,6 @@ configure_ip() {
 		ip_set "$device" "$client_ip" "$netmask" "$gw_ip"
 		eend $?
 	fi
-}
-
-# resolve an uuid or symlink to the real device
-resolve_dev() {
-	case "$1" in
-	UUID=*|LABEL=*) findfs "$1";;
-	*) readlink -f "$1";;
-	esac
 }
 
 # relocate mountpoint according given fstab
