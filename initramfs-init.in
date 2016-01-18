@@ -305,7 +305,7 @@ ALPINE_REPO=${KOPT_alpine_repo}
 [ "$ALPINE_REPO" = "auto" ] && ALPINE_REPO=
 
 # hide kernel messages
-#[ "$KOPT_quiet" = yes ] && dmesg -n 1
+[ "$KOPT_quiet" = yes ] && dmesg -n 1
 
 # optional blacklist
 for i in ${KOPT_blacklist/,/ }; do
