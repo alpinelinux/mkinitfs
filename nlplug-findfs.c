@@ -840,6 +840,7 @@ int main(int argc, char *argv[])
 	int event_count = 0;
 	size_t total_bytes = 0;
 	int found = 0;
+	int not_found_is_ok = 0;
 	char *program_argv[2] = {0,0};
 	pthread_t tid;
 	sigset_t sigchldmask;
@@ -874,6 +875,9 @@ int main(int argc, char *argv[])
 		break;
 	case 'm':
 		conf.crypt_name = EARGF(usage(1));
+		break;
+	case 'n':
+		not_found_is_ok = 1;
 		break;
 	case 'd':
 		dodebug = 1;
@@ -1017,5 +1021,5 @@ int main(int argc, char *argv[])
 		conf.fork_count,
 		event_count, total_bytes);
 
-	return found ? 0 : 1;
+	return found || not_found_is_ok ? 0 : 1;
 }
