@@ -208,6 +208,7 @@ configure_ip() {
 		ip_set "$device" "$client_ip" "$netmask" "$gw_ip"
 		eend $?
 	fi
+	MAC_ADDRESS=$(cat /sys/class/net/$device/address)
 }
 
 # relocate mountpoint according given fstab
@@ -412,7 +413,6 @@ case "$KOPT_apkovl" in
 	http://*|https://*|ftp://*)
 		configure_ip
 
-		MAC_ADDRESS=$(cat /sys/class/net/$device/address)
 		MACHINE_UUID=$(cat /sys/class/dmi/id/product_uuid)
 		url="${KOPT_apkovl/{MAC\}/$MAC_ADDRESS}"
 		url="${url/{UUID\}/$MACHINE_UUID}"
