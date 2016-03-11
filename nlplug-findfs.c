@@ -713,7 +713,7 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 		}
 
 		if (ev->subsystem && strcmp(ev->subsystem, "block") == 0
-		    && strcmp(ev->action, "add") == 0) {
+		    && (strcmp(ev->action, "add") == 0 || strcmp(ev->action, "change") == 0)) {
 			int rc;
 
 			snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s",
