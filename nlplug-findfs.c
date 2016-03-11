@@ -449,7 +449,7 @@ struct recurse_opts {
 };
 
 /* pathbuf needs hold PATH_MAX chars */
-static void recurse_dir(char *pathbuf, struct recurse_opts *opts)
+static void recurse_dir(char *pathbuf, struct recurse_opts *opts, int depth)
 {
 	DIR *d = opendir(pathbuf);
 	struct dirent *entry;
@@ -492,9 +492,10 @@ static void recurse_dir(char *pathbuf, struct recurse_opts *opts)
 			goto next;
 		}
 
-		if (is_dir)
-			recurse_dir(pathbuf, opts);
-		else
+		if (is_dir) {
+			if (depth > 0)
+				recurse_dir(pathbuf, opts, depth - 1);
+		} else
 			opts->callback(pathbuf, opts->userdata);
 next:
 		pathbuf[pathlen] = '\0';
@@ -587,7 +588,7 @@ static int find_bootrepos(const char *devnode, const char *type,
 		return 0;
 	}
 
-	recurse_dir(mountdir, &opts);
+	recurse_dir(mountdir, &opts, 2);
 	if (repos.count > 0)
 		rc |= FOUND_BOOTREPO;
 
@@ -804,9 +805,9 @@ static void *trigger_thread(void *data)
 	};
 	char path[PATH_MAX] = "/sys/bus";
 
-	recurse_dir(path, &opts);
+	recurse_dir(path, &opts, 8);
 	strcpy(path, "/sys/devices");
-	recurse_dir(path, &opts);
+	recurse_dir(path, &opts, 8);
 	write(fd, &ok, sizeof(ok));
 	return NULL;
 }
