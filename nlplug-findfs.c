@@ -805,9 +805,9 @@ static void *trigger_thread(void *data)
 	};
 	char path[PATH_MAX] = "/sys/bus";
 
-	recurse_dir(path, &opts, 8);
+	recurse_dir(path, &opts, 64);
 	strcpy(path, "/sys/devices");
-	recurse_dir(path, &opts, 8);
+	recurse_dir(path, &opts, 64);
 	write(fd, &ok, sizeof(ok));
 	return NULL;
 }
