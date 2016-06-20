@@ -112,8 +112,8 @@ setup_inittab_console(){
 		local line=
 		local term=
 		case "$tty" in
-			ttyS*)
-				[ "$speed" = "$1" ] && speed=9600
+			ttyS*|ttyMFD*|ttyUSB*)
+				[ "$speed" = "$1" ] && speed=115200
 				term=vt100
 				line=-L
 				;;
