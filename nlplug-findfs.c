@@ -193,12 +193,16 @@ struct uevent {
 	char *envp[64];
 };
 
+struct cryptconf {
+	char *device;
+	char *name;
+	char devnode[256];
+};
+
 struct ueventconf {
 	char **program_argv;
 	char *search_device;
-	char *crypt_device;
-	char *crypt_name;
-	char crypt_devnode[256];
+	struct cryptconf crypt;
 	char *subsystem_filter;
 	int modalias_count;
 	int fork_count;
@@ -379,22 +383,22 @@ static void *cryptsetup_thread(void *data)
 	struct crypt_device *cd;
 	int r, passwd_tries = 5;
 
-	r = crypt_init(&cd, c->crypt_devnode);
+	r = crypt_init(&cd, c->crypt.devnode);
 	if (r < 0) {
-		warnx("crypt_init(%s)", c->crypt_devnode);
+		warnx("crypt_init(%s)", c->crypt.devnode);
 		goto notify_out;
 	}
 
 	r = crypt_load(cd , CRYPT_LUKS1, NULL);
 	if (r < 0) {
-		warnx("crypt_load(%s)", c->crypt_devnode);
+		warnx("crypt_load(%s)", c->crypt.devnode);
 		goto free_out;
 	}
 
 	while (passwd_tries > 0) {
 		char pass[1024];
 
-		printf("Enter passphrase for %s: ", c->crypt_devnode);
+		printf("Enter passphrase for %s: ", c->crypt.devnode);
 		fflush(stdout);
 
 		if (read_pass(pass, sizeof(pass)) < 0)
@@ -402,7 +406,7 @@ static void *cryptsetup_thread(void *data)
 		passwd_tries--;
 
 		pthread_mutex_lock(&c->cryptsetup_mutex);
-		r = crypt_activate_by_passphrase(cd, c->crypt_name,
+		r = crypt_activate_by_passphrase(cd, c->crypt.name,
 						 CRYPT_ANY_SLOT,
 						 pass, strlen(pass), 0);
 		pthread_mutex_unlock(&c->cryptsetup_mutex);
@@ -421,7 +425,7 @@ notify_out:
 
 static void start_cryptsetup(struct ueventconf *conf)
 {
-	dbg("starting cryptsetup %s -> %s", conf->crypt_devnode, conf->crypt_name);
+	dbg("starting cryptsetup %s -> %s", conf->crypt.devnode, conf->crypt.name);
 	load_kmod("dm-crypt", NULL, 0);
 	pthread_create(&conf->cryptsetup_tid, NULL, cryptsetup_thread, conf);
 	conf->running_threads |= CRYPTSETUP_THREAD;
@@ -723,10 +727,10 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 			if (rc)
 				return rc;
 
-			if (searchdev(ev, conf->crypt_device, NULL, NULL)) {
-				strncpy(conf->crypt_devnode,
-					conf->crypt_device[0] == '/' ? conf->crypt_device : ev->devnode,
-					sizeof(conf->crypt_devnode));
+			if (searchdev(ev, conf->crypt.device, NULL, NULL)) {
+				strncpy(conf->crypt.devnode,
+					conf->crypt.device[0] == '/' ? conf->crypt.device : ev->devnode,
+					sizeof(conf->crypt.devnode));
 				start_cryptsetup(conf);
 			}
 		}
@@ -869,13 +873,13 @@ int main(int argc, char *argv[])
 		conf.bootrepos = EARGF(usage(1));
 		break;
 	case 'c':
-		conf.crypt_device = EARGF(usage(1));
+		conf.crypt.device = EARGF(usage(1));
 		break;
 	case 'h':
 		usage(0);
 		break;
 	case 'm':
-		conf.crypt_name = EARGF(usage(1));
+		conf.crypt.name = EARGF(usage(1));
 		break;
 	case 'n':
 		not_found_is_ok = 1;
