@@ -316,7 +316,9 @@ struct ueventconf {
 	char **program_argv;
 	char *search_device;
 	blkid_cache blkid_cache;
-	struct cryptconf crypt;
+	struct cryptconf crypt_data;
+	struct cryptconf crypt_header;
+	size_t crypt_payload_offset;
 	char *subsystem_filter;
 	int modalias_count;
 	int fork_count;
@@ -552,25 +554,37 @@ static void notify_main(struct ueventconf *conf)
 static void *cryptsetup_thread(void *data)
 {
 	struct ueventconf *c = (struct ueventconf *)data;
+	const char *data_devnode, *header_devnode;
+	struct crypt_params_luks1 *params = NULL;
 	struct crypt_device *cd;
 	int r, passwd_tries = 5;
 
-	r = crypt_init(&cd, c->crypt.devnode);
+	data_devnode = header_devnode = c->crypt_data.devnode;
+
+	if(c->crypt_header.devnode != NULL && c->crypt_header.devnode[0] != '\0') {
+		params = alloca(sizeof(struct crypt_params_luks1));
+		memset(params, 0, sizeof(struct crypt_params_luks1));
+		params->data_alignment = c->crypt_payload_offset; /* Memset did set that to 0, so default is 0 */
+		params->data_device = c->crypt_data.devnode;
+		header_devnode = c->crypt_header.devnode;
+	}
+
+	r = crypt_init(&cd, header_devnode);
 	if (r < 0) {
-		warnx("crypt_init(%s)", c->crypt.devnode);
+		warnx("crypt_init(%s)", header_devnode);
 		goto notify_out;
 	}
 
-	r = crypt_load(cd, CRYPT_LUKS1, NULL);
+	r = crypt_load(cd, CRYPT_LUKS1, params);
 	if (r < 0) {
-		warnx("crypt_load(%s)", c->crypt.devnode);
+		warnx("crypt_load(%s)", data_devnode);
 		goto free_out;
 	}
 
 	while (passwd_tries > 0) {
 		char pass[1024];
 
-		printf("Enter passphrase for %s: ", c->crypt.devnode);
+		printf("Enter passphrase for %s: ", c->crypt_data.devnode);
 		fflush(stdout);
 
 		if (read_pass(pass, sizeof(pass)) < 0)
@@ -578,7 +592,7 @@ static void *cryptsetup_thread(void *data)
 		passwd_tries--;
 
 		pthread_mutex_lock(&c->cryptsetup_mutex);
-		r = crypt_activate_by_passphrase(cd, c->crypt.name,
+		r = crypt_activate_by_passphrase(cd, c->crypt_data.name,
 						 CRYPT_ANY_SLOT,
 						 pass, strlen(pass), 0);
 		pthread_mutex_unlock(&c->cryptsetup_mutex);
@@ -588,7 +602,7 @@ static void *cryptsetup_thread(void *data)
 			goto free_out;
 		printf("No key available with this passphrase.\n");
 	}
-	printf("Mounting %s failed, amount of tries exhausted.\n", c->crypt.devnode);
+	printf("Mounting %s failed, amount of tries exhausted.\n", c->crypt_data.devnode);
 
 free_out:
 	crypt_free(cd);
@@ -612,7 +626,14 @@ static void start_thread(struct ueventconf *conf, void *(*thread_main)(void *))
 
 static void start_cryptsetup(struct ueventconf *conf)
 {
-	dbg("starting cryptsetup %s -> %s", conf->crypt.devnode, conf->crypt.name);
+	if(conf->crypt_header.devnode != NULL) {
+		dbg("starting cryptsetup %s -> %s (header: %s)",
+		    conf->crypt_data.devnode, conf->crypt_data.name,
+		    conf->crypt_header.devnode);
+	} else {
+		dbg("starting cryptsetup %s -> %s", conf->crypt_data.devnode,
+		    conf->crypt_data.name);
+	}
 	load_kmod("dm-crypt", NULL, 0);
 	conf->cryptsetup_running = 1;
 	conf->running_threads = 1;
@@ -973,7 +994,7 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 static void uevent_handle(struct uevent *ev)
 {
 	struct ueventconf *conf = ev->conf;
-	int found;
+	int found, run_now = 0;
 
 	if (!ev->subsystem || strcmp(ev->subsystem, "block") != 0)
 		return;
@@ -988,12 +1009,23 @@ static void uevent_handle(struct uevent *ev)
 	pthread_mutex_unlock(&conf->cryptsetup_mutex);
 	if (found) {
 		founddev(conf, found);
-	} else if (conf->crypt.devnode[0] == '\0' &&
-		   searchdev(ev, conf->crypt.device, 0)) {
-		strncpy(conf->crypt.devnode,
-			conf->crypt.device[0] == '/' ? conf->crypt.device : ev->devnode,
-			sizeof(conf->crypt.devnode));
-		start_cryptsetup(conf);
+	} else {
+		if (conf->crypt_data.devnode[0] == '\0' &&
+		   searchdev(ev, conf->crypt_data.device, 0)) {
+			strncpy(conf->crypt_data.devnode,
+			conf->crypt_data.device[0] == '/' ? conf->crypt_data.device : ev->devnode,
+			sizeof(conf->crypt_data.devnode));
+			run_now = 1;
+		}
+		if (conf->crypt_header.devnode[0] == '\0' &&
+		   searchdev(ev, conf->crypt_header.device, 0)) {
+			strncpy(conf->crypt_header.devnode,
+			conf->crypt_header.device[0] == '/' ? conf->crypt_header.device : ev->devnode,
+			sizeof(conf->crypt_header.devnode));
+			run_now = 1;
+		}
+		if(run_now && conf->crypt_data.devnode != NULL && (conf->crypt_header.device == NULL || conf->crypt_header.devnode != NULL))
+			start_cryptsetup(conf);
 	}
 }
 
@@ -1113,7 +1145,9 @@ static void usage(int rc)
 	" -b OUTFILE      add found boot repositories to OUTFILE\n"
 	" -c CRYPTDEVICE  run cryptsetup luksOpen when CRYPTDEVICE is found\n"
 	" -h              show this help\n"
+	" -H HEADERDEVICE use HEADERDEVICE as the LUKS header\n"
 	" -m CRYPTNAME    use CRYPTNAME name for crypto device mapping\n"
+	" -o OFFSET       cryptsetup payload offset\n"
 	" -d              enable debugging ouput\n"
 	" -f SUBSYSTEM    filter subsystem\n"
 	" -p PROGRAM      use PROGRAM as handler for every event with DEVNAME\n"
@@ -1168,13 +1202,16 @@ int main(int argc, char *argv[])
 		conf.bootrepos = EARGF(usage(1));
 		break;
 	case 'c':
-		conf.crypt.device = EARGF(usage(1));
+		conf.crypt_data.device = EARGF(usage(1));
+		break;
+	case 'H':
+		conf.crypt_header.device = EARGF(usage(1));
 		break;
 	case 'h':
 		usage(0);
 		break;
 	case 'm':
-		conf.crypt.name = EARGF(usage(1));
+		conf.crypt_data.name = EARGF(usage(1));
 		break;
 	case 'n':
 		not_found_is_ok = 1;
@@ -1184,6 +1221,10 @@ int main(int argc, char *argv[])
 		break;
 	case 'f':
 		conf.subsystem_filter = EARGF(usage(1));
+		break;
+	case 'o':
+		if(sscanf(EARGF(usage(1)), "%zu", &conf.crypt_payload_offset) != 1)
+			err(1, "sscanf");
 		break;
 	case 'p':
 		conf.program_argv[0] = EARGF(usage(1));
