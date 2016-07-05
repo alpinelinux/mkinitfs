@@ -996,10 +996,39 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 	return rc;
 }
 
+/* search for crypt.data and crypt.header.
+   returns true if we are ready to start cryptsetup. */
+static int search_cryptdevs(struct uevent *ev, struct cryptconf *crypt)
+{
+	if (crypt->data.devnode[0] == '\0' && searchdev(ev, crypt->data.device, 0)) {
+		strncpy(crypt->data.devnode,
+			crypt->data.device[0] == '/' ? crypt->data.device : ev->devnode,
+			sizeof(crypt->data.devnode));
+		/* if we don't have header or header is found, then we are
+		   ready to start crypsetup */
+		return (crypt->header.device == NULL)
+			|| (crypt->header.devnode[0] != '\0');
+	}
+
+	if (crypt->header.device == NULL)
+		return 0;
+
+	if (crypt->header.devnode[0] == '\0' && searchdev(ev, crypt->header.device, 0)) {
+		strncpy(crypt->header.devnode,
+			crypt->header.device[0] == '/' ? crypt->header.device : ev->devnode,
+			sizeof(crypt->header.devnode));
+		/* if we also have found data dev, then we are ready to
+		   start cryptsetup */
+		return crypt->data.devnode[0] != '\0';
+	}
+	return 0;
+}
+
+
 static void uevent_handle(struct uevent *ev)
 {
 	struct ueventconf *conf = ev->conf;
-	int found, run_now = 0;
+	int found;
 
 	if (!ev->subsystem || strcmp(ev->subsystem, "block") != 0)
 		return;
@@ -1014,23 +1043,8 @@ static void uevent_handle(struct uevent *ev)
 	pthread_mutex_unlock(&conf->crypt.mutex);
 	if (found) {
 		founddev(conf, found);
-	} else {
-		if (conf->crypt.data.devnode[0] == '\0' &&
-		   searchdev(ev, conf->crypt.data.device, 0)) {
-			strncpy(conf->crypt.data.devnode,
-			conf->crypt.data.device[0] == '/' ? conf->crypt.data.device : ev->devnode,
-			sizeof(conf->crypt.data.devnode));
-			run_now = 1;
-		}
-		if (conf->crypt.header.devnode[0] == '\0' &&
-		   searchdev(ev, conf->crypt.header.device, 0)) {
-			strncpy(conf->crypt.header.devnode,
-			conf->crypt.header.device[0] == '/' ? conf->crypt.header.device : ev->devnode,
-			sizeof(conf->crypt.header.devnode));
-			run_now = 1;
-		}
-		if(run_now && conf->crypt.data.devnode != NULL && (conf->crypt.header.device == NULL || conf->crypt.header.devnode != NULL))
-			start_cryptsetup(conf);
+	} else if (search_cryptdevs(ev, &conf->crypt)) {
+		start_cryptsetup(conf);
 	}
 }
 
