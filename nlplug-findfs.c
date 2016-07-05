@@ -560,15 +560,16 @@ static void *cryptsetup_thread(void *data)
 {
 	struct ueventconf *c = (struct ueventconf *)data;
 	const char *data_devnode, *header_devnode;
+	struct crypt_params_luks1 param_struct;
 	struct crypt_params_luks1 *params = NULL;
 	struct crypt_device *cd;
 	int r, passwd_tries = 5;
 
 	data_devnode = header_devnode = c->crypt.data.devnode;
 
-	if(c->crypt.header.devnode != NULL && c->crypt.header.devnode[0] != '\0') {
-		params = alloca(sizeof(struct crypt_params_luks1));
-		memset(params, 0, sizeof(struct crypt_params_luks1));
+	if(c->crypt.header.devnode[0] != '\0') {
+		params = &param_struct;
+		params->hash = NULL; /* No way of finding this */
 		params->data_alignment = c->crypt.payload_offset; /* Memset did set that to 0, so default is 0 */
 		params->data_device = c->crypt.data.devnode;
 		header_devnode = c->crypt.header.devnode;
@@ -631,7 +632,7 @@ static void start_thread(struct ueventconf *conf, void *(*thread_main)(void *))
 
 static void start_cryptsetup(struct ueventconf *conf)
 {
-	if(conf->crypt.header.devnode != NULL) {
+	if(conf->crypt.header.devnode[0] != '\0') {
 		dbg("starting cryptsetup %s -> %s (header: %s)",
 		    conf->crypt.data.devnode, conf->crypt.data.name,
 		    conf->crypt.header.devnode);
