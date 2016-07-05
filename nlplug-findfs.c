@@ -306,19 +306,25 @@ static int spawn_active(struct spawn_manager *mgr)
 	return mgr->num_running || !list_empty(&mgr->queue);
 }
 
-struct cryptconf {
+struct cryptdev {
 	char *device;
 	char *name;
 	char devnode[256];
+};
+
+struct cryptconf {
+	struct cryptdev data;
+	struct cryptdev header;
+	size_t payload_offset;
+	pthread_t tid;
+	pthread_mutex_t mutex;
 };
 
 struct ueventconf {
 	char **program_argv;
 	char *search_device;
 	blkid_cache blkid_cache;
-	struct cryptconf crypt_data;
-	struct cryptconf crypt_header;
-	size_t crypt_payload_offset;
+	struct cryptconf crypt;
 	char *subsystem_filter;
 	int modalias_count;
 	int fork_count;
@@ -336,7 +342,6 @@ struct ueventconf {
 	pthread_cond_t trigger_cond;
 	struct list_head trigger_list;
 
-	pthread_mutex_t cryptsetup_mutex;
 	int cryptsetup_running;
 };
 
@@ -559,14 +564,14 @@ static void *cryptsetup_thread(void *data)
 	struct crypt_device *cd;
 	int r, passwd_tries = 5;
 
-	data_devnode = header_devnode = c->crypt_data.devnode;
+	data_devnode = header_devnode = c->crypt.data.devnode;
 
-	if(c->crypt_header.devnode != NULL && c->crypt_header.devnode[0] != '\0') {
+	if(c->crypt.header.devnode != NULL && c->crypt.header.devnode[0] != '\0') {
 		params = alloca(sizeof(struct crypt_params_luks1));
 		memset(params, 0, sizeof(struct crypt_params_luks1));
-		params->data_alignment = c->crypt_payload_offset; /* Memset did set that to 0, so default is 0 */
-		params->data_device = c->crypt_data.devnode;
-		header_devnode = c->crypt_header.devnode;
+		params->data_alignment = c->crypt.payload_offset; /* Memset did set that to 0, so default is 0 */
+		params->data_device = c->crypt.data.devnode;
+		header_devnode = c->crypt.header.devnode;
 	}
 
 	r = crypt_init(&cd, header_devnode);
@@ -584,25 +589,25 @@ static void *cryptsetup_thread(void *data)
 	while (passwd_tries > 0) {
 		char pass[1024];
 
-		printf("Enter passphrase for %s: ", c->crypt_data.devnode);
+		printf("Enter passphrase for %s: ", c->crypt.data.devnode);
 		fflush(stdout);
 
 		if (read_pass(pass, sizeof(pass)) < 0)
 			goto free_out;
 		passwd_tries--;
 
-		pthread_mutex_lock(&c->cryptsetup_mutex);
-		r = crypt_activate_by_passphrase(cd, c->crypt_data.name,
+		pthread_mutex_lock(&c->crypt.mutex);
+		r = crypt_activate_by_passphrase(cd, c->crypt.data.name,
 						 CRYPT_ANY_SLOT,
 						 pass, strlen(pass), 0);
-		pthread_mutex_unlock(&c->cryptsetup_mutex);
+		pthread_mutex_unlock(&c->crypt.mutex);
 		memset(pass, 0, sizeof(pass)); /* wipe pass after use */
 
 		if (r >= 0)
 			goto free_out;
 		printf("No key available with this passphrase.\n");
 	}
-	printf("Mounting %s failed, amount of tries exhausted.\n", c->crypt_data.devnode);
+	printf("Mounting %s failed, amount of tries exhausted.\n", c->crypt.data.devnode);
 
 free_out:
 	crypt_free(cd);
@@ -626,13 +631,13 @@ static void start_thread(struct ueventconf *conf, void *(*thread_main)(void *))
 
 static void start_cryptsetup(struct ueventconf *conf)
 {
-	if(conf->crypt_header.devnode != NULL) {
+	if(conf->crypt.header.devnode != NULL) {
 		dbg("starting cryptsetup %s -> %s (header: %s)",
-		    conf->crypt_data.devnode, conf->crypt_data.name,
-		    conf->crypt_header.devnode);
+		    conf->crypt.data.devnode, conf->crypt.data.name,
+		    conf->crypt.header.devnode);
 	} else {
-		dbg("starting cryptsetup %s -> %s", conf->crypt_data.devnode,
-		    conf->crypt_data.name);
+		dbg("starting cryptsetup %s -> %s", conf->crypt.data.devnode,
+		    conf->crypt.data.name);
 	}
 	load_kmod("dm-crypt", NULL, 0);
 	conf->cryptsetup_running = 1;
@@ -1004,27 +1009,27 @@ static void uevent_handle(struct uevent *ev)
 		return;
 
 	snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s", ev->devname);
-	pthread_mutex_lock(&conf->cryptsetup_mutex);
+	pthread_mutex_lock(&conf->crypt.mutex);
 	found = searchdev(ev, conf->search_device, (conf->apkovls || conf->bootrepos));
-	pthread_mutex_unlock(&conf->cryptsetup_mutex);
+	pthread_mutex_unlock(&conf->crypt.mutex);
 	if (found) {
 		founddev(conf, found);
 	} else {
-		if (conf->crypt_data.devnode[0] == '\0' &&
-		   searchdev(ev, conf->crypt_data.device, 0)) {
-			strncpy(conf->crypt_data.devnode,
-			conf->crypt_data.device[0] == '/' ? conf->crypt_data.device : ev->devnode,
-			sizeof(conf->crypt_data.devnode));
+		if (conf->crypt.data.devnode[0] == '\0' &&
+		   searchdev(ev, conf->crypt.data.device, 0)) {
+			strncpy(conf->crypt.data.devnode,
+			conf->crypt.data.device[0] == '/' ? conf->crypt.data.device : ev->devnode,
+			sizeof(conf->crypt.data.devnode));
 			run_now = 1;
 		}
-		if (conf->crypt_header.devnode[0] == '\0' &&
-		   searchdev(ev, conf->crypt_header.device, 0)) {
-			strncpy(conf->crypt_header.devnode,
-			conf->crypt_header.device[0] == '/' ? conf->crypt_header.device : ev->devnode,
-			sizeof(conf->crypt_header.devnode));
+		if (conf->crypt.header.devnode[0] == '\0' &&
+		   searchdev(ev, conf->crypt.header.device, 0)) {
+			strncpy(conf->crypt.header.devnode,
+			conf->crypt.header.device[0] == '/' ? conf->crypt.header.device : ev->devnode,
+			sizeof(conf->crypt.header.devnode));
 			run_now = 1;
 		}
-		if(run_now && conf->crypt_data.devnode != NULL && (conf->crypt_header.device == NULL || conf->crypt_header.devnode != NULL))
+		if(run_now && conf->crypt.data.devnode != NULL && (conf->crypt.header.device == NULL || conf->crypt.header.devnode != NULL))
 			start_cryptsetup(conf);
 	}
 }
@@ -1180,7 +1185,7 @@ int main(int argc, char *argv[])
 	pthread_mutex_init(&conf.trigger_mutex, NULL);
 	pthread_cond_init(&conf.trigger_cond, NULL);
 	list_init(&conf.trigger_list);
-	pthread_mutex_init(&conf.cryptsetup_mutex, NULL);
+	pthread_mutex_init(&conf.crypt.mutex, NULL);
 
 	conf.program_argv = program_argv;
 	conf.timeout = MAX_EVENT_TIMEOUT;
@@ -1202,16 +1207,16 @@ int main(int argc, char *argv[])
 		conf.bootrepos = EARGF(usage(1));
 		break;
 	case 'c':
-		conf.crypt_data.device = EARGF(usage(1));
+		conf.crypt.data.device = EARGF(usage(1));
 		break;
 	case 'H':
-		conf.crypt_header.device = EARGF(usage(1));
+		conf.crypt.header.device = EARGF(usage(1));
 		break;
 	case 'h':
 		usage(0);
 		break;
 	case 'm':
-		conf.crypt_data.name = EARGF(usage(1));
+		conf.crypt.data.name = EARGF(usage(1));
 		break;
 	case 'n':
 		not_found_is_ok = 1;
@@ -1223,7 +1228,7 @@ int main(int argc, char *argv[])
 		conf.subsystem_filter = EARGF(usage(1));
 		break;
 	case 'o':
-		if(sscanf(EARGF(usage(1)), "%zu", &conf.crypt_payload_offset) != 1)
+		if(sscanf(EARGF(usage(1)), "%zu", &conf.crypt.payload_offset) != 1)
 			err(1, "sscanf");
 		break;
 	case 'p':
@@ -1342,7 +1347,7 @@ int main(int argc, char *argv[])
 	}
 	close(fds[2].fd);
 
-	pthread_mutex_destroy(&conf.cryptsetup_mutex);
+	pthread_mutex_destroy(&conf.crypt.mutex);
 	pthread_mutex_destroy(&conf.trigger_mutex);
 	pthread_cond_destroy(&conf.trigger_cond);
 	if (conf.blkid_cache) blkid_put_cache(conf.blkid_cache);
