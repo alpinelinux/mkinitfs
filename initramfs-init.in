@@ -260,8 +260,8 @@ setup_nbd() {
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat /proc/cmdline)
 
-myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
-	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
+myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
+	debug_init dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
 	usbdelay ip alpine_repo apkovl alpine_start splash blacklist
 	overlaytmpfs rootfstype rootflags nbd resume"
 
@@ -355,6 +355,12 @@ if [ -n "$KOPT_cryptroot" ]; then
 	cryptopts="-c ${KOPT_cryptroot}"
 	if [ -n "$KOPT_cryptdm" ]; then
 		cryptopts="$cryptopts -m ${KOPT_cryptdm}"
+	fi
+	if [ -n "$KOPT_cryptheader" ]; then
+		cryptopts="$cryptopts -H ${KOPT_cryptheader}"
+	fi
+	if [ -n "$KOPT_cryptoffset" ]; then
+		cryptopts="$cryptopts -o ${KOPT_cryptoffset}"
 	fi
 fi
 
