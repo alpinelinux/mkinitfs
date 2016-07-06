@@ -149,7 +149,6 @@ static inline int list_empty(const struct list_head *n)
 	     &pos->member != (head); 					\
 	     pos = list_entry(pos->member.next, typeof(*pos), member))
 
-
 static char **clone_array(char *const *const a)
 {
 	size_t i, s;
@@ -1024,7 +1023,6 @@ static int search_cryptdevs(struct uevent *ev, struct cryptconf *crypt)
 	}
 	return 0;
 }
-
 
 static void uevent_handle(struct uevent *ev)
 {
