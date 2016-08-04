@@ -493,12 +493,11 @@ fi
 
 if [ "$KOPT_splash" != "no" ]; then
 	echo "IMAGE_ALIGN=CM" > /tmp/fbsplash.cfg
-	local fbdev img
 	for fbdev in /dev/fb[0-9]; do
 		[ -e "$fbdev" ] || break
-		local num="${fbdev#/dev/fb}"
+		num="${fbdev#/dev/fb}"
 		for img in /media/*/fbsplash$num.ppm; do
-			local config="${img%.*}.cfg"
+			config="${img%.*}.cfg"
 			[ -e "$config" ] || config=/tmp/fbsplash.cfg
 			fbsplash -s "$img" -d "$fbdev" -i "$config"
 			break
@@ -512,7 +511,7 @@ fi
 if [ -n "$fbsplash" ] && [ -e "$fbsplash" ]; then
 	ebegin "Starting bootsplash"
 	mkfifo $sysroot/$splashfile
-	local config="${fbsplash%.*}.cfg"
+	config="${fbsplash%.*}.cfg"
 	[ -e "$config" ] || config=/tmp/fbsplash.cfg
 	setsid fbsplash -T 16 -s "$fbsplash" -i $config -f $sysroot/$splashfile &
 	eend 0
