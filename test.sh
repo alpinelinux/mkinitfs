@@ -62,16 +62,23 @@ then
 
 	echo "> Creating images"
 	dd if=/dev/zero of=block count=10 bs=1M 2>&1 | sed 's/^/\t/g'
+	[ "$operation" = "header" ] && dd if=/dev/zero of=header count=1024 bs=65536 2>&1 | sed 's/^/\t/g'
 
 	echo "> Setting up the loop devices"
 	block="$(sudo losetup -f)"
 	echo "> Setting up block as $block"
 	sudo losetup $block block 2>&1 | sed 's/^/\t/g'
+	[ "$operation" = "header" ] && header="$(sudo losetup -f)"
+	[ "$operation" = "header" ] && echo "> Setting up header as $header"
+	[ "$operation" = "header" ] && sudo losetup $header header 2>&1 | sed 's/^/\t/g'
 
-	echo "> Formatting '$block' with passphrase '$passphrase'."
-	printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q $block - 2>&1 | sed 's/^/\t/g'
+	[ "$operation" != "header" ] && echo "> Formatting '$block' with passphrase '$passphrase'."
+	[ "$operation" = "header" ] && echo "> Formatting '$block' with header '$header' and passphrase '$passphrase'."
+	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q $block - 2>&1 | sed 's/^/\t/g'
+	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q --header $header $block - 2>&1 | sed 's/^/\t/g'
 	echo "> Opening the device '$block' as /dev/mapper/temp-test"
-	printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q $block temp-test - 2>&1 | sed 's/^/\t/g'
+	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q $block temp-test - 2>&1 | sed 's/^/\t/g'
+	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q --header $header $block temp-test - 2>&1 | sed 's/^/\t/g'
 	echo "> Creating a filesystem on '/dev/mapper/temp-test'"
 	sudo mkfs.ext2 /dev/mapper/temp-test
 	echo "> Mounting the fs"
@@ -86,7 +93,8 @@ then
 	sudo cryptsetup luksClose temp-test
 
 	echo "> Testing nlplug-findfs on $block (passphrase was '$passphrase')"
-	echo "$passphrase" | sudo ./nlplug-findfs -p /sbin/mdev ${flags} -c $block -m 'test-device' /dev/mapper/test-device || retcode=1
+	[ "$operation" != "header" ] && { echo "$passphrase" | sudo ./nlplug-findfs -p /sbin/mdev ${flags} -c $block -m 'test-device' /dev/mapper/test-device || retcode=1; }
+	[ "$operation" = "header" ] && { echo "$passphrase" | sudo ./nlplug-findfs -p /sbin/mdev ${flags} -H $header -c $block -m 'test-device' /dev/mapper/test-device || retcode=1; }
 
 	if [ $retcode -eq 0 ]; then
 		echo "> Mounting the device"
@@ -112,6 +120,7 @@ for i in $(seq 0 $(($(sudo losetup -f | sed 's:^[a-z/]*\([0-9]*\)$:\1:; s/$/-1/'
 done
 [ -d local-mount ] && rmdir local-mount
 [ -f block ] && rm block
+[ -f header ] && rm header
 [ $clean_all -eq 1 ] && ( make clean; rm -f nlplug-findfs nlplug-findfs.o )
 exit $retcode
 # vim: ts=4:sw=4

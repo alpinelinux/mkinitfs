@@ -6,5 +6,6 @@ install:
 script: |
   source .travis/common.sh
   alpine_run $ALPINE_USER './test.sh -x -y'
+  alpine_run $ALPINE_USER './test.sh -x -y header'
 notifications:
   email: false
