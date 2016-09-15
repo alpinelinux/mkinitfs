@@ -586,6 +586,12 @@ static void *cryptsetup_thread(void *data)
 		goto free_out;
 	}
 
+	r = crypt_set_data_device(cd, data_devnode);
+	if (r < 0) {
+		warnx("crypt_set_data_device(%s)", data_devnode);
+		goto free_out;
+	}
+
 	while (passwd_tries > 0) {
 		char pass[1024];
 
