@@ -1,0 +1,34 @@
+#!/bin/sh
+# vim: set ts=4:
+set -eu
+
+. "$(dirname "$0")"/common.sh
+
+APK_TOOLS_URI='http://dl-cdn.alpinelinux.org/alpine/v3.4/main/x86_64/apk-tools-static-2.6.7-r0.apk'
+APK_TOOLS_SHA256='342458308b8ebdb6a91d347b6b2cced7349c0cd0560a7fd7cdd71c5e1aa2b9f3'
+
+
+title 'Downloading apk-tools-static'
+
+cd /tmp
+wget "$APK_TOOLS_URI"
+echo "$APK_TOOLS_SHA256  $(basename "$APK_TOOLS_URI")" | sha256sum -c
+tar -xzf $(basename "$APK_TOOLS_URI")
+
+
+title 'Installing Alpine Linux'
+
+mkdir -p "$ALPINE_ROOT"/etc/apk
+cd "$ALPINE_ROOT"
+
+cp -R "$CLONE_DIR"/.travis/keys etc/apk/keys
+cp "$CLONE_DIR"/.travis/repositories etc/apk/repositories
+cp /etc/resolv.conf etc/resolv.conf
+
+/tmp/sbin/apk.static \
+	--root . --update-cache --initdb --no-progress \
+	add alpine-base
+
+mount -t proc none proc
+mount --rbind /sys sys
+mount --rbind /dev dev

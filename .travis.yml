@@ -1,0 +1,10 @@
+sudo: required
+install:
+  - sudo .travis/install-alpine
+  - sudo .travis/setup-alpine
+  - sudo .travis/install-deps
+script: |
+  source .travis/common.sh
+  alpine_run $ALPINE_USER './test.sh -x -y'
+notifications:
+  email: false
