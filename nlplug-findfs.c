@@ -356,10 +356,14 @@ static int read_pass(char *pass, size_t pass_size)
 	new_flags.c_lflag &= ~ECHO;
 	new_flags.c_lflag |= ECHONL;
 
-	r = tcsetattr(STDIN_FILENO, TCSANOW, &new_flags);
-	if (r < 0) {
-		warn("tcsetattr");
-		return r;
+	if (isatty(fileno(stdin))) {
+		r = tcsetattr(STDIN_FILENO, TCSANOW, &new_flags);
+		if (r < 0) {
+			warn("tcsetattr");
+			return r;
+		}
+	} else {
+		fprintf(stderr, "The program isn't executed in a TTY, the echo-disabling has been skipped.\n");
 	}
 
 	if (fgets(pass, pass_size, stdin) == NULL) {
@@ -368,9 +372,13 @@ static int read_pass(char *pass, size_t pass_size)
 	}
 	pass[strlen(pass) - 1] = '\0';
 
-	if (tcsetattr(STDIN_FILENO, TCSANOW, &old_flags) < 0) {
-		warn("tcsetattr");
-		return r;
+	if (isatty(fileno(stdin))) {
+		if (tcsetattr(STDIN_FILENO, TCSANOW, &old_flags) < 0) {
+			warn("tcsetattr");
+			return r;
+		}
+	} else {
+		fprintf(stderr, "The program isn't executed in a TTY, the echo-reenabling has been skipped.\n");
 	}
 
 	return 0;

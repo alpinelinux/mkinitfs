@@ -1,0 +1,14 @@
+#!/bin/sh
+# vim: set ts=4:
+set -eu
+
+. "$(dirname "$0")"/common.sh
+
+title 'Installing runtime dependencies'
+
+mkdir -p "${ALPINE_ROOT}${CLONE_DIR}"
+mount --bind "$CLONE_DIR" "${ALPINE_ROOT}${CLONE_DIR}"
+
+alpine_run <<-EOF
+	apk add cryptsetup e2fsprogs bc
+EOF
