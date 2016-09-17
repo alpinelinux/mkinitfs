@@ -51,11 +51,12 @@
 
 #define LVM_PATH	"/sbin/lvm"
 #define MDADM_PATH	"/sbin/mdadm"
+#define ZPOOL_PATH	"/usr/sbin/zpool"
 
 static int dodebug;
 static char *default_envp[2];
 char *argv0;
-static int use_mdadm, use_lvm;
+static int use_mdadm, use_lvm, use_zpool;
 
 #if defined(DEBUG)
 #include <stdarg.h>
@@ -496,6 +497,15 @@ static void start_lvm2(char *devnode)
 		spawn_command(&spawnmgr, lvm2_argv, 0);
 }
 
+static void start_zpool(char *uuid) {
+	char *zpool_argv[] = {
+		ZPOOL_PATH, "import", uuid,
+		NULL
+	};
+	if (use_zpool && uuid)
+		spawn_command(&spawnmgr, zpool_argv, 0);
+}
+
 static int read_pass(char *pass, size_t pass_size)
 {
 	struct termios old_flags, new_flags;
@@ -913,6 +923,7 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 		blkid_get_cache(&conf->blkid_cache, NULL);
 
 	type = blkid_get_tag_value(conf->blkid_cache, "TYPE", ev->devnode);
+	uuid = blkid_get_tag_value(conf->blkid_cache, "UUID", ev->devnode);
 
 	if (searchdev != NULL) {
 		if (strncmp("LABEL=", searchdev, 6) == 0) {
@@ -934,6 +945,8 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 			start_mdadm(ev->devnode);
 		} else if (strcmp("LVM2_member", type) == 0) {
 			start_lvm2(ev->devnode);
+		} else if (strcmp("zfs_member", type) == 0) {
+			start_zpool(uuid);
 		} else if (scanbootmedia) {
 			rc = scandev(conf, ev->devnode, type);
 		}
@@ -1133,6 +1146,7 @@ int main(int argc, char *argv[])
 	conf.uevent_timeout = DEFAULT_EVENT_TIMEOUT;
 	use_lvm = access(LVM_PATH, X_OK) == 0;
 	use_mdadm = access(MDADM_PATH, X_OK) == 0;
+	use_zpool = access(ZPOOL_PATH, X_OK) == 0;
 
 	argv0 = strrchr(argv[0], '/');
 	if (argv0++ == NULL)
