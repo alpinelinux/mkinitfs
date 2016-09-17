@@ -727,7 +727,7 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 			if (rc)
 				return rc;
 
-			if (searchdev(ev, conf->crypt.device, NULL, NULL)) {
+			if (conf->crypt.devnode[0] == '\0' && searchdev(ev, conf->crypt.device, NULL, NULL)) {
 				strncpy(conf->crypt.devnode,
 					conf->crypt.device[0] == '/' ? conf->crypt.device : ev->devnode,
 					sizeof(conf->crypt.devnode));
