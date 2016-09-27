@@ -585,9 +585,10 @@ static void *cryptsetup_thread(void *data)
 		pthread_mutex_unlock(&c->cryptsetup_mutex);
 
 		if (r >= 0)
-			break;
+			goto free_out;
 		printf("No key available with this passphrase.\n");
 	}
+	printf("Mounting %s failed, amount of tries exhausted.\n", c->crypt.devnode);
 
 free_out:
 	crypt_free(cd);
