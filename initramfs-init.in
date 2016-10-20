@@ -169,7 +169,7 @@ ip_set() {
 #   "server-ip" and "hostname" are not supported here.
 #
 configure_ip() {
-	[ -n "$KOPT_ip" ] || return
+	[ -z "$KOPT_ip" -o "$MAC_ADDRESS" ] && return
 	OIFS=$IFS
 	IFS=':'
 	eval set -- $KOPT_ip
@@ -526,6 +526,9 @@ cp -a /etc/apk/keys $sysroot/etc/apk
 
 # generate apk repositories file. needs to be done after relocation
 find_boot_repositories > $repofile
+
+# set up network if needed
+[ "$ALPINE_REPO" ] && configure_ip
 
 # silently fix apk arch in case the apkovl does not match
 if [ -r "$sysroot"/etc/apk/arch ]; then
