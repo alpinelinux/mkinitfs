@@ -167,14 +167,15 @@ ip_set() {
 #   ip=client-ip:server-ip:gw-ip:netmask:hostname:device:autoconf
 #   ip=dhcp
 #   "server-ip" and "hostname" are not supported here.
+# Default (when configure_ip is called without setting ip=):
+#   ip=dhcp
 #
 configure_ip() {
-	[ -z "$KOPT_ip" -o "$MAC_ADDRESS" ] && return
-	OIFS=$IFS
-	IFS=':'
-	eval set -- $KOPT_ip
-	IFS=$OIFS
-
+	[ -n "$MAC_ADDRESS" ] && return
+	local ops=${KOPT_ip:-dhcp}
+	local IFS=':'
+	set -- $ops
+	unset IFS
 	local client_ip="$1"
 	local gw_ip="$3"
 	local netmask="$4"
@@ -190,13 +191,12 @@ configure_ip() {
 		echo "ERROR: IP requested but no network device was found"
 		return 1
 	fi
-
 	if [ "$autoconf" = "dhcp" ]; then
+		# automatic configuration
 		if [ ! -e /usr/share/udhcpc/default.script ]; then
 			echo "ERROR: DHCP requested but not present in initrd"
 			return 1
 		fi
-		# automatic configuration
 		ebegin "Obtaining IP via DHCP ($device)..."
 		ifconfig $device 0.0.0.0
 		udhcpc -i $device -f -q
@@ -241,6 +241,21 @@ find_boot_repositories() {
 	fi
 }
 
+setup_nbd() {
+	modprobe -q nbd max_part=8 || return 1
+	local IFS=, n=0
+	set -- $KOPT_nbd
+	unset IFS
+	for ops; do
+		local server="${ops%:*}"
+		local port="${ops#*:}"
+		local device="/dev/nbd${n}"
+		[ -b "$device" ] || continue
+		nbd-client "$server" "$port" "$device" && n=$((n+1))
+	done
+	[ "$n" != 0 ] || return 1
+}
+
 # read the kernel options. we need surve things like:
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat /proc/cmdline)
@@ -248,7 +263,7 @@ set -- $(cat /proc/cmdline)
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm debug_init
 	dma init_args keep_apk_new modules ovl_dev pkgs quiet root_size root
 	usbdelay ip alpine_repo apkovl alpine_start splash blacklist
-	overlaytmpfs rootfstype rootflags"
+	overlaytmpfs rootfstype rootflags nbd"
 
 for opt; do
 	case "$opt" in
@@ -341,6 +356,11 @@ if [ -n "$KOPT_cryptroot" ]; then
 	if [ -n "$KOPT_cryptdm" ]; then
 		cryptopts="$cryptopts -m ${KOPT_cryptdm}"
 	fi
+fi
+
+if [ -n "$KOPT_nbd" ]; then
+	configure_ip
+	setup_nbd || echo "Failed to setup nbd device."
 fi
 
 # check if root=... was set

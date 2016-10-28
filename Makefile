@@ -40,7 +40,9 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/ubifs.modules \
 		features.d/usb.modules \
 		features.d/virtio.modules \
-		features.d/xfs.modules
+		features.d/xfs.modules \
+		features.d/nbd.files \
+		features.d/nbd.modules
 
 SCRIPTS		:= mkinitfs bootchartd initramfs-init
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
