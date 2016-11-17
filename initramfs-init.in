@@ -279,7 +279,7 @@ for opt; do
 
 	for i in $myopts; do
 		case "$opt" in
-		$i=*)	eval "KOPT_${i}='${opt#*=}'";;
+		$i=*)	eval "KOPT_${i}=${opt#*=}";;
 		$i)	eval "KOPT_${i}=yes";;
 		no$i)	eval "KOPT_${i}=no";;
 		esac
