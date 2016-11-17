@@ -102,6 +102,7 @@ find_kmods() {
 }
 
 initfs_kmods() {
+	[ -z "$nokernel" ] || return
 	local glob= file= files= dirs=
 	rm -rf "$tmpdir"/lib/modules
 	# make sure we have modules.dep
@@ -123,6 +124,7 @@ initfs_kmods() {
 }
 
 initfs_firmware() {
+	[ -z "$nokernel" ] || return
 	rm -rf "$tmpdir"/lib/firmware
 	mkdir -p "$tmpdir"/lib/firmware
 	find "$tmpdir"/lib/modules -type f -name "*.ko" | xargs modinfo -F firmware | sort -u | while read FW; do
@@ -149,7 +151,7 @@ initfs_cpio() {
 
 usage() {
 	cat <<EOF
-usage: mkinitfs [-hkKLl] [-b basedir] [-c configfile] [-F features] [-f fstab]
+usage: mkinitfs [-hkKLln] [-b basedir] [-c configfile] [-F features] [-f fstab]
 		[-i initfile ] [-o outfile] [-t tempdir] [kernelversion]"
 options:
 	-b  prefix files and kernel modules with basedir
@@ -162,6 +164,7 @@ options:
 	-K  copy also host keys to initramfs
 	-l  only list files that would have been used
 	-L  list available features
+	-n  don't include kernel modules or firmware
 	-o  set another outfile
 	-q  Quiet mode
 	-t  use tempdir when creating initramfs image
@@ -173,7 +176,7 @@ EOF
 # main
 
 
-while getopts "b:c:f:F:hi:kKLlo:qt:" opt; do
+while getopts "b:c:f:F:hi:kKLlno:qt:" opt; do
 	case "$opt" in
 		b) basedir="$OPTARG";;
 		c) config="$OPTARG";;
@@ -185,6 +188,7 @@ while getopts "b:c:f:F:hi:kKLlo:qt:" opt; do
 		K) hostkeys=1;;
 		L) list_features=1;;
 		l) list_sources=1;;
+		n) nokernel=1;;
 		o) outfile="$OPTARG";;
 		q) quiet=1;;
 		t) tmpdir="$OPTARG";;
@@ -210,18 +214,22 @@ basedir="${basedir%/}/"
 [ "${basedir}" = "${basedir#/}" ] && basedir="${PWD}/${basedir}"
 
 
-[ -n "$1" ] && kernel="$1"
-[ -z "$kernel" ] && kernel=$(uname -r)
-kerneldir="${basedir}lib/modules/$kernel"
+if [ -z "$nokernel" ]; then
+	[ -n "$1" ] && kernel="$1"
+	[ -z "$kernel" ] && kernel=$(uname -r)
+	kerneldir="${basedir}lib/modules/$kernel"
 
-kflavor=${kernel##*-}
-[ "$kflavor" = "$kernel" ] && kflavor=vanilla
+	kflavor=${kernel##*-}
+	[ "$kflavor" = "$kernel" ] && kflavor=vanilla
+else
+	kflavor=generic
+fi
 
 if [ -z "$outfile" ]; then
 	outfile="${basedir}boot/initramfs-${kflavor}"
 fi
 
-if [ ! -d "$kerneldir" ]; then
+if [ -z "$nokernel"] && [ ! -d "$kerneldir" ]; then
 	echo "$kerneldir does not exist or is not a directory"
 	exit 1
 fi
