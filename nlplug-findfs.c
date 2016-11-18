@@ -80,6 +80,74 @@ static void dbg(const char *fmt, ...)
 
 #define envcmp(env, key) (strncmp(env, key "=", strlen(key "=")) == 0)
 
+#ifndef container_of
+#define container_of(ptr, type, member) ({                      \
+        const typeof( ((type *)0)->member ) *__mptr = (ptr);    \
+        (type *)( (char *)__mptr - offsetof(type,member) );})
+#endif
+
+struct list_head {
+	struct list_head *next, *prev;
+};
+
+static inline void list_init(struct list_head *list)
+{
+	list->next = list;
+	list->prev = list;
+}
+
+static inline void __list_add(struct list_head *new, struct list_head *prev,
+			      struct list_head *next)
+{
+	next->prev = new;
+	new->next = next;
+	new->prev = prev;
+	prev->next = new;
+}
+
+static inline void list_add(struct list_head *new, struct list_head *head)
+{
+	__list_add(new, head, head->next);
+}
+
+static inline void list_add_tail(struct list_head *new, struct list_head *head)
+{
+	__list_add(new, head->prev, head);
+}
+
+static inline void __list_del(struct list_head * prev, struct list_head * next)
+{
+	next->prev = prev;
+	prev->next = next;
+}
+
+static inline void list_del(struct list_head *entry)
+{
+	__list_del(entry->prev, entry->next);
+	entry->next = NULL;
+	entry->prev = NULL;
+}
+
+static inline int list_hashed(const struct list_head *n)
+{
+	return n->next != n && n->next != NULL;
+}
+
+static inline int list_empty(const struct list_head *n)
+{
+	return !list_hashed(n);
+}
+
+#define list_next(ptr, type, member) \
+	(list_hashed(ptr) ? container_of((ptr)->next,type,member) : NULL)
+
+#define list_entry(ptr, type, member) container_of(ptr,type,member)
+
+#define list_for_each_entry(pos, head, member)				\
+	for (pos = list_entry((head)->next, typeof(*pos), member);	\
+	     &pos->member != (head); 					\
+	     pos = list_entry(pos->member.next, typeof(*pos), member))
+
 
 static char **clone_array(char *const *const a)
 {
@@ -102,81 +170,95 @@ static char **clone_array(char *const *const a)
 }
 
 struct spawn_task {
-	struct spawn_task *next;
+	struct list_head node;
+	pid_t pid;
 	char **argv, **envp;
 };
+
+#define SPAWNMGR_PID_HASH_SIZE 32
 struct spawn_manager {
 	int num_running;
 	int max_running;
-	struct spawn_task *first, *last;
+	struct list_head queue;
+	struct list_head running[SPAWNMGR_PID_HASH_SIZE];
 };
 
 static struct spawn_manager spawnmgr;
 
-static void spawn_execute(struct spawn_manager *mgr, char **argv, char **envp)
+static void spawn_init(struct spawn_manager *mgr)
+{
+	int i;
+
+	mgr->max_running = sysconf(_SC_NPROCESSORS_ONLN);
+	list_init(&mgr->queue);
+	for (i = 0; i < SPAWNMGR_PID_HASH_SIZE; i++)
+		list_init(&mgr->running[i]);
+}
+
+static void spawn_execute(struct spawn_manager *mgr, struct spawn_task *task)
 {
 	pid_t pid;
 
-	dbg("[%d/%d] running %s", mgr->num_running+1, mgr->max_running, argv[0]);
+	dbg("[%d/%d] running %s", mgr->num_running+1, mgr->max_running, task->argv[0]);
 	if (!(pid = fork())) {
-		if (execve(argv[0], argv, envp ? envp : default_envp) < 0)
-			err(1, argv[0]);
+		if (execve(task->argv[0], task->argv, task->envp ? task->envp : default_envp) < 0)
+			err(1, task->argv[0]);
 		exit(0);
 	}
 	if (pid < 0)
 		err(1,"fork");
 
+	task->pid = pid;
+	list_add_tail(&task->node, &mgr->running[pid % SPAWNMGR_PID_HASH_SIZE]);
 	mgr->num_running++;
 }
 
-static void spawn_queue(struct spawn_manager *mgr, char **argv, char **envp)
+static void spawn_command(struct spawn_manager *mgr, char **argv, char **envp)
 {
 	struct spawn_task *task;
 
 	task = malloc(sizeof *task);
 	if (!task) return;
 	*task = (struct spawn_task) {
-		.next = NULL,
 		.argv = clone_array(argv),
 		.envp = clone_array(envp),
 	};
-	if (mgr->last) {
-		mgr->last->next = task;
-		mgr->last = task;
-	} else {
-		mgr->first = mgr->last = task;
-	}
-}
+	list_init(&task->node);
 
-static void spawn_command(struct spawn_manager *mgr, char **argv, char **envp)
-{
-	if (!mgr->max_running)
-		mgr->max_running = sysconf(_SC_NPROCESSORS_ONLN);
 	if (mgr->num_running < mgr->max_running)
-		spawn_execute(mgr, argv, envp);
+		spawn_execute(mgr, task);
 	else
-		spawn_queue(mgr, argv, envp);
+		list_add_tail(&task->node, &mgr->queue);
 }
 
 static void spawn_reap(struct spawn_manager *mgr, pid_t pid)
 {
+	struct spawn_task *task;
+
+	list_for_each_entry(task, &mgr->running[pid % SPAWNMGR_PID_HASH_SIZE], node) {
+		if (task->pid == pid)
+			goto found;
+	}
+	dbg("pid %d not found", pid);
+	return;
+
+found:
 	mgr->num_running--;
-	if (mgr->first && mgr->num_running < mgr->max_running) {
-		struct spawn_task *task = mgr->first;
-		if (task->next)
-			mgr->first = task->next;
-		else
-			mgr->first = mgr->last = NULL;
-		spawn_execute(mgr, task->argv, task->envp);
-		free(task->argv);
-		free(task->envp);
-		free(task);
+	list_del(&task->node);
+	free(task->argv);
+	free(task->envp);
+	free(task);
+
+	if (!list_empty(&mgr->queue) && mgr->num_running < mgr->max_running) {
+		struct spawn_task *task = list_next(&mgr->queue, struct spawn_task, node);
+		list_del(&task->node);
+		spawn_execute(mgr, task);
 	}
 }
 
 static int spawn_active(struct spawn_manager *mgr)
 {
-	return mgr->num_running || mgr->first;
+	return mgr->num_running || !list_empty(&mgr->queue);
 }
 
 struct uevent {
@@ -876,6 +958,8 @@ int main(int argc, char *argv[])
 		if (envcmp(environ[r], "PATH"))
 			default_envp[0] = environ[r];
 	}
+
+	spawn_init(&spawnmgr);
 
 	memset(&conf, 0, sizeof(conf));
 	conf.program_argv = program_argv;
