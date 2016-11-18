@@ -89,6 +89,7 @@ static void dbg(const char *fmt, ...)
 struct list_head {
 	struct list_head *next, *prev;
 };
+#define LIST_INITIALIZER(l) (struct list_head){ .next = &l, .prev = &l }
 
 static inline void list_init(struct list_head *list)
 {
@@ -171,7 +172,9 @@ static char **clone_array(char *const *const a)
 
 struct spawn_task {
 	struct list_head node;
+	void (*done)(void *ctx, int status);
 	pid_t pid;
+	void *ctx;
 	char **argv, **envp;
 };
 
@@ -193,13 +196,14 @@ static void spawn_init(struct spawn_manager *mgr)
 	list_init(&mgr->queue);
 	for (i = 0; i < SPAWNMGR_PID_HASH_SIZE; i++)
 		list_init(&mgr->running[i]);
+
+	dbg("max_running=%d", mgr->max_running);
 }
 
 static void spawn_execute(struct spawn_manager *mgr, struct spawn_task *task)
 {
 	pid_t pid;
 
-	dbg("[%d/%d] running %s", mgr->num_running+1, mgr->max_running, task->argv[0]);
 	if (!(pid = fork())) {
 		if (execve(task->argv[0], task->argv, task->envp ? task->envp : default_envp) < 0)
 			err(1, task->argv[0]);
@@ -211,19 +215,23 @@ static void spawn_execute(struct spawn_manager *mgr, struct spawn_task *task)
 	task->pid = pid;
 	list_add_tail(&task->node, &mgr->running[pid % SPAWNMGR_PID_HASH_SIZE]);
 	mgr->num_running++;
+
+	dbg("[%d,%d] spawned %s", pid, mgr->num_running, task->argv[0]);
 }
 
-static void spawn_command(struct spawn_manager *mgr, char **argv, char **envp)
+static void spawn_command_cb(struct spawn_manager *mgr, char **argv, char **envp, void (*done)(void *, int), void *ctx)
 {
 	struct spawn_task *task;
 
 	task = malloc(sizeof *task);
 	if (!task) return;
 	*task = (struct spawn_task) {
+		.done = done,
+		.node = LIST_INITIALIZER(task->node),
 		.argv = clone_array(argv),
 		.envp = clone_array(envp),
+		.ctx  = ctx,
 	};
-	list_init(&task->node);
 
 	if (mgr->num_running < mgr->max_running)
 		spawn_execute(mgr, task);
@@ -231,7 +239,12 @@ static void spawn_command(struct spawn_manager *mgr, char **argv, char **envp)
 		list_add_tail(&task->node, &mgr->queue);
 }
 
-static void spawn_reap(struct spawn_manager *mgr, pid_t pid)
+static void spawn_command(struct spawn_manager *mgr, char **argv, char **envp)
+{
+	spawn_command_cb(mgr, argv, envp, 0, 0);
+}
+
+static void spawn_reap(struct spawn_manager *mgr, pid_t pid, int status)
 {
 	struct spawn_task *task;
 
@@ -243,11 +256,15 @@ static void spawn_reap(struct spawn_manager *mgr, pid_t pid)
 	return;
 
 found:
+	if (task->done) task->done(task->ctx, status);
+
 	mgr->num_running--;
 	list_del(&task->node);
 	free(task->argv);
 	free(task->envp);
 	free(task);
+
+	dbg("[%d,%d] reaped", pid, mgr->num_running);
 
 	if (!list_empty(&mgr->queue) && mgr->num_running < mgr->max_running) {
 		struct spawn_task *task = list_next(&mgr->queue, struct spawn_task, node);
@@ -261,20 +278,6 @@ static int spawn_active(struct spawn_manager *mgr)
 	return mgr->num_running || !list_empty(&mgr->queue);
 }
 
-struct uevent {
-	char *buf;
-	size_t bufsize;
-	char *message;
-	char *subsystem;
-	char *action;
-	char *modalias;
-	char *devname;
-	char *major;
-	char *minor;
-	char devnode[256];
-	char *envp[64];
-};
-
 struct cryptconf {
 	char *device;
 	char *name;
@@ -284,6 +287,7 @@ struct cryptconf {
 struct ueventconf {
 	char **program_argv;
 	char *search_device;
+	blkid_cache blkid_cache;
 	struct cryptconf crypt;
 	char *subsystem_filter;
 	int modalias_count;
@@ -300,6 +304,34 @@ struct ueventconf {
 	pthread_mutex_t cryptsetup_mutex;
 };
 
+struct uevent {
+	struct ueventconf *conf;
+	int ref;
+	size_t bufsize;
+	char *message;
+	char *subsystem;
+	char *action;
+	char *modalias;
+	char *devname;
+	char *major;
+	char *minor;
+	char devnode[256];
+	char *envp[64];
+	char buf[];
+};
+
+static struct uevent *uevent_ref(struct uevent *ev)
+{
+	ev->ref++;
+	return ev;
+}
+
+static void uevent_unref(struct uevent *ev)
+{
+	ev->ref--;
+	if (ev->ref != 0) return;
+	free(ev);
+}
 
 static void sighandler(int sig)
 {
@@ -731,7 +763,7 @@ static void founddev(struct ueventconf *conf, int found)
 static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
 		     const char *apkovls)
 {
-	static blkid_cache cache = NULL;
+	struct ueventconf *conf = ev->conf;
 	char *type = NULL, *label = NULL, *uuid = NULL;
 	int rc = 0;
 
@@ -744,18 +776,18 @@ static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
 		return FOUND_DEVICE;
 	}
 
-	if (cache == NULL)
-		blkid_get_cache(&cache, NULL);
+	if (conf->blkid_cache == NULL)
+		blkid_get_cache(&conf->blkid_cache, NULL);
 
-	type = blkid_get_tag_value(cache, "TYPE", ev->devnode);
+	type = blkid_get_tag_value(conf->blkid_cache, "TYPE", ev->devnode);
 
 	if (searchdev != NULL) {
 		if (strncmp("LABEL=", searchdev, 6) == 0) {
-			label = blkid_get_tag_value(cache, "LABEL", ev->devnode);
+			label = blkid_get_tag_value(conf->blkid_cache, "LABEL", ev->devnode);
 			if (label && strcmp(label, searchdev+6) == 0)
 				rc = FOUND_DEVICE;
 		} else if (strncmp("UUID=", searchdev, 5) == 0) {
-			uuid = blkid_get_tag_value(cache, "UUID", ev->devnode);
+			uuid = blkid_get_tag_value(conf->blkid_cache, "UUID", ev->devnode);
 			if (uuid && strcmp(uuid, searchdev+5) == 0)
 				rc = FOUND_DEVICE;
 		}
@@ -784,8 +816,9 @@ static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
 	return rc;
 }
 
-static void handle_uevent(struct ueventconf *conf, struct uevent *ev)
+static void uevent_handle(struct uevent *ev)
 {
+	struct ueventconf *conf = ev->conf;
 	int found;
 
 	if (!ev->subsystem || strcmp(ev->subsystem, "block") != 0)
@@ -810,17 +843,26 @@ static void handle_uevent(struct ueventconf *conf, struct uevent *ev)
 	}
 }
 
-static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
+static void uevent_mdev_done_cb(void *ctx, int status)
 {
+	struct uevent *ev = ctx;
+	uevent_handle(ev);
+	uevent_unref(ev);
+}
+
+static void uevent_dispatch(struct uevent *ev)
+{
+	struct ueventconf *conf = ev->conf;
+
 	if (conf->subsystem_filter && ev->subsystem
 	    && strcmp(ev->subsystem, conf->subsystem_filter) != 0) {
 		dbg("subsystem '%s' filtered out (by '%s').",
 		    ev->subsystem, conf->subsystem_filter);
-		return 0;
+		return;
 	}
 
 	if (ev->action == NULL)
-		return 0;
+		return;
 
 	dbg("uevent: action='%s' subsystem='%s' devname='%s'",
 		ev->action, ev->subsystem, ev->devname);
@@ -837,36 +879,41 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 
 	} else if (ev->devname != NULL) {
 		if (conf->program_argv[0] != NULL) {
-			spawn_command(&spawnmgr, conf->program_argv, ev->envp);
+			spawn_command_cb(&spawnmgr, conf->program_argv, ev->envp,
+					 uevent_mdev_done_cb, uevent_ref(ev));
 			conf->fork_count++;
+		} else {
+			uevent_handle(ev);
 		}
-		handle_uevent(conf, ev);
 	}
-	return 0;
 }
 
-static int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
+static void uevent_process(char *buf, const size_t len, struct ueventconf *conf)
 {
-	struct uevent ev;
-
+	struct uevent *ev;
 	int i, nenvp, slen = 0;
 	char *key, *value;
 
-	memset(&ev, 0, sizeof(ev));
-	ev.buf = buf;
-	ev.bufsize = len;
+	ev = malloc(len + sizeof *ev);
+	if (!ev) return;
+
+	memset(ev, 0, sizeof *ev);
+	memcpy(ev->buf, buf, len);
+	ev->ref = 1;
+	ev->conf = conf;
+	ev->bufsize = len;
 
 	nenvp = sizeof(default_envp) / sizeof(default_envp[0]) - 1;
-	memcpy(&ev.envp, default_envp, nenvp * sizeof(default_envp[0]));
+	memcpy(&ev->envp, default_envp, nenvp * sizeof(default_envp[0]));
 
 	for (i = 0; i < len; i += slen + 1) {
-		key = buf + i;
+		key = ev->buf + i;
 		value = strchr(key, '=');
-		slen = strlen(buf+i);
+		slen = strlen(ev->buf + i);
 
 		if (i == 0 && slen != 0) {
 			/* first line, the message */
-			ev.message = key;
+			ev->message = key;
 			continue;
 		}
 
@@ -875,25 +922,26 @@ static int process_uevent(char *buf, const size_t len, struct ueventconf *conf)
 
 		value++;
 		if (envcmp(key, "MODALIAS")) {
-			ev.modalias = value;
+			ev->modalias = value;
 		} else if (envcmp(key, "ACTION")) {
-			ev.action = value;
+			ev->action = value;
 		} else if (envcmp(key, "SUBSYSTEM")) {
-			ev.subsystem = value;
+			ev->subsystem = value;
 		} else if (envcmp(key, "DEVNAME")) {
-			ev.devname = value;
+			ev->devname = value;
 		} else if (envcmp(key, "MAJOR")) {
-			ev.major = value;
+			ev->major = value;
 		} else if (envcmp(key, "MINOR")) {
-			ev.minor = value;
+			ev->minor = value;
 		}
 
 		if (!envcmp(key, "PATH"))
-			ev.envp[nenvp++]= key;
+			ev->envp[nenvp++]= key;
 	}
-	ev.envp[nenvp++] = 0;
+	ev->envp[nenvp++] = 0;
 
-	return dispatch_uevent(&ev, conf);
+	uevent_dispatch(ev);
+	uevent_unref(ev);
 }
 
 static void trigger_uevent_cb(const char *path, const void *data)
@@ -1085,7 +1133,7 @@ int main(int argc, char *argv[])
 				continue;
 
 			event_count++;
-			process_uevent(buf, len, &conf);
+			uevent_process(buf, len, &conf);
 		}
 
 		if (fds[0].revents & POLLHUP) {
@@ -1101,7 +1149,7 @@ int main(int argc, char *argv[])
 			while (read(fds[1].fd, &fdsi, sizeof fdsi) > 0)
 				;
 			while ((pid = waitpid(-1, &status, WNOHANG)) > 0)
-				spawn_reap(&spawnmgr, pid);
+				spawn_reap(&spawnmgr, pid, status);
 		}
 
 		if (fds[2].revents & POLLIN) {
@@ -1121,6 +1169,7 @@ int main(int argc, char *argv[])
 	}
 	close(fds[2].fd);
 	pthread_mutex_destroy(&conf.cryptsetup_mutex);
+	if (conf.blkid_cache) blkid_put_cache(conf.blkid_cache);
 
 	dbg("modaliases: %i, forks: %i, events: %i, total bufsize: %zu",
 		conf.modalias_count,
