@@ -210,7 +210,9 @@ struct ueventconf {
 	char *apkovls;
 	int timeout;
 	int usb_storage_timeout;
+	int uevent_timeout;
 	int efd;
+	int found;
 	unsigned running_threads;
 	pthread_t cryptsetup_tid;
 	pthread_mutex_t cryptsetup_mutex;
@@ -623,6 +625,27 @@ static int is_same_device(const struct uevent *ev, const char *nodepath)
 }
 
 
+static void founddev(struct ueventconf *conf, int found)
+{
+	conf->found |= found;
+	if ((found & FOUND_DEVICE)
+	    || ((found & FOUND_BOOTREPO) &&
+		(found & FOUND_APKOVL))) {
+		/* we have found everything we need, so no
+		   no need to wait for anything new event */
+		if (conf->timeout)
+			dbg("FOUND! setting timeout to 0");
+		conf->timeout = 0;
+		conf->usb_storage_timeout= 0;
+	} else if ((found & FOUND_BOOTREPO) && conf->timeout) {
+		/* we have found boot repo, but not apkovl
+		   we reduce timeout to default timeout */
+		if (conf->timeout != conf->uevent_timeout)
+			dbg("Setting timeout to %d", conf->uevent_timeout);
+		conf->timeout = conf->uevent_timeout;
+	}
+}
+
 static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
 		     const char *apkovls)
 {
@@ -656,15 +679,8 @@ static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
 		}
 	}
 
-	if (type || label || uuid) {
-		dbg("%s:\n"
-			"\ttype='%s'\n"
-			"\tlabel='%s'\n"
-			"\tuuid='%s'\n", ev->devnode,
-			type ? type : NULL,
-			label ? label : NULL,
-			uuid ? uuid : NULL);
-	}
+	dbg("searchdev: dev='%s' type='%s' label='%s' uuid='%s'",
+		ev->devnode, type, label, uuid);
 
 	if (!rc && type) {
 		if (strcmp("linux_raid_member", type) == 0) {
@@ -686,6 +702,32 @@ static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
 	return rc;
 }
 
+static void handle_uevent(struct ueventconf *conf, struct uevent *ev)
+{
+	int found;
+
+	if (!ev->subsystem || strcmp(ev->subsystem, "block") != 0)
+		return;
+
+	if (strcmp(ev->action, "add") != 0 &&
+	    strcmp(ev->action, "change") != 0)
+		return;
+
+	snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s", ev->devname);
+	pthread_mutex_lock(&conf->cryptsetup_mutex);
+	found = searchdev(ev, conf->search_device, conf->bootrepos, conf->apkovls);
+	pthread_mutex_unlock(&conf->cryptsetup_mutex);
+	if (found) {
+		founddev(conf, found);
+	} else if (conf->crypt.devnode[0] == '\0' &&
+		   searchdev(ev, conf->crypt.device, NULL, NULL)) {
+		strncpy(conf->crypt.devnode,
+			conf->crypt.device[0] == '/' ? conf->crypt.device : ev->devnode,
+			sizeof(conf->crypt.devnode));
+		start_cryptsetup(conf);
+	}
+}
+
 static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 {
 	if (conf->subsystem_filter && ev->subsystem
@@ -697,6 +739,9 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 
 	if (ev->action == NULL)
 		return 0;
+
+	dbg("uevent: action='%s' subsystem='%s' devname='%s'",
+		ev->action, ev->subsystem, ev->devname);
 
 	if (ev->modalias != NULL && strcmp(ev->action, "add") == 0) {
 		char buf[128];
@@ -713,27 +758,7 @@ static int dispatch_uevent(struct uevent *ev, struct ueventconf *conf)
 			spawn_command(&spawnmgr, conf->program_argv, ev->envp);
 			conf->fork_count++;
 		}
-
-		if (ev->subsystem && strcmp(ev->subsystem, "block") == 0
-		    && (strcmp(ev->action, "add") == 0 || strcmp(ev->action, "change") == 0)) {
-			int rc;
-
-			snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s",
-				 ev->devname);
-			pthread_mutex_lock(&conf->cryptsetup_mutex);
-			rc = searchdev(ev, conf->search_device,
-				       conf->bootrepos, conf->apkovls);
-			pthread_mutex_unlock(&conf->cryptsetup_mutex);
-			if (rc)
-				return rc;
-
-			if (conf->crypt.devnode[0] == '\0' && searchdev(ev, conf->crypt.device, NULL, NULL)) {
-				strncpy(conf->crypt.devnode,
-					conf->crypt.device[0] == '/' ? conf->crypt.device : ev->devnode,
-					sizeof(conf->crypt.devnode));
-				start_cryptsetup(conf);
-			}
-		}
+		handle_uevent(conf, ev);
 	}
 	return 0;
 }
@@ -842,9 +867,7 @@ int main(int argc, char *argv[])
 	struct ueventconf conf;
 	int event_count = 0;
 	size_t total_bytes = 0;
-	int found = 0;
 	int not_found_is_ok = 0;
-	int timeout = DEFAULT_EVENT_TIMEOUT;
 	char *program_argv[2] = {0,0};
 	pthread_t tid;
 	sigset_t sigchldmask;
@@ -858,6 +881,7 @@ int main(int argc, char *argv[])
 	conf.program_argv = program_argv;
 	conf.timeout = MAX_EVENT_TIMEOUT;
 	conf.usb_storage_timeout = 0;
+	conf.uevent_timeout = DEFAULT_EVENT_TIMEOUT;
 	use_lvm = access(LVM_PATH, X_OK) == 0;
 	use_mdadm = access(MDADM_PATH, X_OK) == 0;
 
@@ -894,7 +918,7 @@ int main(int argc, char *argv[])
 		conf.program_argv[0] = EARGF(usage(1));
 		break;
 	case 't':
-		timeout = atoi(EARGF(usage(1)));
+		conf.uevent_timeout = atoi(EARGF(usage(1)));
 		break;
 	default:
 		usage(1);
@@ -977,25 +1001,7 @@ int main(int argc, char *argv[])
 				continue;
 
 			event_count++;
-			found |= process_uevent(buf, len, &conf);
-
-			if ((found & FOUND_DEVICE)
-			    || ((found & FOUND_BOOTREPO) &&
-				(found & FOUND_APKOVL))) {
-				/* we have found everything we need, so no
-				   no need to wait for anything new event */
-				if (conf.timeout)
-					dbg("FOUND! setting timeout to 0");
-				conf.timeout = 0;
-				conf.usb_storage_timeout= 0;
-			} else if ((found & FOUND_BOOTREPO) && conf.timeout) {
-				/* we have found boot repo, but not apkovl
-				   we reduce timeout to default timeout */
-				if (conf.timeout != timeout)
-					dbg("Setting timeout to %d",
-					    timeout);
-				conf.timeout = timeout;
-			}
+			process_uevent(buf, len, &conf);
 		}
 
 		if (fds[0].revents & POLLHUP) {
@@ -1037,5 +1043,5 @@ int main(int argc, char *argv[])
 		conf.fork_count,
 		event_count, total_bytes);
 
-	return found || not_found_is_ok ? 0 : 1;
+	return conf.found || not_found_is_ok ? 0 : 1;
 }
