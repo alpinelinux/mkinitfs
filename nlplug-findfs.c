@@ -188,6 +188,30 @@ struct spawn_manager {
 
 static struct spawn_manager spawnmgr;
 
+static void dbgT(struct spawn_task *task, const char *fmt, ...)
+{
+#if defined(DEBUG)
+	va_list fmtargs;
+	int i;
+
+	if (!dodebug)
+		return;
+
+	fprintf(stderr, "%s: [%d] ", argv0, task->pid);
+	va_start(fmtargs, fmt);
+	vfprintf(stderr, fmt, fmtargs);
+	va_end(fmtargs);
+	for (i = 0; task->argv[i]; i++)
+		fprintf(stderr, " %s", task->argv[i]);
+	if (task->envp) {
+		fprintf(stderr, ":");
+		for (i = 1; task->envp[i]; i++)
+			fprintf(stderr, " %s", task->envp[i]);
+	}
+	fprintf(stderr, "\n");
+#endif
+}
+
 static void spawn_init(struct spawn_manager *mgr)
 {
 	int i;
@@ -200,23 +224,31 @@ static void spawn_init(struct spawn_manager *mgr)
 	dbg("max_running=%d", mgr->max_running);
 }
 
+static void spawn_task_done(struct spawn_task *task, int status)
+{
+	if (task->done) task->done(task->ctx, status);
+	list_del(&task->node);
+	free(task->argv);
+	free(task->envp);
+	free(task);
+}
+
 static void spawn_execute(struct spawn_manager *mgr, struct spawn_task *task)
 {
 	pid_t pid;
 
 	if (!(pid = fork())) {
-		if (execve(task->argv[0], task->argv, task->envp ? task->envp : default_envp) < 0)
-			err(1, task->argv[0]);
-		exit(0);
+		execve(task->argv[0], task->argv, task->envp ? task->envp : default_envp);
+		err(127, task->argv[0]);
 	}
 	if (pid < 0)
-		err(1,"fork");
+		err(1, "fork");
 
 	task->pid = pid;
 	list_add_tail(&task->node, &mgr->running[pid % SPAWNMGR_PID_HASH_SIZE]);
 	mgr->num_running++;
 
-	dbg("[%d,%d] spawned %s", pid, mgr->num_running, task->argv[0]);
+	dbgT(task, "spawned (%d running):", mgr->num_running);
 }
 
 static void spawn_command_cb(struct spawn_manager *mgr, char **argv, char **envp, void (*done)(void *, int), void *ctx)
@@ -256,15 +288,9 @@ static void spawn_reap(struct spawn_manager *mgr, pid_t pid, int status)
 	return;
 
 found:
-	if (task->done) task->done(task->ctx, status);
-
 	mgr->num_running--;
-	list_del(&task->node);
-	free(task->argv);
-	free(task->envp);
-	free(task);
-
-	dbg("[%d,%d] reaped", pid, mgr->num_running);
+	dbgT(task, "reaped (%d running):", mgr->num_running);
+	spawn_task_done(task, status);
 
 	if (!list_empty(&mgr->queue) && mgr->num_running < mgr->max_running) {
 		struct spawn_task *task = list_next(&mgr->queue, struct spawn_task, node);
