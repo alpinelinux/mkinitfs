@@ -411,7 +411,7 @@ static void *cryptsetup_thread(void *data)
 						 pass, strlen(pass), 0);
 		pthread_mutex_unlock(&c->cryptsetup_mutex);
 
-		if (r == 0)
+		if (r >= 0)
 			break;
 		printf("No key available with this passphrase.\n");
 	}
