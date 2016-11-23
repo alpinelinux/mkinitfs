@@ -1,4 +1,3 @@
-
 /*
  * Copy me if you can.
  * by 20h
@@ -14,9 +13,9 @@
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
-#include <glob.h>
 #include <limits.h>
 #include <poll.h>
+#include <fnmatch.h>
 #include <pthread.h>
 #include <stdio.h>
 #include <stdlib.h>
@@ -619,71 +618,85 @@ static int is_mounted(const char *devnode) {
 }
 
 struct recurse_opts {
-	const char *searchname;
-	int matchdirs, matchdepth;
+	size_t pathlen;
+	char path[PATH_MAX], *filename;
+	int is_dir;
+	int matchdepth;
 	int curdepth, maxdepth;
-	void (*callback)(char *pathbuf, size_t pathlen, void *userdata);
+	void (*callback)(struct recurse_opts *opts, void *userdata);
 	void *userdata;
 };
 
-/* pathbuf needs hold PATH_MAX chars */
-static void do_recurse_dir(char *pathbuf, struct recurse_opts *opts)
+static int recurse_push(struct recurse_opts *opts, size_t *oldlen, const char *path)
 {
-	size_t pathlen, namelen;
+	size_t pathlen = strlen(path);
+	if (opts->pathlen + 1 + pathlen + 1 >= sizeof opts->path)
+		return 0;
+	*oldlen = opts->pathlen;
+	opts->path[opts->pathlen++] = '/';
+	strcpy(&opts->path[opts->pathlen], path);
+	opts->pathlen += strlen(path);
+	return 1;
+}
+
+static void recurse_pop(struct recurse_opts *opts, size_t len)
+{
+	opts->pathlen = len;
+	opts->path[len] = 0;
+}
+
+static void do_recurse_dir(struct recurse_opts *opts)
+{
+	size_t oldlen;
 	struct dirent *entry;
 	DIR *d;
 	int is_dir;
 
-	d = opendir(pathbuf);
+	d = opendir(opts->path);
 	if (!d) return;
 
-	pathlen = strlen(pathbuf);
 	while ((entry = readdir(d)) != NULL) {
 		if (strcmp(entry->d_name, ".") == 0 ||
 		    strcmp(entry->d_name, "..") == 0)
 			continue;
 
-		namelen = strlen(entry->d_name);
-		if (pathlen + 2 + namelen > PATH_MAX) {
-			dbg("path length overflow");
+		if (!recurse_push(opts, &oldlen, entry->d_name))
 			continue;
-		}
-
-		pathbuf[pathlen] = '/';
-		strcpy(&pathbuf[pathlen+1], entry->d_name);
 
 		if (entry->d_type == DT_UNKNOWN) {
 			/* some filesystems like iso9660 does not support
 			   the d_type so we use lstat */
 			struct stat st;
-			if (lstat(pathbuf, &st) < 0) {
-				dbg("%s: %s", pathbuf, strerror(errno));
+			if (lstat(opts->path, &st) < 0) {
+				dbg("%s: %s", opts->path, strerror(errno));
 				goto next;
 			}
 			is_dir = S_ISDIR(st.st_mode);
 		} else
 			is_dir = entry->d_type & DT_DIR;
 
-		if ((opts->matchdirs || !is_dir) &&
-		    (opts->matchdepth == 0 || opts->matchdepth == opts->curdepth) &&
-		    (!opts->searchname || strcmp(entry->d_name, opts->searchname) == 0))
-			opts->callback(pathbuf, pathlen+1+namelen, opts->userdata);
+		if (opts->matchdepth == 0 || opts->matchdepth == opts->curdepth) {
+			opts->filename = &opts->path[oldlen+1];
+			opts->is_dir = is_dir;
+			opts->callback(opts, opts->userdata);
+		}
 
 		if (is_dir && opts->curdepth < opts->maxdepth) {
 			opts->curdepth++;
-			do_recurse_dir(pathbuf, opts);
+			do_recurse_dir(opts);
 			opts->curdepth--;
 		}
 next:
-		pathbuf[pathlen] = '\0';
+		recurse_pop(opts, oldlen);
 	}
 	closedir(d);
 }
 
-static void recurse_dir(char *pathbuf, struct recurse_opts *opts)
+static void recurse_dir(struct recurse_opts *opts)
 {
+	opts->pathlen = strlen(opts->path);
 	opts->curdepth = 1;
-	do_recurse_dir(pathbuf, opts);
+	do_recurse_dir(opts);
 }
 
 struct trigger_entry {
@@ -692,22 +705,20 @@ struct trigger_entry {
 	char pathname[];
 };
 
-static void trigger_uevent_cb(char *path, size_t pathlen, void *data)
+static void trigger_uevent_cb(struct recurse_opts *opts, void *data)
 {
+	size_t oldlen;
 	int fd;
 
-	if (pathlen + 1 + strlen("/uevent") > PATH_MAX) {
-		dbg("path length overflow");
+	if (!recurse_push(opts, &oldlen, "uevent"))
 		return;
-	}
 
-	strcpy(&path[pathlen], "/uevent");
-	fd = open(path, O_WRONLY);
+	fd = open(opts->path, O_WRONLY);
 	if (fd >= 0) {
 		write(fd, "add", 3);
 		close(fd);
 	}
-	path[pathlen] = 0;
+	recurse_pop(opts, oldlen);
 }
 
 static void trigger_path(struct ueventconf *conf, char *path, char *subdir, int max_depth)
@@ -735,8 +746,6 @@ static void *trigger_thread(void *data)
 	struct ueventconf *conf = data;
 	struct recurse_opts opts;
 	struct trigger_entry *entry = NULL;
-	char path[PATH_MAX] = "/sys";
-	size_t prefixlen = strlen(path);
 
 	while (1) {
 		pthread_mutex_lock(&conf->trigger_mutex);
@@ -752,88 +761,74 @@ static void *trigger_thread(void *data)
 		}
 		pthread_mutex_unlock(&conf->trigger_mutex);
 
-		/* scan list */
-		strcpy(&path[prefixlen], entry->pathname);
-		dbg("trigger_thread: scanning %s", path);
-
 		opts = (struct recurse_opts) {
 			.callback = trigger_uevent_cb,
-			.matchdirs = 1,
 			.userdata = entry,
 			.maxdepth = entry->max_depth,
 			.matchdepth = entry->max_depth,
 		};
-		recurse_dir(path, &opts);
+		snprintf(opts.path, sizeof opts.path, "/sys%s", entry->pathname);
+		dbg("trigger_thread: scanning %s", opts.path);
+
+		recurse_dir(&opts);
 	}
 
 	return NULL;
 }
 
-struct bootrepos {
-	char *outfile;
-	int count;
-};
-
-static void bootrepo_cb(char *path, size_t pathlen, void *data)
+static void append_line(const char *outfile, const char *data)
 {
-	struct bootrepos *repos = data;
-
-	int fd = open(repos->outfile, O_WRONLY | O_CREAT | O_APPEND);
-	if (fd == -1)
-		err(1, "%s", repos->outfile);
-
-	write(fd, path, strlen(path) - strlen("/.boot_repository"));
-	write(fd, "\n", 1);
-	close(fd);
-	dbg("added boot repository %s to %s\n", path, repos->outfile);
-	repos->count++;
-}
-
-static int find_apkovl(const char *dir, const char *outfile)
-{
-	char pattern[PATH_MAX];
-	glob_t gl;
-	int r, fd;
-
-	if (outfile == NULL)
-		return 0;
-
-	snprintf(pattern, sizeof(pattern), "%s/*.apkovl.tar.gz*", dir);
-
-	r = glob(pattern, 0, NULL, &gl);
-	if (r != 0)
-		return 0;
-
+	int fd;
+	if (outfile == 0) return;
 	fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND);
 	if (fd == -1)
 		err(1, "%s", outfile);
-
-	for (r = 0; r < gl.gl_pathc; r++) {
-		dbg("Found apkovl: %s", gl.gl_pathv[r]);
-		write(fd, gl.gl_pathv[r], strlen(gl.gl_pathv[r]));
-		write(fd, "\n", 1);
-	}
+	write(fd, data, strlen(data));
+	write(fd, "\n", 1);
 	close(fd);
-	globfree(&gl);
-	return FOUND_APKOVL;
 }
 
-static int find_bootrepos(const char *devnode, const char *type,
-			  char *bootrepos, const char *apkovls)
+struct scandevctx {
+	struct ueventconf *conf;
+	int found;
+};
+
+static void scandev_cb(struct recurse_opts *opts, void *data)
 {
-	char mountdir[PATH_MAX] = "";
-	char *devname;
-	int r, rc = 0;
-	struct bootrepos repos = {
-		.outfile = bootrepos,
-		.count = 0,
+	struct scandevctx *ctx = data;
+	struct ueventconf *conf = ctx->conf;
+
+	if (opts->is_dir) {
+		size_t oldlen;
+		int ok = 0;
+		if (recurse_push(opts, &oldlen, ".boot_repository")) {
+			ok = access(opts->path, F_OK) == 0;
+			recurse_pop(opts, oldlen);
+		}
+		if (ok) {
+			dbg("added boot repository %s to %s", opts->path, conf->bootrepos);
+			append_line(conf->bootrepos, opts->path);
+			ctx->found |= FOUND_BOOTREPO;
+		}
+	} else if (fnmatch("*.apkovl.tar.gz*", opts->filename, 0) == 0) {
+		dbg("found apkovl %s", opts->path);
+		append_line(conf->apkovls, opts->path);
+		ctx->found |= FOUND_APKOVL;
+	}
+}
+
+static int scandev(struct ueventconf *conf, const char *devnode, const char *type)
+{
+	struct scandevctx ctx = {
+		.conf = conf,
 	};
 	struct recurse_opts opts = {
-		.maxdepth = 2,
-		.searchname = ".boot_repository",
-		.callback = bootrepo_cb,
-		.userdata = &repos,
+		.maxdepth = 1,
+		.callback = scandev_cb,
+		.userdata = &ctx,
 	};
+	char *devname;
+	int r;
 
 	/* skip already mounted devices */
 	if (is_mounted(devnode)) {
@@ -841,31 +836,26 @@ static int find_bootrepos(const char *devnode, const char *type,
 		return 0;
 	}
 	devname = strrchr(devnode, '/');
+	if (!devname)
+		return 0;
 
-	if (devname)
-		snprintf(mountdir, sizeof(mountdir), "/media%s", devname);
+	snprintf(opts.path, sizeof opts.path, "/media%s", devname);
+	dbg("mounting %s on %s (%s)", devnode, opts.path, type);
+	mkdir(opts.path, 0755);
 
-	dbg("mounting %s on %s. (%s)", devnode, mountdir, type);
-	mkdir(mountdir, 0755);
-
-	r = mount(devnode, mountdir, type, MS_RDONLY, NULL);
+	r = mount(devnode, opts.path, type, MS_RDONLY, NULL);
 	if (r < 0) {
 		dbg("Failed to mount %s on %s: %s",
-		    devnode, mountdir, strerror(errno));
+		    devnode, opts.path, strerror(errno));
 		return 0;
 	}
 
-	recurse_dir(mountdir, &opts);
-	if (repos.count > 0)
-		rc |= FOUND_BOOTREPO;
+	recurse_dir(&opts);
 
-	if (find_apkovl(mountdir, apkovls))
-		rc |= FOUND_APKOVL;
+	if (ctx.found == 0)
+		umount(opts.path);
 
-	if (rc == 0)
-		umount(mountdir);
-
-	return rc;
+	return ctx.found;
 }
 
 static int is_same_device(const struct uevent *ev, const char *nodepath)
@@ -904,14 +894,13 @@ static void founddev(struct ueventconf *conf, int found)
 	}
 }
 
-static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
-		     const char *apkovls)
+static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia)
 {
 	struct ueventconf *conf = ev->conf;
 	char *type = NULL, *label = NULL, *uuid = NULL;
 	int rc = 0;
 
-	if (searchdev == NULL && bootrepos == NULL && apkovls == NULL)
+	if (searchdev == NULL && !scanbootmedia)
 		return 0;
 
 	if (searchdev && (strcmp(ev->devname, searchdev) == 0
@@ -945,8 +934,8 @@ static int searchdev(struct uevent *ev, const char *searchdev, char *bootrepos,
 			start_mdadm(ev->devnode);
 		} else if (strcmp("LVM2_member", type) == 0) {
 			start_lvm2(ev->devnode);
-		} else if (bootrepos) {
-			rc = find_bootrepos(ev->devnode, type, bootrepos, apkovls);
+		} else if (scanbootmedia) {
+			rc = scandev(conf, ev->devnode, type);
 		}
 	}
 
@@ -974,12 +963,12 @@ static void uevent_handle(struct uevent *ev)
 
 	snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s", ev->devname);
 	pthread_mutex_lock(&conf->cryptsetup_mutex);
-	found = searchdev(ev, conf->search_device, conf->bootrepos, conf->apkovls);
+	found = searchdev(ev, conf->search_device, 1);
 	pthread_mutex_unlock(&conf->cryptsetup_mutex);
 	if (found) {
 		founddev(conf, found);
 	} else if (conf->crypt.devnode[0] == '\0' &&
-		   searchdev(ev, conf->crypt.device, NULL, NULL)) {
+		   searchdev(ev, conf->crypt.device, 0)) {
 		strncpy(conf->crypt.devnode,
 			conf->crypt.device[0] == '/' ? conf->crypt.device : ev->devnode,
 			sizeof(conf->crypt.devnode));
