@@ -4,6 +4,7 @@
  * by 20h
  *
  * Copyright (c) 2015 Natanael Copa <ncopa@alpinelinux.org>
+ * Copyright (c) 2016 Timo Teräs <timo.teras@iki.fi>
  */
 
 #ifndef _GNU_SOURCE
@@ -49,9 +50,6 @@
 #define FOUND_BOOTREPO	0x2
 #define FOUND_APKOVL	0x4
 
-#define TRIGGER_THREAD		0x1
-#define CRYPTSETUP_THREAD	0x2
-
 #define LVM_PATH	"/sbin/lvm"
 #define MDADM_PATH	"/sbin/mdadm"
 
@@ -68,11 +66,13 @@ static void dbg(const char *fmt, ...)
 	if (!dodebug)
 		return;
 
+	flockfile(stderr);
 	fprintf(stderr, "%s: ", argv0);
 	va_start(fmtargs, fmt);
 	vfprintf(stderr, fmt, fmtargs);
 	va_end(fmtargs);
 	fprintf(stderr, "\n");
+	funlockfile(stderr);
 }
 #else
 #define dbg(...)
@@ -197,6 +197,7 @@ static void dbgT(struct spawn_task *task, const char *fmt, ...)
 	if (!dodebug)
 		return;
 
+	flockfile(stderr);
 	fprintf(stderr, "%s: [%d] ", argv0, task->pid);
 	va_start(fmtargs, fmt);
 	vfprintf(stderr, fmt, fmtargs);
@@ -209,6 +210,7 @@ static void dbgT(struct spawn_task *task, const char *fmt, ...)
 			fprintf(stderr, " %s", task->envp[i]);
 	}
 	fprintf(stderr, "\n");
+	funlockfile(stderr);
 #endif
 }
 
@@ -325,9 +327,15 @@ struct ueventconf {
 	int uevent_timeout;
 	int efd;
 	int found;
-	unsigned running_threads;
-	pthread_t cryptsetup_tid;
+
+	int running_threads;
+
+	pthread_mutex_t trigger_mutex;
+	pthread_cond_t trigger_cond;
+	struct list_head trigger_list;
+
 	pthread_mutex_t cryptsetup_mutex;
+	int cryptsetup_running;
 };
 
 struct uevent {
@@ -339,6 +347,7 @@ struct uevent {
 	char *action;
 	char *modalias;
 	char *devname;
+	char *devpath;
 	char *major;
 	char *minor;
 	char devnode[256];
@@ -425,6 +434,8 @@ static int load_kmod(const char *modalias, char *driver, size_t len)
 	struct kmod_list *node;
 	int r, count=0;
 
+	if (driver) driver[0] = 0;
+
 	if (ctx == NULL) {
 		dbg("initializing kmod");
 		ctx = kmod_new(NULL, NULL);
@@ -436,7 +447,7 @@ static int load_kmod(const char *modalias, char *driver, size_t len)
 
 	r = kmod_module_new_from_lookup(ctx, modalias, &list);
 	if (r < 0) {
-		dbg("alias '%s' lookup failure", modalias);
+		dbg("alias '%s' lookup failure: %d", modalias, r);
 		return r;
 	}
 
@@ -455,8 +466,7 @@ static int load_kmod(const char *modalias, char *driver, size_t len)
 			fmt = "module '%s' failed";
 		}
 		dbg(fmt, kmod_module_get_name(mod));
-		if (driver)
-			strncpy(driver, kmod_module_get_name(mod), len);
+		if (driver) strlcpy(driver, kmod_module_get_name(mod), len);
 		kmod_module_unref(mod);
 	}
 	kmod_module_unref_list(list);
@@ -486,7 +496,6 @@ static void start_lvm2(char *devnode)
 	if (use_lvm)
 		spawn_command(&spawnmgr, lvm2_argv, 0);
 }
-
 
 static int read_pass(char *pass, size_t pass_size)
 {
@@ -518,10 +527,15 @@ static int read_pass(char *pass, size_t pass_size)
 	return 0;
 }
 
+static void notify_main(struct ueventconf *conf)
+{
+	uint64_t one = 1;
+	write(conf->efd, &one, sizeof one);
+}
+
 static void *cryptsetup_thread(void *data)
 {
 	struct ueventconf *c = (struct ueventconf *)data;
-	uint64_t ok = CRYPTSETUP_THREAD;
 	struct crypt_device *cd;
 	int r, passwd_tries = 5;
 
@@ -531,7 +545,7 @@ static void *cryptsetup_thread(void *data)
 		goto notify_out;
 	}
 
-	r = crypt_load(cd , CRYPT_LUKS1, NULL);
+	r = crypt_load(cd, CRYPT_LUKS1, NULL);
 	if (r < 0) {
 		warnx("crypt_load(%s)", c->crypt.devnode);
 		goto free_out;
@@ -561,16 +575,30 @@ static void *cryptsetup_thread(void *data)
 free_out:
 	crypt_free(cd);
 notify_out:
-	write(c->efd, &ok, sizeof(ok));
+	c->cryptsetup_running = 0;
+	notify_main(c);
 	return NULL;
+}
+
+static void start_thread(struct ueventconf *conf, void *(*thread_main)(void *))
+{
+	pthread_t tid;
+	pthread_attr_t attr;
+
+	pthread_attr_init(&attr);
+	pthread_attr_setdetachstate(&attr, PTHREAD_CREATE_DETACHED);
+	if (pthread_create(&tid, &attr, thread_main, conf) != 0)
+		err(1, "failed to create thread");
+	pthread_attr_destroy(&attr);
 }
 
 static void start_cryptsetup(struct ueventconf *conf)
 {
 	dbg("starting cryptsetup %s -> %s", conf->crypt.devnode, conf->crypt.name);
 	load_kmod("dm-crypt", NULL, 0);
-	pthread_create(&conf->cryptsetup_tid, NULL, cryptsetup_thread, conf);
-	conf->running_threads |= CRYPTSETUP_THREAD;
+	conf->cryptsetup_running = 1;
+	conf->running_threads = 1;
+	start_thread(conf, cryptsetup_thread);
 }
 
 static int is_mounted(const char *devnode) {
@@ -592,26 +620,30 @@ static int is_mounted(const char *devnode) {
 
 struct recurse_opts {
 	const char *searchname;
-	void (*callback)(const char *, const void *);
+	int matchdirs, matchdepth;
+	int curdepth, maxdepth;
+	void (*callback)(char *pathbuf, size_t pathlen, void *userdata);
 	void *userdata;
 };
 
 /* pathbuf needs hold PATH_MAX chars */
-static void recurse_dir(char *pathbuf, struct recurse_opts *opts, int depth)
+static void do_recurse_dir(char *pathbuf, struct recurse_opts *opts)
 {
-	DIR *d = opendir(pathbuf);
+	size_t pathlen, namelen;
 	struct dirent *entry;
+	DIR *d;
+	int is_dir;
 
-	if (d == NULL)
-		return;
+	d = opendir(pathbuf);
+	if (!d) return;
 
+	pathlen = strlen(pathbuf);
 	while ((entry = readdir(d)) != NULL) {
-		size_t pathlen = strlen(pathbuf);
-		size_t namelen = strlen(entry->d_name);
-		int is_dir;
+		if (strcmp(entry->d_name, ".") == 0 ||
+		    strcmp(entry->d_name, "..") == 0)
+			continue;
 
-		/* d_type is not supported by all filesystems so we need
-		   lstat */
+		namelen = strlen(entry->d_name);
 		if (pathlen + 2 + namelen > PATH_MAX) {
 			dbg("path length overflow");
 			continue;
@@ -632,23 +664,109 @@ static void recurse_dir(char *pathbuf, struct recurse_opts *opts, int depth)
 		} else
 			is_dir = entry->d_type & DT_DIR;
 
-		if (is_dir) {
-			if (entry->d_name[0] == '.')
-				goto next;
-		} else if (opts->searchname
-			   && strcmp(entry->d_name, opts->searchname) != 0) {
-			goto next;
-		}
+		if ((opts->matchdirs || !is_dir) &&
+		    (opts->matchdepth == 0 || opts->matchdepth == opts->curdepth) &&
+		    (!opts->searchname || strcmp(entry->d_name, opts->searchname) == 0))
+			opts->callback(pathbuf, pathlen+1+namelen, opts->userdata);
 
-		if (is_dir) {
-			if (depth > 0)
-				recurse_dir(pathbuf, opts, depth - 1);
-		} else
-			opts->callback(pathbuf, opts->userdata);
+		if (is_dir && opts->curdepth < opts->maxdepth) {
+			opts->curdepth++;
+			do_recurse_dir(pathbuf, opts);
+			opts->curdepth--;
+		}
 next:
 		pathbuf[pathlen] = '\0';
 	}
 	closedir(d);
+}
+
+static void recurse_dir(char *pathbuf, struct recurse_opts *opts)
+{
+	opts->curdepth = 1;
+	do_recurse_dir(pathbuf, opts);
+}
+
+struct trigger_entry {
+	struct list_head node;
+	int max_depth;
+	char pathname[];
+};
+
+static void trigger_uevent_cb(char *path, size_t pathlen, void *data)
+{
+	int fd;
+
+	if (pathlen + 1 + strlen("/uevent") > PATH_MAX) {
+		dbg("path length overflow");
+		return;
+	}
+
+	strcpy(&path[pathlen], "/uevent");
+	fd = open(path, O_WRONLY);
+	if (fd >= 0) {
+		write(fd, "add", 3);
+		close(fd);
+	}
+	path[pathlen] = 0;
+}
+
+static void trigger_path(struct ueventconf *conf, char *path, char *subdir, int max_depth)
+{
+	struct trigger_entry *e;
+	size_t pathlen = strlen(path);
+
+	e = malloc(pathlen + (subdir ? strlen(subdir) : 0) + 1 + sizeof *e);
+	if (!e) return;
+
+	list_init(&e->node);
+	e->max_depth = max_depth;
+	strcpy(e->pathname, path);
+	if (subdir) strcpy(&e->pathname[pathlen], subdir);
+
+	pthread_mutex_lock(&conf->trigger_mutex);
+	conf->running_threads = 1;
+	list_add_tail(&e->node, &conf->trigger_list);
+	pthread_cond_signal(&conf->trigger_cond);
+	pthread_mutex_unlock(&conf->trigger_mutex);
+}
+
+static void *trigger_thread(void *data)
+{
+	struct ueventconf *conf = data;
+	struct recurse_opts opts;
+	struct trigger_entry *entry = NULL;
+	char path[PATH_MAX] = "/sys";
+	size_t prefixlen = strlen(path);
+
+	while (1) {
+		pthread_mutex_lock(&conf->trigger_mutex);
+		if (entry) {
+			list_del(&entry->node);
+			free(entry);
+		}
+		entry = list_next(&conf->trigger_list, struct trigger_entry, node);
+		while (!entry) {
+			notify_main(conf);
+			pthread_cond_wait(&conf->trigger_cond, &conf->trigger_mutex);
+			entry = list_next(&conf->trigger_list, struct trigger_entry, node);
+		}
+		pthread_mutex_unlock(&conf->trigger_mutex);
+
+		/* scan list */
+		strcpy(&path[prefixlen], entry->pathname);
+		dbg("trigger_thread: scanning %s", path);
+
+		opts = (struct recurse_opts) {
+			.callback = trigger_uevent_cb,
+			.matchdirs = 1,
+			.userdata = entry,
+			.maxdepth = entry->max_depth,
+			.matchdepth = entry->max_depth,
+		};
+		recurse_dir(path, &opts);
+	}
+
+	return NULL;
 }
 
 struct bootrepos {
@@ -656,9 +774,10 @@ struct bootrepos {
 	int count;
 };
 
-static void bootrepo_cb(const char *path, const void *data)
+static void bootrepo_cb(char *path, size_t pathlen, void *data)
 {
-	struct bootrepos *repos = (struct bootrepos *)data;
+	struct bootrepos *repos = data;
+
 	int fd = open(repos->outfile, O_WRONLY | O_CREAT | O_APPEND);
 	if (fd == -1)
 		err(1, "%s", repos->outfile);
@@ -700,7 +819,7 @@ static int find_apkovl(const char *dir, const char *outfile)
 }
 
 static int find_bootrepos(const char *devnode, const char *type,
-			 char *bootrepos, const char *apkovls)
+			  char *bootrepos, const char *apkovls)
 {
 	char mountdir[PATH_MAX] = "";
 	char *devname;
@@ -710,11 +829,11 @@ static int find_bootrepos(const char *devnode, const char *type,
 		.count = 0,
 	};
 	struct recurse_opts opts = {
+		.maxdepth = 2,
 		.searchname = ".boot_repository",
 		.callback = bootrepo_cb,
 		.userdata = &repos,
 	};
-
 
 	/* skip already mounted devices */
 	if (is_mounted(devnode)) {
@@ -736,7 +855,7 @@ static int find_bootrepos(const char *devnode, const char *type,
 		return 0;
 	}
 
-	recurse_dir(mountdir, &opts, 2);
+	recurse_dir(mountdir, &opts);
 	if (repos.count > 0)
 		rc |= FOUND_BOOTREPO;
 
@@ -763,7 +882,6 @@ static int is_same_device(const struct uevent *ev, const char *nodepath)
 	min = atoi(ev->minor);
 	return S_ISBLK(st.st_mode) && makedev(maj, min) == st.st_rdev;
 }
-
 
 static void founddev(struct ueventconf *conf, int found)
 {
@@ -879,6 +997,7 @@ static void uevent_mdev_done_cb(void *ctx, int status)
 static void uevent_dispatch(struct uevent *ev)
 {
 	struct ueventconf *conf = ev->conf;
+	int add;
 
 	if (conf->subsystem_filter && ev->subsystem
 	    && strcmp(ev->subsystem, conf->subsystem_filter) != 0) {
@@ -890,20 +1009,22 @@ static void uevent_dispatch(struct uevent *ev)
 	if (ev->action == NULL)
 		return;
 
-	dbg("uevent: action='%s' subsystem='%s' devname='%s'",
-		ev->action, ev->subsystem, ev->devname);
+	dbg("uevent: action='%s' subsystem='%s' devname='%s' devpath='%s'",
+		ev->action, ev->subsystem, ev->devname, ev->devpath);
 
-	if (ev->modalias != NULL && strcmp(ev->action, "add") == 0) {
+	add = strcmp(ev->action, "add") == 0;
+
+	if (add && ev->subsystem && strcmp(ev->subsystem, "bus") == 0) {
+		trigger_path(conf, ev->devpath, "/devices", 1);
+	} else if (add && ev->modalias) {
 		char buf[128];
-		memset(buf, 0, sizeof(buf));
-		load_kmod(ev->modalias, buf, sizeof(buf)-1);
+		load_kmod(ev->modalias, buf, sizeof buf);
 		conf->modalias_count++;
-
 		/* increase timeout so usb drives gets time to settle */
 		if (strcmp(buf, "usb_storage") == 0)
 			conf->usb_storage_timeout = USB_STORAGE_TIMEOUT;
 
-	} else if (ev->devname != NULL) {
+	} else if (ev->devname) {
 		if (conf->program_argv[0] != NULL) {
 			spawn_command_cb(&spawnmgr, conf->program_argv, ev->envp,
 					 uevent_mdev_done_cb, uevent_ref(ev));
@@ -955,6 +1076,8 @@ static void uevent_process(char *buf, const size_t len, struct ueventconf *conf)
 			ev->subsystem = value;
 		} else if (envcmp(key, "DEVNAME")) {
 			ev->devname = value;
+		} else if (envcmp(key, "DEVPATH")) {
+			ev->devpath = value;
 		} else if (envcmp(key, "MAJOR")) {
 			ev->major = value;
 		} else if (envcmp(key, "MINOR")) {
@@ -968,31 +1091,6 @@ static void uevent_process(char *buf, const size_t len, struct ueventconf *conf)
 
 	uevent_dispatch(ev);
 	uevent_unref(ev);
-}
-
-static void trigger_uevent_cb(const char *path, const void *data)
-{
-	int fd = open(path, O_WRONLY);
-	write(fd, "add", 3);
-	close(fd);
-}
-
-static void *trigger_thread(void *data)
-{
-	int fd = *(int *)data;
-	uint64_t ok = TRIGGER_THREAD;
-	struct recurse_opts opts = {
-		.searchname = "uevent",
-		.callback = trigger_uevent_cb,
-		.userdata = NULL,
-	};
-	char path[PATH_MAX] = "/sys/bus";
-
-	recurse_dir(path, &opts, 64);
-	strcpy(path, "/sys/devices");
-	recurse_dir(path, &opts, 64);
-	write(fd, &ok, sizeof(ok));
-	return NULL;
 }
 
 static void usage(int rc)
@@ -1025,7 +1123,6 @@ int main(int argc, char *argv[])
 	size_t total_bytes = 0;
 	int not_found_is_ok = 0;
 	char *program_argv[2] = {0,0};
-	pthread_t tid;
 	sigset_t sigchldmask;
 
 	for (r = 0; environ[r]; r++) {
@@ -1036,6 +1133,11 @@ int main(int argc, char *argv[])
 	spawn_init(&spawnmgr);
 
 	memset(&conf, 0, sizeof(conf));
+	pthread_mutex_init(&conf.trigger_mutex, NULL);
+	pthread_cond_init(&conf.trigger_cond, NULL);
+	list_init(&conf.trigger_list);
+	pthread_mutex_init(&conf.cryptsetup_mutex, NULL);
+
 	conf.program_argv = program_argv;
 	conf.timeout = MAX_EVENT_TIMEOUT;
 	conf.usb_storage_timeout = 0;
@@ -1085,10 +1187,6 @@ int main(int argc, char *argv[])
 	if (argc > 0)
 		conf.search_device = argv[0];
 
-	r = pthread_mutex_init(&conf.cryptsetup_mutex, NULL);
-	if (r < 0)
-		err(1, "pthread_mutex_init");
-
 	initsignals();
 	sigemptyset(&sigchldmask);
 	sigaddset(&sigchldmask, SIGCHLD);
@@ -1103,8 +1201,10 @@ int main(int argc, char *argv[])
 	fds[2].fd = eventfd(0, EFD_CLOEXEC);
 	fds[2].events = POLLIN;
 	conf.efd = fds[2].fd;
-	pthread_create(&tid, NULL, trigger_thread, &fds[2].fd);
-	conf.running_threads |= TRIGGER_THREAD;
+
+	trigger_path(&conf, "/bus", NULL, 1);
+	trigger_path(&conf, "/class", NULL, 2);
+	start_thread(&conf, trigger_thread);
 
 	while (1) {
 		int t = conf.timeout + conf.usb_storage_timeout;
@@ -1179,22 +1279,20 @@ int main(int argc, char *argv[])
 		}
 
 		if (fds[2].revents & POLLIN) {
-			uint64_t tmask = 0;
-			if (read(fds[2].fd, &tmask, sizeof(tmask)) < 0)
+			uint64_t val = 0;
+			if (read(fds[2].fd, &val, sizeof(val)) < 0)
 				warn("eventfd");
-			if (tmask & TRIGGER_THREAD) {
-				dbg("terminating trigger thread");
-				pthread_join(tid, NULL);
-			}
-			if (tmask & CRYPTSETUP_THREAD) {
-				dbg("terminating cryptsetup thread");
-				pthread_join(conf.cryptsetup_tid, NULL);
-			}
-			conf.running_threads &= ~tmask;
+			pthread_mutex_lock(&conf.trigger_mutex);
+			conf.running_threads = !list_empty(&conf.trigger_list)
+				|| conf.cryptsetup_running;
+			pthread_mutex_unlock(&conf.trigger_mutex);
 		}
 	}
 	close(fds[2].fd);
+
 	pthread_mutex_destroy(&conf.cryptsetup_mutex);
+	pthread_mutex_destroy(&conf.trigger_mutex);
+	pthread_cond_destroy(&conf.trigger_cond);
 	if (conf.blkid_cache) blkid_put_cache(conf.blkid_cache);
 
 	dbg("modaliases: %i, forks: %i, events: %i, total bufsize: %zu",
