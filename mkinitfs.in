@@ -141,7 +141,7 @@ initfs_apk_keys() {
 
 initfs_cpio() {
 	if [ -n "$list_sources" ]; then
-		(cd "$tmpdir" && find . )
+		(cd "$tmpdir" && find . | sort)
 		return
 	fi
 	rm -f $outfile
