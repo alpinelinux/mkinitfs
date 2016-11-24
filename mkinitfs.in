@@ -146,7 +146,7 @@ initfs_cpio() {
 	fi
 	rm -f $outfile
 	umask 0022
-	(cd "$tmpdir" && find . | cpio --quiet -o -H newc | gzip -9) > $outfile
+	(cd "$tmpdir" && find . | sort | cpio --quiet -o -H newc | gzip -9) > $outfile
 }
 
 usage() {
