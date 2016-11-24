@@ -497,6 +497,7 @@ if [ "$KOPT_splash" != "no" ]; then
 		[ -e "$fbdev" ] || break
 		num="${fbdev#/dev/fb}"
 		for img in /media/*/fbsplash$num.ppm; do
+			[ -e "$img" ] || break
 			config="${img%.*}.cfg"
 			[ -e "$config" ] || config=/tmp/fbsplash.cfg
 			fbsplash -s "$img" -d "$fbdev" -i "$config"
