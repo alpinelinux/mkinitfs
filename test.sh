@@ -83,7 +83,7 @@ then
 	sudo cryptsetup luksClose temp-test
 
 	echo "> Testing nfplug-findfs (passphrase was '$passphrase')"
-	sudo ./nlplug-findfs ${flags}-c $block -m 'test-device' || true
+	echo "$passphrase" | sudo ./nlplug-findfs ${flags}-c $block -m 'test-device'
 
 	echo "> Mounting the device"
 	sudo mount /dev/mapper/test-device local-mount
