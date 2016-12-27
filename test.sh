@@ -2,6 +2,7 @@
 
 set -e
 set -u
+set -x
 
 # Defaults
 operation=full
@@ -82,8 +83,8 @@ then
 	echo "> Closing the device '/dev/mapper/temp-test'"
 	sudo cryptsetup luksClose temp-test
 
-	echo "> Testing nfplug-findfs (passphrase was '$passphrase')"
-	sudo ./nlplug-findfs ${flags}-c $block -m 'test-device' || true
+	echo "> Testing nlplug-findfs on $block (passphrase was '$passphrase')"
+	echo "$passphrase" | sudo ./nlplug-findfs ${flags}-c $block -m 'test-device'
 
 	echo "> Mounting the device"
 	sudo mount /dev/mapper/test-device local-mount
@@ -97,7 +98,7 @@ fi
 echo "> Cleaning up"
 mountpoint local-mount && sudo umount local-mount
 [ -b /dev/mapper/test-device ] && sudo cryptsetup luksClose test-device
-for i in $(seq 0 $(sudo losetup -f | sed 's:^[a-z/]*\([0-9]*\)$:\1:; s/$/-1/' | bc)); do
+for i in $(seq 0 $(($(sudo losetup -f | sed 's:^[a-z/]*\([0-9]*\)$:\1:; s/$/-1/')))); do
 	sudo losetup -d /dev/loop$i
 done
 [ -d local-mount ] && rmdir local-mount
