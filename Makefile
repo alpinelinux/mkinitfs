@@ -29,10 +29,13 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/lvm.files \
 		features.d/lvm.modules \
 		features.d/mmc.modules \
+		features.d/nbd.files \
+		features.d/nbd.modules \
 		features.d/network.files \
 		features.d/network.modules \
+		features.d/nvme.modules \
 		features.d/ocfs2.modules \
-		features.d/raid.files\
+		features.d/raid.files \
 		features.d/raid.modules \
 		features.d/reiserfs.modules \
 		features.d/scsi.modules \
@@ -41,8 +44,8 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/usb.modules \
 		features.d/virtio.modules \
 		features.d/xfs.modules \
-		features.d/nbd.files \
-		features.d/nbd.modules
+		features.d/zfs.files \
+		features.d/zfs.modules
 
 SCRIPTS		:= mkinitfs bootchartd initramfs-init
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
