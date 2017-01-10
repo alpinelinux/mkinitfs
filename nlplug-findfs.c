@@ -732,7 +732,7 @@ static void trigger_uevent_cb(struct recurse_opts *opts, void *data)
 	if (!recurse_push(opts, &oldlen, "uevent"))
 		return;
 
-	fd = open(opts->path, O_WRONLY);
+	fd = open(opts->path, O_WRONLY | O_CLOEXEC);
 	if (fd >= 0) {
 		write(fd, "add", 3);
 		close(fd);
@@ -799,7 +799,7 @@ static void append_line(const char *outfile, const char *data)
 {
 	int fd;
 	if (outfile == 0) return;
-	fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND);
+	fd = open(outfile, O_WRONLY | O_CREAT | O_APPEND | O_CLOEXEC);
 	if (fd == -1)
 		err(1, "%s", outfile);
 	write(fd, data, strlen(data));
