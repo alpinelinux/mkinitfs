@@ -535,7 +535,6 @@ static int read_pass(char *pass, size_t pass_size)
 	if (isatty(STDIN_FILENO)) {
 		if (tcsetattr(STDIN_FILENO, TCSANOW, &old_flags) < 0) {
 			warn("tcsetattr");
-			return r;
 		}
 	}// else {
 	//	fprintf(stderr, "The program isn't executed in a TTY, the echo-reenabling has been skipped.\n");
