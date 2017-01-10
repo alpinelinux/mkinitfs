@@ -984,7 +984,7 @@ static void uevent_handle(struct uevent *ev)
 
 	snprintf(ev->devnode, sizeof(ev->devnode), "/dev/%s", ev->devname);
 	pthread_mutex_lock(&conf->cryptsetup_mutex);
-	found = searchdev(ev, conf->search_device, 1);
+	found = searchdev(ev, conf->search_device, (conf->apkovls || conf->bootrepos));
 	pthread_mutex_unlock(&conf->cryptsetup_mutex);
 	if (found) {
 		founddev(conf, found);
