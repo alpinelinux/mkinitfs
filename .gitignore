@@ -1,0 +1,5 @@
+*.o
+bootchartd
+initramfs-init
+mkinitfs
+nlplug-findfs
