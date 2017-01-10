@@ -2,14 +2,14 @@
 
 set -e
 set -u
-set -x
 
 # Defaults
 operation=full
 noconfirm=0
 clean_all=0
-failure=1 # Assume test failure
+retcode=0
 flags=""
+clean=1
 
 usage () {
 	cat >&2 <<-EOF
@@ -25,6 +25,7 @@ usage () {
 	  -d: turn on nlplug-findfs debug output
 	  -y: skip confirmation at program start
 	  -x: clean all (including produced binaries)
+	  -k: keep devices (dont clean up)
 	EOF
 	exit 1
 }
@@ -36,6 +37,7 @@ do
 		"-y") noconfirm=1; shift;;
 		"-x") clean_all=1; shift;;
 		"-h"|"--help") usage; shift;;
+		"-k") clean=""; shift;;
 		"-"*) shift;; # Ignore erroneous flags
 		*) break;;
 	esac
@@ -59,7 +61,7 @@ then
 	fi
 
 	echo "> Creating images"
-	dd if=/dev/zero of=block count=1024 bs=65536 2>&1 | sed 's/^/\t/g'
+	dd if=/dev/zero of=block count=10 bs=1M 2>&1 | sed 's/^/\t/g'
 
 	echo "> Setting up the loop devices"
 	block="$(sudo losetup -f)"
@@ -73,7 +75,7 @@ then
 	echo "> Creating a filesystem on '/dev/mapper/temp-test'"
 	sudo mkfs.ext2 /dev/mapper/temp-test
 	echo "> Mounting the fs"
-	sudo mount -text2 /dev/mapper/temp-test local-mount
+	sudo mount -t ext2 /dev/mapper/temp-test local-mount
 	echo "> Creating proof in the mounted fs"
 	sudo sh -c 'date "+proof:%s" > local-mount/proof'
 	proof=$(cat local-mount/proof)
@@ -84,17 +86,24 @@ then
 	sudo cryptsetup luksClose temp-test
 
 	echo "> Testing nlplug-findfs on $block (passphrase was '$passphrase')"
-	echo "$passphrase" | sudo ./nlplug-findfs ${flags}-c $block -m 'test-device'
+	echo "$passphrase" | sudo ./nlplug-findfs -p /sbin/mdev ${flags} -c $block -m 'test-device' /dev/mapper/test-device || retcode=1
 
-	echo "> Mounting the device"
-	sudo mount /dev/mapper/test-device local-mount
-	echo "> Getting proof"
-	check=$(cat local-mount/proof)
-	echo "Retrieved proof is: $check"
-	[ "$check" = "$proof" ] && failure=0
-	[ $failure -eq 0 ] && echo "Operation succeeded, proofs match" || echo "Operation failed, proofs don't match"
+	if [ $retcode -eq 0 ]; then
+		echo "> Mounting the device"
+		sudo mount /dev/mapper/test-device local-mount
+		echo "> Getting proof"
+		check=$(cat local-mount/proof)
+		echo "Retrieved proof is: $check"
+		if [ "$check" != "$proof" ]; then
+			retcode=1
+		fi
+	fi
+	[ $retcode -eq 0 ] && echo "Operation succeeded, proofs match" || echo "Operation failed, proofs don't match"
 fi
 
+if [ -z  "$clean" ]; then
+	exit
+fi
 echo "> Cleaning up"
 mountpoint local-mount && sudo umount local-mount
 [ -b /dev/mapper/test-device ] && sudo cryptsetup luksClose test-device
@@ -104,5 +113,5 @@ done
 [ -d local-mount ] && rmdir local-mount
 [ -f block ] && rm block
 [ $clean_all -eq 1 ] && ( make clean; rm -f nlplug-findfs nlplug-findfs.o )
-exit $failure
+exit $retcode
 # vim: ts=4:sw=4
