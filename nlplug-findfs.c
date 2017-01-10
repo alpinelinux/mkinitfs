@@ -583,6 +583,7 @@ static void *cryptsetup_thread(void *data)
 						 CRYPT_ANY_SLOT,
 						 pass, strlen(pass), 0);
 		pthread_mutex_unlock(&c->cryptsetup_mutex);
+		memset(pass, 0, sizeof(pass)); /* wipe pass after use */
 
 		if (r >= 0)
 			goto free_out;
