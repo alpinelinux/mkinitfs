@@ -363,10 +363,8 @@ if [ -n "$KOPT_nbd" ]; then
 	setup_nbd || echo "Failed to setup nbd device."
 fi
 
-if [ "$KOPT_rootfstype" = "zfs" ]; then
-	# zpool reports /dev/zfs missing if it can't read /etc/mtab
-	ln -s /proc/mounts /etc/mtab
-fi
+# zpool reports /dev/zfs missing if it can't read /etc/mtab
+ln -s /proc/mounts /etc/mtab
 
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
