@@ -15,19 +15,20 @@ startdir=$PWD
 feature_files() {
 	local dir="$1"
 	local suffix="$2"
-	local glob file
+	local glob file fdir
 	for f in $features; do
-		if [ ! -f "$features_dir/$f.$suffix" ]; then
-			continue
-		fi
-		for glob in $(sed -e '/^$/d' -e '/^#/d' -e "s|^/*|$dir|" "$features_dir/$f.$suffix"); do
-			for file in $glob; do
-				if [ -d $file ]; then
-					find $file -type f
-				elif [ -e "$file" ]; then
-					echo $file
-				fi
+		for fdir in $features_dirs; do
+			[ -f "$fdir/$f.$suffix" ] || continue
+			for glob in $(sed -e '/^$/d' -e '/^#/d' -e "s|^/*|$dir|" "$fdir/$f.$suffix"); do
+				for file in $glob; do
+					if [ -d $file ]; then
+						find $file -type f
+					elif [ -e "$file" ]; then
+						echo $file
+					fi
+				done
 			done
+			break
 		done
 	done
 }
@@ -152,7 +153,7 @@ initfs_cpio() {
 usage() {
 	cat <<EOF
 usage: mkinitfs [-hkKLln] [-b basedir] [-c configfile] [-F features] [-f fstab]
-		[-i initfile ] [-o outfile] [-t tempdir] [kernelversion]"
+		[-i initfile ] [-o outfile] [-P featuresdir] [-t tempdir] [kernelversion]"
 options:
 	-b  prefix files and kernel modules with basedir
 	-c  use configfile instead of $config
@@ -166,6 +167,7 @@ options:
 	-L  list available features
 	-n  don't include kernel modules or firmware
 	-o  set another outfile
+	-P  prepend features.d search path
 	-q  Quiet mode
 	-t  use tempdir when creating initramfs image
 
@@ -174,9 +176,9 @@ EOF
 }
 
 # main
+features_dirs=${features_dir:-"${basedir%/:-}/${sysconfdir#/}/features.d"}
 
-
-while getopts "b:c:f:F:hi:kKLlno:qt:" opt; do
+while getopts "b:c:f:F:hi:kKLlno:P:qt:" opt; do
 	case "$opt" in
 		b) basedir="$OPTARG";;
 		c) config="$OPTARG";;
@@ -190,6 +192,7 @@ while getopts "b:c:f:F:hi:kKLlno:qt:" opt; do
 		l) list_sources=1;;
 		n) nokernel=1;;
 		o) outfile="$OPTARG";;
+		P) features_dirs="$OPTARG $features_dirs";;
 		q) quiet=1;;
 		t) tmpdir="$OPTARG";;
 		*) usage;;
@@ -198,14 +201,15 @@ done
 shift $(( $OPTIND - 1 ))
 
 . $(readlink -f "$config")
-features_dir=${features_dir:-"${basedir%/:-}/${sysconfdir#/}/features.d"}
 [ -n "$myfeatures" ] && features="$myfeatures"
 
 if [ -n "$list_features" ]; then
-	for i in $features_dir/*.files $features_dir/*.modules; do
-		[ -e "$i" ] || continue
-		local file=${i##*/}
-		echo ${file%.*}
+	for dir in $features_dirs; do
+		for i in $dir/*.files $dir/*.modules; do
+			[ -e "$i" ] || continue
+			local file=${i##*/}
+			echo ${file%.*}
+		done
 	done | sort -u
 	exit 0
 fi
