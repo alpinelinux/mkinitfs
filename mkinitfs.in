@@ -207,7 +207,7 @@ if [ -n "$list_features" ]; then
 	for dir in $features_dirs; do
 		for i in $dir/*.files $dir/*.modules; do
 			[ -e "$i" ] || continue
-			local file=${i##*/}
+			file=${i##*/}
 			echo ${file%.*}
 		done
 	done | sort -u
