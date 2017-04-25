@@ -132,7 +132,7 @@ setup_inittab_console(){
 		if ! grep -q "^$tty:" $sysroot/etc/inittab; then
 			echo "# enable login on alternative console" \
 				>> $sysroot/etc/inittab
-			echo "$tty::respawn:/sbin/getty $line $speed $tty $term" \
+			echo "$tty::respawn:/sbin/getty ${flow:+-h }$line $speed $tty $term" \
 				>> $sysroot/etc/inittab
 		fi
 		if [ -e "$sysroot"/etc/securetty ] && ! grep -q -w "$tty" "$sysroot"/etc/securetty; then
