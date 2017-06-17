@@ -1,11 +1,20 @@
 sudo: required
+dist: trusty
+language: minimal
+
+before_install:
+  - "wget 'https://raw.githubusercontent.com/alpinelinux/alpine-chroot-install/v0.5.0/alpine-chroot-install' \
+        && echo '1866bc078cab859cefcbdbbd2dee0141e0bee8d5  alpine-chroot-install' | sha1sum -c || exit 1"
+  - alpine() { /alpine/enter-chroot -u "$USER" "$@"; }
 install:
-  - sudo .travis/install-alpine
-  - sudo .travis/setup-alpine
-  - sudo .travis/install-deps
-script: |
-  source .travis/common.sh
-  alpine_run $ALPINE_USER './test.sh -x -y'
-  alpine_run $ALPINE_USER './test.sh -x -y header'
+  - sudo sh alpine-chroot-install
+        -p 'build-base linux-headers util-linux-dev kmod-dev cryptsetup-dev sudo'
+        -p 'cryptsetup e2fsprogs'
+before_script:
+  - /alpine/enter-chroot "addgroup $USER wheel"
+script:
+  - alpine './test.sh -x -y'
+  - alpine './test.sh -x -y header'
+
 notifications:
   email: false
