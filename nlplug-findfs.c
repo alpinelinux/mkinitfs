@@ -22,6 +22,7 @@
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
+#include <stdint.h>
 
 #include <sys/eventfd.h>
 #include <sys/signalfd.h>
@@ -317,6 +318,7 @@ struct cryptconf {
 	size_t payload_offset;
 	pthread_t tid;
 	pthread_mutex_t mutex;
+	uint32_t flags;
 };
 
 struct ueventconf {
@@ -605,7 +607,8 @@ static void *cryptsetup_thread(void *data)
 		pthread_mutex_lock(&c->crypt.mutex);
 		r = crypt_activate_by_passphrase(cd, c->crypt.data.name,
 						 CRYPT_ANY_SLOT,
-						 pass, strlen(pass), 0);
+						 pass, strlen(pass),
+						 c->crypt.flags);
 		pthread_mutex_unlock(&c->crypt.mutex);
 		memset(pass, 0, sizeof(pass)); /* wipe pass after use */
 
@@ -1239,6 +1242,9 @@ int main(int argc, char *argv[])
 		break;
 	case 'n':
 		not_found_is_ok = 1;
+		break;
+	case 'D':
+		conf.crypt.flags |= CRYPT_ACTIVATE_ALLOW_DISCARDS;
 		break;
 	case 'd':
 		dodebug = 1;
