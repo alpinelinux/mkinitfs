@@ -388,6 +388,10 @@ if [ -n "$KOPT_root" ]; then
 	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 		$KOPT_root
 
+	if echo "$KOPT_modules $KOPT_rootfstype" | grep -qw btrfs; then
+		/sbin/btrfs device scan || echo "Failed to scan devices for btrfs filesystem."
+	fi
+
 	if [ -n "$KOPT_resume" ]; then
 		echo "Resume from disk"
 		if [ -e /sys/power/resume ]; then
