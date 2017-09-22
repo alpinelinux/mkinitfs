@@ -11,10 +11,10 @@ install:
         -p 'build-base linux-headers util-linux-dev kmod-dev cryptsetup-dev sudo'
         -p 'cryptsetup e2fsprogs'
 before_script:
-  - /alpine/enter-chroot "addgroup $USER wheel"
+  - /alpine/enter-chroot addgroup $USER wheel
 script:
-  - alpine './test.sh -x -y'
-  - alpine './test.sh -x -y header'
+  - alpine ./test.sh -x -y
+  - alpine ./test.sh -x -y header
 
 notifications:
   email: false
