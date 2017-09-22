@@ -12,6 +12,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/base.files \
 		features.d/base.modules \
 		features.d/bootchart.files \
+		features.d/btrfs.files \
 		features.d/btrfs.modules \
 		features.d/cdrom.modules \
 		features.d/cramfs.modules \
