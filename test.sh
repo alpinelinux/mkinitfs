@@ -33,14 +33,15 @@ usage () {
 while [ $# -gt 0 ]
 do
 	case "$1" in
-		"-d") flags="-d $flags"; shift;;
-		"-y") noconfirm=1; shift;;
-		"-x") clean_all=1; shift;;
-		"-h"|"--help") usage; shift;;
-		"-k") clean=""; shift;;
-		"-"*) shift;; # Ignore erroneous flags
+		"-d") flags="-d $flags";;
+		"-y") noconfirm=1;;
+		"-x") clean_all=1;;
+		"-h"|"--help") usage;;
+		"-k") clean="";;
+		"-"*) :;; # Ignore erroneous flags
 		*) break;;
 	esac
+	shift
 done
 
 [ $# -eq 1 ] && operation=$1
@@ -61,24 +62,24 @@ then
 	fi
 
 	echo "> Creating images"
-	dd if=/dev/zero of=block count=10 bs=1M 2>&1 | sed 's/^/\t/g'
-	[ "$operation" = "header" ] && dd if=/dev/zero of=header count=1024 bs=65536 2>&1 | sed 's/^/\t/g'
+	dd if=/dev/zero of=block count=10 bs=1M 2>&1 | sed 's/^/\t/'
+	[ "$operation" = "header" ] && dd if=/dev/zero of=header count=1024 bs=65536 2>&1 | sed 's/^/\t/'
 
 	echo "> Setting up the loop devices"
 	block="$(sudo losetup -f)"
 	echo "> Setting up block as $block"
-	sudo losetup $block block 2>&1 | sed 's/^/\t/g'
+	sudo losetup $block block 2>&1 | sed 's/^/\t/'
 	[ "$operation" = "header" ] && header="$(sudo losetup -f)"
 	[ "$operation" = "header" ] && echo "> Setting up header as $header"
-	[ "$operation" = "header" ] && sudo losetup $header header 2>&1 | sed 's/^/\t/g'
+	[ "$operation" = "header" ] && sudo losetup $header header 2>&1 | sed 's/^/\t/'
 
 	[ "$operation" != "header" ] && echo "> Formatting '$block' with passphrase '$passphrase'."
 	[ "$operation" = "header" ] && echo "> Formatting '$block' with header '$header' and passphrase '$passphrase'."
-	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q $block - 2>&1 | sed 's/^/\t/g'
-	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q --header $header $block - 2>&1 | sed 's/^/\t/g'
+	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q $block - 2>&1 | sed 's/^/\t/'
+	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q --header $header $block - 2>&1 | sed 's/^/\t/'
 	echo "> Opening the device '$block' as /dev/mapper/temp-test"
-	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q $block temp-test - 2>&1 | sed 's/^/\t/g'
-	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q --header $header $block temp-test - 2>&1 | sed 's/^/\t/g'
+	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q $block temp-test - 2>&1 | sed 's/^/\t/'
+	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q --header $header $block temp-test - 2>&1 | sed 's/^/\t/'
 	echo "> Creating a filesystem on '/dev/mapper/temp-test'"
 	sudo mkfs.ext2 /dev/mapper/temp-test
 	echo "> Mounting the fs"
