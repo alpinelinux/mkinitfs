@@ -103,7 +103,7 @@ find_kmods() {
 }
 
 initfs_kmods() {
-	[ -z "$nokernel" ] || return
+	[ -z "$nokernel" ] || return 0
 	local glob= file= files= dirs=
 	rm -rf "$tmpdir"/lib/modules
 	# make sure we have modules.dep
@@ -125,7 +125,7 @@ initfs_kmods() {
 }
 
 initfs_firmware() {
-	[ -z "$nokernel" ] || return
+	[ -z "$nokernel" ] || return 0
 	rm -rf "$tmpdir"/lib/firmware
 	mkdir -p "$tmpdir"/lib/firmware
 	find "$tmpdir"/lib/modules -type f -name "*.ko" | xargs modinfo -F firmware | sort -u | while read FW; do
@@ -233,7 +233,7 @@ if [ -z "$outfile" ]; then
 	outfile="${basedir}boot/initramfs-${kflavor}"
 fi
 
-if [ -z "$nokernel"] && [ ! -d "$kerneldir" ]; then
+if [ -z "$nokernel" ] && [ ! -d "$kerneldir" ]; then
 	echo "$kerneldir does not exist or is not a directory"
 	exit 1
 fi
