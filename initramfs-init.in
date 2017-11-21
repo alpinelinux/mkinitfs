@@ -265,7 +265,7 @@ set -- $(cat /proc/cmdline)
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards debug_init dma init_args keep_apk_new modules ovl_dev pkgs quiet
 	root_size root usbdelay ip alpine_repo apkovl alpine_start splash blacklist
-	overlaytmpfs rootfstype rootflags nbd resume"
+	overlaytmpfs rootfstype rootflags nbd resume isoloop"
 
 for opt; do
 	case "$opt" in
@@ -435,9 +435,22 @@ fi
 
 # locate boot media and mount it
 ebegin "Mounting boot media"
-nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
+if nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
-	$repoopts -a /tmp/apkovls
+	$repoopts -a /tmp/apkovls; then true
+elif [ -n "$KOPT_isoloop" ]; then for disk in /dev/sd*[0-9]; do
+	echo -n "Trying $disk... "
+	if mount -o ro "$disk" /media/usb 2> /dev/null; then
+		if mount -o loop,ro /media/usb/"$KOPT_isoloop" /media/cdrom 2> /dev/null; then
+			[ -n "$ALPINE_REPO" ] || echo /media/cdrom > "$repofile"
+			echo "succeeded"; break
+		else
+			umount /media/usb
+			echo "failed to mount iso"
+		fi
+	else echo "failed to mount disk"; fi
+	false
+done; else false; fi
 eend $?
 
 # early console?
