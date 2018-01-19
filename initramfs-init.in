@@ -325,7 +325,7 @@ ALPINE_REPO=${KOPT_alpine_repo}
 [ "$KOPT_quiet" = yes ] && dmesg -n 1
 
 # optional blacklist
-for i in ${KOPT_blacklist/,/ }; do
+for i in ${KOPT_blacklist//,/ }; do
 	echo "blacklist $i" >> /etc/modprobe.d/boot-opt-blacklist.conf
 done
 
