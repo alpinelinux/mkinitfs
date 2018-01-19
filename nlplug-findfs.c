@@ -582,7 +582,7 @@ static void *cryptsetup_thread(void *data)
 		goto notify_out;
 	}
 
-	r = crypt_load(cd, CRYPT_LUKS1, params);
+	r = crypt_load(cd, CRYPT_LUKS, params);
 	if (r < 0) {
 		warnx("crypt_load(%s)", data_devnode);
 		goto free_out;
