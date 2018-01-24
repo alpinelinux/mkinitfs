@@ -18,6 +18,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/cramfs.modules \
 		features.d/cryptsetup.files \
 		features.d/cryptsetup.modules \
+		features.d/ena.modules \
 		features.d/ext2.modules \
 		features.d/ext3.modules \
 		features.d/ext4.modules \
