@@ -389,7 +389,8 @@ if [ -n "$KOPT_root" ]; then
 		$KOPT_root
 
 	if echo "$KOPT_modules $KOPT_rootfstype" | grep -qw btrfs; then
-		/sbin/btrfs device scan || echo "Failed to scan devices for btrfs filesystem."
+		/sbin/btrfs device scan >/dev/null || \
+			echo "Failed to scan devices for btrfs filesystem."
 	fi
 
 	if [ -n "$KOPT_resume" ]; then
