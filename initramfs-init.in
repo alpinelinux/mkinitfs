@@ -221,6 +221,10 @@ relocate_mount() {
 		return
 	fi
 	while read dir; do
+		# skip http(s)/ftp repos for netboot
+		if ! [ -d "$dir" ]; then
+			continue
+		fi
 		local dev=$(df -P "$dir" | tail -1 | awk '{print $1}')
 		local mnt=$(find_mnt $dev $fstab)
 		if [ -n "$mnt" ]; then
