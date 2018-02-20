@@ -3,11 +3,11 @@ dist: trusty
 language: minimal
 
 before_install:
-  - "wget 'https://raw.githubusercontent.com/alpinelinux/alpine-chroot-install/v0.6.0/alpine-chroot-install' \
-        && echo 'a827a4ba3d0817e7c88bae17fe34e50204983d1e  alpine-chroot-install' | sha1sum -c || exit 1"
+  - "wget 'https://raw.githubusercontent.com/alpinelinux/alpine-chroot-install/v0.7.0/alpine-chroot-install' \
+        && echo '090d323d887ef3a2fd4e752428553f22a52b87bb  alpine-chroot-install' | sha1sum -c || exit 1"
   - alpine() { /alpine/enter-chroot -u "$USER" "$@"; }
 install:
-  - sudo sh alpine-chroot-install
+  - sudo sh alpine-chroot-install -b edge
         -p 'build-base linux-headers util-linux-dev kmod-dev cryptsetup-dev sudo'
         -p 'cryptsetup e2fsprogs'
 before_script:
