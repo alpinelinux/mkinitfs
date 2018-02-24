@@ -12,6 +12,8 @@ group="$datadir"/group
 
 startdir=$PWD
 
+initfscomp=gzip
+
 feature_files() {
 	local dir="$1"
 	local suffix="$2"
@@ -147,16 +149,26 @@ initfs_cpio() {
 	fi
 	rm -f $outfile
 	umask 0022
-	(cd "$tmpdir" && find . | sort | cpio --quiet -o -H newc | gzip -9) > $outfile
+	(cd "$tmpdir" && find . | sort | cpio --quiet -o -H newc | $comp) > $outfile
+}
+
+cmd_exists() {
+	local cmd="$1"
+	if ! command -v "$cmd" >/dev/null 2>&1; then
+		echo "Command \"$cmd\" is not available."
+		exit 1
+	fi
 }
 
 usage() {
 	cat <<EOF
 usage: mkinitfs [-hkKLln] [-b basedir] [-c configfile] [-F features] [-f fstab]
-		[-i initfile ] [-o outfile] [-P featuresdir] [-t tempdir] [kernelversion]"
+		[-C initramfs compression] [-i initfile] [-o outfile]
+		[-P featuresdir] [-t tempdir] [kernelversion]
 options:
 	-b  prefix files and kernel modules with basedir
 	-c  use configfile instead of $config
+	-C  initramfs compression (gzip|xz defaults to $initfscomp)
 	-f  use fstab instead of $fstab
 	-F  use specified features
 	-h  print this help
@@ -178,10 +190,11 @@ EOF
 # main
 features_dirs=${features_dir:-"${basedir%/:-}/${sysconfdir#/}/features.d"}
 
-while getopts "b:c:f:F:hi:kKLlno:P:qt:" opt; do
+while getopts "b:c:C:f:F:hi:kKLlno:P:qt:" opt; do
 	case "$opt" in
 		b) basedir="$OPTARG";;
 		c) config="$OPTARG";;
+		C) initfscomp="$OPTARG";;
 		F) myfeatures="$OPTARG";;
 		f) fstab="$OPTARG";;
 		h) usage;;
@@ -256,6 +269,12 @@ fi
 if [ -z "$list_sources" ] && [ -z "$quiet" ]; then
 	echo "==> initramfs: creating $outfile"
 fi
+
+case "$initfscomp" in
+	gzip) comp="gzip -9" ;;
+	xz) cmd_exists xz; comp="xz -C crc32 -T 0" ;;
+	*) echo "Initramfs compression \"$initfscomp\" not supported!"; exit 1 ;;
+esac
 
 initfs_base \
 	&& initfs_kmods \
