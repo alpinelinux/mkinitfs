@@ -2,4 +2,5 @@ kernel/drivers/net/ethernet
 kernel/net/packet/af_packet.ko
 kernel/drivers/net/hyperv
 kernel/drivers/net/vmxnet3
-kernel/drivers/net/virtio_net*
+kernel/drivers/virtio/virtio_pci.ko
+kernel/drivers/net/virtio_net.ko
