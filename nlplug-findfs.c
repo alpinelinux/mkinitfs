@@ -1175,6 +1175,7 @@ static void usage(int rc)
 	" -H HEADERDEVICE use HEADERDEVICE as the LUKS header\n"
 	" -m CRYPTNAME    use CRYPTNAME name for crypto device mapping\n"
 	" -o OFFSET       cryptsetup payload offset\n"
+	" -D              allow discards on crypto device\n"
 	" -d              enable debugging ouput\n"
 	" -f SUBSYSTEM    filter subsystem\n"
 	" -p PROGRAM      use PROGRAM as handler for every event with DEVNAME\n"
