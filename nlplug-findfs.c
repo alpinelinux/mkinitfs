@@ -309,6 +309,7 @@ static int spawn_active(struct spawn_manager *mgr)
 struct cryptdev {
 	char *device;
 	char *name;
+	char *key;
 	char devnode[256];
 };
 
@@ -592,6 +593,18 @@ static void *cryptsetup_thread(void *data)
 	if (r < 0) {
 		warnx("crypt_set_data_device(%s)", data_devnode);
 		goto free_out;
+	}
+
+	struct stat st;
+	if (!stat(c->crypt.data.key, &st)) {
+		pthread_mutex_lock(&c->crypt.mutex);
+		r = crypt_activate_by_keyfile(cd, c->crypt.data.name,
+					      CRYPT_ANY_SLOT,
+					      c->crypt.data.key, st.st_size,
+					      c->crypt.flags);
+		pthread_mutex_unlock(&c->crypt.mutex);
+		if (r >= 0)
+			goto free_out;
 	}
 
 	while (passwd_tries > 0) {
@@ -1173,6 +1186,7 @@ static void usage(int rc)
 	" -c CRYPTDEVICE  run cryptsetup luksOpen when CRYPTDEVICE is found\n"
 	" -h              show this help\n"
 	" -H HEADERDEVICE use HEADERDEVICE as the LUKS header\n"
+	" -k CRYPTKEY     path to keyfile\n"
 	" -m CRYPTNAME    use CRYPTNAME name for crypto device mapping\n"
 	" -o OFFSET       cryptsetup payload offset\n"
 	" -d              enable debugging ouput\n"
@@ -1236,6 +1250,9 @@ int main(int argc, char *argv[])
 		break;
 	case 'h':
 		usage(0);
+		break;
+	case 'k':
+		conf.crypt.data.key = EARGF(usage(1));
 		break;
 	case 'm':
 		conf.crypt.data.name = EARGF(usage(1));

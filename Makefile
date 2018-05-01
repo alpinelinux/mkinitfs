@@ -16,6 +16,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/btrfs.modules \
 		features.d/cdrom.modules \
 		features.d/cramfs.modules \
+		features.d/cryptkey.files \
 		features.d/cryptsetup.files \
 		features.d/cryptsetup.modules \
 		features.d/ena.modules \
