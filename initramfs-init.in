@@ -274,9 +274,9 @@ setup_nbd() {
 set -- $(cat /proc/cmdline)
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
-	cryptdiscards debug_init dma init_args keep_apk_new modules ovl_dev pkgs quiet
-	root_size root usbdelay ip alpine_repo apkovl alpine_start splash blacklist
-	overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key"
+	cryptdiscards cryptkey debug_init dma init_args keep_apk_new modules ovl_dev
+	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
+	blacklist overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key"
 
 for opt; do
 	case "$opt" in
@@ -396,6 +396,11 @@ if [ -n "$KOPT_cryptroot" ]; then
 	fi
 	if [ -n "$KOPT_cryptoffset" ]; then
 		cryptopts="$cryptopts -o ${KOPT_cryptoffset}"
+	fi
+	if [ "$KOPT_cryptkey" = "yes" ]; then
+		cryptopts="$cryptopts -k /crypto_keyfile.bin"
+	elif [ -n "$KOPT_cryptkey" ]; then
+		cryptopts="$cryptopts -k ${KOPT_cryptkey}"
 	fi
 fi
 
