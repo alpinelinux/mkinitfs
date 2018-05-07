@@ -76,6 +76,13 @@ then
 	[ "$operation" = "header" ] && echo "> Formatting '$block' with header '$header' and passphrase '$passphrase'."
 	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q $block - 2>&1 | sed 's/^/\t/g'
 	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksFormat -q --header $header $block - 2>&1 | sed 's/^/\t/g'
+
+	echo "> Creating keyfile"
+	dd if=/dev/urandom of=keyfile count=1 bs=512 2>&1 | sed 's/^/\t/g'
+	echo "> Adding keyfile to device"
+	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksAddKey -q $block keyfile - 2>&1 | sed 's/^/\t/g'
+	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksAddKey -q --header $header $block keyfile - 2>&1 | sed 's/^/\t/g'
+
 	echo "> Opening the device '$block' as /dev/mapper/temp-test"
 	[ "$operation" != "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q $block temp-test - 2>&1 | sed 's/^/\t/g'
 	[ "$operation" = "header" ] && printf "%s" "$passphrase" | sudo cryptsetup luksOpen -q --header $header $block temp-test - 2>&1 | sed 's/^/\t/g'
@@ -91,6 +98,27 @@ then
 	sudo umount local-mount
 	echo "> Closing the device '/dev/mapper/temp-test'"
 	sudo cryptsetup luksClose temp-test
+
+	echo "> Testing nlplug-findfs on $block using keyfile"
+	[ "$operation" != "header" ] && { echo "$passphrase" | sudo ./nlplug-findfs -p /sbin/mdev ${flags} -c $block -k keyfile -m 'test-device' /dev/mapper/test-device || retcode=1; }
+	[ "$operation" = "header" ] && { echo "$passphrase" | sudo ./nlplug-findfs -p /sbin/mdev ${flags} -H $header -c $block -k keyfile -m 'test-device' /dev/mapper/test-device || retcode=1; }
+
+	if [ $retcode -eq 0 ]; then
+		echo "> Mounting the device"
+		sudo mount /dev/mapper/test-device local-mount
+		echo "> Getting proof"
+		check=$(cat local-mount/proof)
+		echo "Retrieved proof is: $check"
+		if [ "$check" != "$proof" ]; then
+			retcode=1
+		fi
+	fi
+	[ $retcode -eq 0 ] && echo "Operation succeeded, proofs match" || echo "Operation failed, proofs don't match"
+
+	echo "> Unmounting the fs"
+	mountpoint local-mount && sudo umount local-mount
+	echo "> Closing the device '/dev/mapper/test-device'"
+	[ -b /dev/mapper/test-device ] && sudo cryptsetup luksClose test-device
 
 	echo "> Testing nlplug-findfs on $block (passphrase was '$passphrase')"
 	[ "$operation" != "header" ] && { echo "$passphrase" | sudo ./nlplug-findfs -p /sbin/mdev ${flags} -c $block -m 'test-device' /dev/mapper/test-device || retcode=1; }
