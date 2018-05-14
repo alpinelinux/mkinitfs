@@ -48,7 +48,9 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/xfs.files \
 		features.d/xfs.modules \
 		features.d/zfs.files \
-		features.d/zfs.modules
+		features.d/zfs.modules \
+		features.d/qeth.modules \
+		features.d/dasd_mod.modules
 
 SCRIPTS		:= mkinitfs bootchartd initramfs-init
 IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
@@ -71,6 +73,9 @@ SED_REPLACE	:= -e 's:@VERSION@:$(FULL_VERSION):g' \
 		-e 's:@datadir@:$(datadir):g'
 
 DEFAULT_FEATURES ?= ata base cdrom ext2 ext4 keymap kms mmc raid scsi usb virtio
+ifeq ($(shell uname -m), s390x)
+DEFAULT_FEATURES += qeth dasd_mod
+endif
 
 
 all:	$(SBIN_FILES) $(SCRIPTS) $(CONF_FILES)
