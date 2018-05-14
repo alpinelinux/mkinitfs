@@ -70,12 +70,13 @@ SED_REPLACE	:= -e 's:@VERSION@:$(FULL_VERSION):g' \
 		-e 's:@sysconfdir@:$(sysconfdir):g' \
 		-e 's:@datadir@:$(datadir):g'
 
+DEFAULT_FEATURES ?= ata base cdrom ext2 ext4 keymap kms mmc raid scsi usb virtio
 
 
-all:	$(SBIN_FILES) $(SCRIPTS)
+all:	$(SBIN_FILES) $(SCRIPTS) $(CONF_FILES)
 
 clean:
-	rm -f $(SCRIPTS)
+	rm -f $(SCRIPTS) mkinitfs.conf
 
 help:
 	@echo mkinitfs $(VERSION)
@@ -116,3 +117,5 @@ install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
 		$(INSTALL) -D $$i $(DESTDIR)/usr/share/mkinitfs/$$i;\
 	done
 
+mkinitfs.conf:
+	echo 'features="$(DEFAULT_FEATURES)"' > $@
