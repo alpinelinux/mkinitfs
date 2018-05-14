@@ -269,7 +269,7 @@ set -- $(cat /proc/cmdline)
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards debug_init dma init_args keep_apk_new modules ovl_dev pkgs quiet
 	root_size root usbdelay ip alpine_repo apkovl alpine_start splash blacklist
-	overlaytmpfs rootfstype rootflags nbd resume"
+	overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd"
 
 for opt; do
 	case "$opt" in
@@ -344,6 +344,25 @@ mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
 mount -t devpts -o gid=5,mode=0620,noexec,nosuid devpts /dev/pts
 [ -d /dev/shm ] || mkdir /dev/shm
 mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
+
+if [ -n "$dasd" ]; then
+	for mod in dasd_mod dasd_eckd_mod dasd_fba_mod; do
+		modprobe $mod
+	done
+	for _dasd in $(echo "$dasd" | tr ',' ' ' ); do
+		echo 1 > /sys/bus/ccw/devices/"${_dasd%%:*}"/online
+	done
+fi
+
+if [ "${s390x_net%%,*}" = "qeth_l2" ]; then
+	for mod in qeth qeth_l2 qeth_l3; do
+		modprobe $mod
+	done
+	_channel="${s390x_net#*,}"
+	echo "$_channel" > /sys/bus/ccwgroup/drivers/qeth/group
+	echo 1 > /sys/bus/ccwgroup/drivers/qeth/"${_channel%%,*}"/layer2
+	echo 1 > /sys/bus/ccwgroup/drivers/qeth/"${_channel%%,*}"/online
+fi
 
 # load available drivers to get access to modloop media
 ebegin "Loading boot drivers"
