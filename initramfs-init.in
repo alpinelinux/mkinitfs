@@ -269,7 +269,7 @@ set -- $(cat /proc/cmdline)
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards debug_init dma init_args keep_apk_new modules ovl_dev pkgs quiet
 	root_size root usbdelay ip alpine_repo apkovl alpine_start splash blacklist
-	overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd"
+	overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd nameserver s390x_installer"
 
 for opt; do
 	case "$opt" in
@@ -362,6 +362,11 @@ if [ "${s390x_net%%,*}" = "qeth_l2" ]; then
 	echo "$_channel" > /sys/bus/ccwgroup/drivers/qeth/group
 	echo 1 > /sys/bus/ccwgroup/drivers/qeth/"${_channel%%,*}"/layer2
 	echo 1 > /sys/bus/ccwgroup/drivers/qeth/"${_channel%%,*}"/online
+fi
+
+if [ -n "$s390x_installer" ]; then
+	echo "nameserver $nameserver" > /etc/resolv.conf
+	ALPINE_REPO=${KOPT_alpine_repo:-http://dl-cdn.alpinelinux.org/alpine/latest-stable/main}
 fi
 
 # load available drivers to get access to modloop media
@@ -591,6 +596,7 @@ fi
 
 # hack so we get openrc
 pkgs="$pkgs alpine-base"
+[ -n "$s390x_installer" ] && pkgs="$pkgs openssh"
 
 # copy keys so apk finds them. apk looks for stuff relative --root
 mkdir -p $sysroot/etc/apk/keys/
@@ -629,7 +635,7 @@ else
 	apkflags="$apkflags --update-cache"
 fi
 
-if [ "$KOPT_quiet" = yes ]; then
+if [ "$KOPT_quiet" = yes ] || [ -n "$s390x_installer" ]; then
 	apkflags="$apkflags --quiet"
 fi
 
@@ -646,6 +652,19 @@ if [ -n "$ovlfiles" ]; then
 else
 	apk add --root $sysroot $repo_opt $apkflags $pkgs
 fi
+
+if [ -n "$s390x_installer" ]; then
+	rc_add sshd default
+	echo "PermitRootLogin yes" >> $sysroot/etc/ssh/sshd_config
+	# to make modloop happy
+	mkdir -p $sysroot/.modloop/modules/$(uname -r)
+	if [ -n "${s390x_installer#*,}" ]; then
+		echo "root:${s390x_installer#*,}" > $sysroot/.passwd
+		chroot $sysroot sh -c 'chpasswd < /.passwd'
+		rm $sysroot/.passwd
+	fi
+fi
+
 umount $sysroot/sys $sysroot/proc $sysroot/dev
 eend $?
 
