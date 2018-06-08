@@ -145,8 +145,11 @@ setup_inittab_console(){
 # uses the first "eth" interface.
 ip_choose_if() {
 	for x in /sys/class/net/eth*; do
-		[ -e "$x" ] && echo ${x##*/} && return
+		if grep -iq up $x/operstate;then
+			[ -e "$x" ] && echo ${x##*/} && return
+		fi
 	done
+	[ -e "$x" ] && echo ${x##*/} && return
 }
 
 # ip_set <device> <ip> <netmask> <gateway-ip>
