@@ -73,7 +73,7 @@ SED_REPLACE	:= -e 's:@VERSION@:$(FULL_VERSION):g' \
 		-e 's:@sysconfdir@:$(sysconfdir):g' \
 		-e 's:@datadir@:$(datadir):g'
 
-DEFAULT_FEATURES ?= ata base cdrom ext2 ext4 keymap kms mmc raid scsi usb virtio
+DEFAULT_FEATURES ?= ata base cdrom ext4 keymap kms mmc raid scsi usb virtio
 ifeq ($(shell uname -m), s390x)
 DEFAULT_FEATURES += qeth dasd_mod
 endif
