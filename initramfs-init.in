@@ -266,19 +266,6 @@ setup_nbd() {
 	[ "$n" != 0 ] || return 1
 }
 
-# possible cmdline options which could have secure urls.
-# this does not include apkovl as it need to be fetched inside of initramfs
-need_wget() {
-	local opt= ret=1
-	for opt in modloop ssh_key; do
-		eval "opt=\$KOPT_$opt"
-		case "$opt" in
-			https://*|ftps://*) ret=0;;
-		esac
-	done
-	return $ret
-}
-
 # read the kernel options. we need surve things like:
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat /proc/cmdline)
@@ -646,9 +633,6 @@ if [ -n "$KOPT_ssh_key" ]; then
 	pkgs="$pkgs openssh"
 	rc_add sshd default
 fi
-
-# add wget if using secure urls in cmdline
-need_wget && pkgs="$pkgs wget"
 
 apkflags="--initramfs-diskless-boot --progress"
 if [ -z "$ALPINE_REPO" ]; then
