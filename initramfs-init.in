@@ -286,7 +286,7 @@ set -- $(cat /proc/cmdline)
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards debug_init dma init_args keep_apk_new modules ovl_dev pkgs quiet
 	root_size root usbdelay ip alpine_repo apkovl alpine_start splash blacklist
-	overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key ssh_pass"
+	overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key"
 
 for opt; do
 	case "$opt" in
@@ -642,8 +642,9 @@ if [ "$KOPT_chart" = yes ]; then
 fi
 
 # add openssh
-if [ -n "$KOPT_ssh_key" ] || [ -n "$KOPT_ssh_pass" ]; then
+if [ -n "$KOPT_ssh_key" ]; then
 	pkgs="$pkgs openssh"
+	rc_add sshd default
 fi
 
 # add wget if using secure urls in cmdline
