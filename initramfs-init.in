@@ -142,7 +142,7 @@ setup_inittab_console(){
 }
 
 # determine the default interface to use if ip=dhcp is set
-# uses the first "eth" interface.
+# uses the first "eth" interface with operstate 'up'.
 ip_choose_if() {
 	for x in /sys/class/net/eth*; do
 		if grep -iq up $x/operstate;then
