@@ -269,6 +269,14 @@ setup_nbd() {
 	[ "$n" != 0 ] || return 1
 }
 
+rtc_exists() {
+	local rtc=
+	for rtc in /dev/rtc /dev/rtc[0-9]*; do
+		[ -e "$rtc" ] && break
+	done
+	[ -e "$rtc" ]
+}
+
 # read the kernel options. we need surve things like:
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat /proc/cmdline)
@@ -541,7 +549,6 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 	rc_add hwdrivers sysinit
 	rc_add modloop sysinit
 
-	rc_add hwclock boot
 	rc_add modules boot
 	rc_add sysctl boot
 	rc_add hostname boot
@@ -640,6 +647,13 @@ fi
 if [ -n "$KOPT_ssh_key" ]; then
 	pkgs="$pkgs openssh"
 	rc_add sshd default
+fi
+
+# use swclock if no RTC is found
+if rtc_exists; then
+	rc_add hwclock boot
+else
+	rc_add swclock boot
 fi
 
 apkflags="--initramfs-diskless-boot --progress"
