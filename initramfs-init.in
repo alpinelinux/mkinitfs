@@ -656,6 +656,13 @@ else
 	rc_add swclock boot
 fi
 
+# enable support for modloop verification
+if [ -f /var/cache/misc/*modloop*.SIGN.RSA.*.pub ]; then
+	mkdir -p "$sysroot"/var/cache/misc
+	cp /var/cache/misc/*modloop*.SIGN.RSA.*.pub "$sysroot"/var/cache/misc
+	pkgs="$pkgs libressl"
+fi
+
 apkflags="--initramfs-diskless-boot --progress"
 if [ -z "$ALPINE_REPO" ]; then
 	apkflags="$apkflags --no-network"

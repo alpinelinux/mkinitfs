@@ -54,6 +54,11 @@ initfs_base() {
 	# copy init
 	cd "$startdir"
 	install -m755 "$init" "$tmpdir"/init || return 1
+	# copy modloop signature
+	if [ -n "$modloop_sig" ]; then
+		install -Dm644 "$modloop_sig" \
+			"$tmpdir"/var/cache/misc/${modloop_sig##*/}
+	fi
 	for i in "$fstab" "$passwd" "$group"; do
 		install -Dm644 "$i" "$tmpdir"/etc/${i##*/} || return 1
 	done
@@ -181,6 +186,7 @@ options:
 	-o  set another outfile
 	-P  prepend features.d search path
 	-q  Quiet mode
+	-s  Include modloop signature
 	-t  use tempdir when creating initramfs image
 
 EOF
@@ -190,7 +196,7 @@ EOF
 # main
 features_dirs=${features_dir:-"${basedir%/:-}/${sysconfdir#/}/features.d"}
 
-while getopts "b:c:C:f:F:hi:kKLlno:P:qt:" opt; do
+while getopts "b:c:C:f:F:hi:kKLlno:P:qs:t:" opt; do
 	case "$opt" in
 		b) basedir="$OPTARG";;
 		c) config="$OPTARG";;
@@ -207,6 +213,7 @@ while getopts "b:c:C:f:F:hi:kKLlno:P:qt:" opt; do
 		o) outfile="$OPTARG";;
 		P) features_dirs="$OPTARG $features_dirs";;
 		q) quiet=1;;
+		s) modloop_sig="$OPTARG";;
 		t) tmpdir="$OPTARG";;
 		*) usage;;
 	esac
