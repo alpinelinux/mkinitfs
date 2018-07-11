@@ -6,6 +6,7 @@ SINGLEMODE=no
 sysroot=/sysroot
 splashfile=/.splash.ctrl
 repofile=/tmp/repositories
+archfile="$sysroot"/etc/apk/arch
 
 /bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
 	/media/cdrom /media/usb /tmp /run
@@ -137,6 +138,11 @@ setup_inittab_console(){
 		fi
 		if [ -e "$sysroot"/etc/securetty ] && ! grep -q -w "$tty" "$sysroot"/etc/securetty; then
 			echo "$tty" >> "$sysroot"/etc/securetty
+		fi
+		
+		#use the proper getty for login on ppc64le when netbooting 
+		if [ $(cat $archfile) = "ppc64le" ]; then
+			echo "console::respawn:/sbin/getty -L /dev/console 0 vt100" >> $sysroot/etc/inittab 
 		fi
 	done
 }
@@ -624,7 +630,7 @@ find_boot_repositories > $repofile
 [ "$ALPINE_REPO" ] && configure_ip
 
 # silently fix apk arch in case the apkovl does not match
-if [ -r "$sysroot"/etc/apk/arch ]; then
+if [ -r $archfile ]; then
 	apk_arch="$(apk --print-arch)"
 	if [ -n "$apk_arch" ]; then
 		echo "$apk_arch" > "$sysroot"/etc/apk/arch
