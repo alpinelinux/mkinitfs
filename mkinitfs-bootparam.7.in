@@ -1,0 +1,131 @@
+.TH MKINITFS-BOOTPARAMS "7" "July 2018" "mkinitfs @VERSION@" "Early startup"
+.SH NAME
+alpine-bootparams \- control the startup behavior using the kernel command line
+.SH DESCRIPTION
+.\" Add any additional description here
+.PP
+In early boot, the preferred way to supply configuration data to the running
+system is via kernel options. The kernel options are specified in the bootloader
+configuration and are supplied to the kernel and early userspace in early boot.
+The mechanism and options that are interpreted by the kernel itself are
+documented in \fIbootparam(7)\fR.
+.PP
+The options documented here are interpreted by the initramfs-init script that is
+part of the initramfs, see \fImkinitfs(1)\fR to learn how to customize it.
+.TP
+\fBblacklist=\fIMODULE\fR{,\fIMODULE\fR}
+This comma-separated list names kernel modules that modprobe will reject to load.
+.TP
+\fBchart\fR
+Enables bootchartd for measuring system startup speed.
+.TP
+\fBcryptdiscards\fR
+Enable the discard feature for encrypted Solid State Disks. This might have
+security implications.
+.TP
+\fBcryptdm=\fINAME\fR
+After the block device has been decrypted, make it available as
+/dev/mapper/\fINAME\fR.
+.TP
+\fBcryptheader=\fIDEVICE\fR
+When the LUKS headers and encrypted data are on different devices, this option
+specifies the device with the LUKS headers.
+.TP
+\fBcryptkey=\fIKEYFILE\fR
+Attempt to decrypt an encypted partition using an keyfile.
+.TP
+\fBcryptoffset=\fISECTORS\fR
+Indicate that the encrypted data begins the given number of sectors after the
+start of the block device.
+.TP
+\fBcryptroot=\fIDEVICE\fR
+Attempt to decrypt \fIDEVICE\fR.
+.TP
+\fBdasd\fR
+Enable DASD devices on S/390x architectures.
+.TP
+\fBdebug_init\fR
+Print debug information during boot.
+.TP
+\fBinit_args=\fIARGUMENTS\fR
+Additional command like arguments for \fI/sbin/init\fR.
+.TP
+\fBip=\fICLIENT-IP\fR::\fIGATEWAY-IP\fR:\fINETMASK\fR::\fIINTERFACE\fR
+Specify the network configuration as a colon-separated list of variable length.
+The 3rd and the 5th list item is ignored. The format is compatible with the
+SYSAPPEND option of syslinux. Use \fBip=dhcp\fR for automatic configuration via
+DHCP.
+.TP
+\fBmodules=\fIMODULE\fR{,\fIMODULE\fR}
+Comma-sparated list of kernel modules to load explicitly.
+.TP
+\fBnodma\fR
+Disable DMA for ATA devices.
+.TP
+\fBoverlaytmpfs\fR
+When booting from an read-only partition, you can specify this flag to have
+your changes written to an in-memory overlayfs.
+.TP
+\fBquiet\fR
+Generate less output.
+.TP
+\fBresume=\fIDEVICE\fR
+Swap partition to resume from.
+.TP
+\fBroot=\fR(\fIDEVICE\fR | nfs:\fIIP-ADDRESS\fR:\fIPATH\fR)
+Device or NFS url for the root partition.
+.TP
+\fBrootflags=\fIOPTIONS\fR
+Mount options for the device specified with \fBroot=\fR.
+.TP
+\fBrootfstype=\fIFS_TYPE\fR
+File system type for the device specified with \fBroot=\fR.
+Allowed values are the same like the \fB\-t\fR option for \fImount(1)\fR.
+.TP
+\fBs390x_net=qeth_l2,\fIBUS-ID\fR{,\fIBUS-ID\fR}
+Configure network devices for the S/390x architecture.
+.TP
+\fBsingle\fR
+Launch root shell before switching to the root partition.
+.PP
+If no \fBroot=\fR parameter is given, the initramfs will build an live system
+in memory from scratch. This is also called diskless mode.
+.PP
+When booting in diskless mode, the following options are also available:
+.TP
+\fBalpine_repo=\fR(\fIURL\fR | \fIPATH\fR)
+If set, \fI/etc/apk/repositories\fR will be filled with this. May be an URL.
+.TP
+\fBapkovl=\fR(\fIURL\fR | [\fIDEVICE\fR[:\fIFS_TYPE\fR]:]\fIPATH\fR)\fR
+A HTTP, HTTPS or FTP URL to an apkovl.tar.gz file which will be retrieved and
+applied. Can also be an filesystem path, optionally prepended with the device
+name without the /dev/ prefix.
+.TP
+\fBnokeep_apk_new\fR
+Setup a fresh system, ignore any \fBapkovl\fR.
+.TP
+\fBpkgs=\fIPACKAGE\fR{,\fIPACKAGE\fR}\fR
+Comma-separated list of packages to be installed.
+.TP
+\fBssh_key=\fR(\fIURL\fR | \fISSH_KEY\fR)
+This setting installs openssh and places the public key given as value in
+\fI/root/.ssh/authorized_keys\fR.
+If the value is an HTTP or FTP url, its fetches the key(s) from there.
+.TP
+\fBsplash\fR
+Enable splash screen
+.TP
+\fBusbdelay=\fINUMBER\fR
+Wait \fINUMBER\fR seconds for USB devices to show up before searching for boot
+media.
+.SH FILES
+.TP
+\fI@datadir@/initramfs-init\fR
+Default script that will be run in the initramfs.
+.SH AUTHOR
+.PP
+Written by Natanael Copa <ncopa@alpinelinux.org>, Timo Teräs <timo.teras@iki.fi> and others.
+.SH "REPORTING BUGS"
+Alpine Linux Bugtracker: <https://bugs.alpinelinux.org/projects/alpine/issues>
+.SH "SEE ALSO"
+nlplug-findfs(1), mkinitfs(1), bootparam(7)

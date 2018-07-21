@@ -4,6 +4,7 @@ VERSION		:= 3.3.0
 sysconfdir	?= /etc/mkinitfs
 datarootdir	?= /usr/share
 datadir		?= $(datarootdir)/mkinitfs
+mandir		?= $(datarootdir)/man
 
 SBIN_FILES	:= mkinitfs bootchartd nlplug-findfs
 SHARE_FILES	:= initramfs-init fstab passwd group
@@ -52,9 +53,10 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/zfs.modules \
 		features.d/qeth.modules \
 		features.d/dasd_mod.modules
+MAN_FILES       := mkinitfs.1 mkinitfs-bootparam.7 nlplug-findfs.1
 
 SCRIPTS		:= mkinitfs bootchartd initramfs-init
-IN_FILES	:= $(addsuffix .in,$(SCRIPTS))
+IN_FILES	:= $(addsuffix .in,$(SCRIPTS) $(MAN_FILES))
 
 GIT_REV := $(shell test -d .git && git describe || echo exported)
 ifneq ($(GIT_REV), exported)
@@ -79,10 +81,10 @@ DEFAULT_FEATURES += qeth dasd_mod
 endif
 
 
-all:	$(SBIN_FILES) $(SCRIPTS) $(CONF_FILES)
+all:	$(SBIN_FILES) $(SCRIPTS) $(CONF_FILES) $(MAN_FILES)
 
 clean:
-	rm -f $(SCRIPTS) mkinitfs.conf
+	rm -f $(SCRIPTS) $(MAN_FILES) mkinitfs.conf
 
 help:
 	@echo mkinitfs $(VERSION)
@@ -121,6 +123,9 @@ install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
 	done
 	for i in $(SHARE_FILES); do \
 		$(INSTALL) -D $$i $(DESTDIR)/usr/share/mkinitfs/$$i;\
+	done
+	for i in $(MAN_FILES); do \
+		$(INSTALL) -D $$i $(DESTDIR)$(mandir)/man$${i##*.}/$$i;\
 	done
 
 mkinitfs.conf:
