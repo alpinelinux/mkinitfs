@@ -1,0 +1,64 @@
+.TH NLPLUG-FINDFS "1" "July 2018" "mkinitfs @VERSION@" "Early startup"
+.SH NAME
+nlplug-findfs - Search for blockdevices to boot
+.SH SYNOPSIS
+.PP
+nlplug-findfs \fIOPTIONS\fR [\fISEARCHDEVICE\fR]
+.SH DESCRIPTION
+nlplug-findfs is part of the initramfs and is tasked to find the (possibly
+encrypted) boot partition and installer media.
+.TP
+\fB\-a \fIOUTFILE\fR
+When apk overlays are found during the search, a list of their paths will be
+stored in \fIOUTFILE\fR.
+.TP
+\fB\-b \fIOUTFILE\fR
+When boot media are found, a list of them is stored in \fIOUTFILE\fR.
+Boot media are identified by the existence of an .boot_repository file.
+.TP
+\fB\-c \fICRYPTDEVICE\fR
+Specifies an block device for decryption.
+.TP
+\fB\-h\fR
+Show usage information.
+.TP
+\fB\-H \fIHEADERDEVICE\fR
+When using an encrypted device with LUKS headers on an separate block device,
+that block device must be specified using this option.
+.TP
+\fB\-k \fIKEYFILE\fR
+Attempt to decrypt the block device given with \fB\-c\fR using a keyfile.
+.TP
+\fB\-m \fINAME\fR
+When the decryption of the block device is successful, it will appear as
+/dev/mapper/\fINAME\fR.
+.TP
+\fB\-n\fI
+Do not return non-zero if \fISEARCHDEVICE\fR is not found.
+.TP
+\fB\-D\fR
+Mount the encrypted devices with the discard (TRIM) option. Dont enable this if
+you dont know what its doing.
+.TP
+\fB\-d\fR
+Enable debugging output.
+.TP
+\fB\-f \fISUBSYSTEM\fR
+Ignore devices belonging to the given subsystem.
+.TP
+\fB\-o \fIOFFSET\fR
+When mounting an encrypted device, this specifies the payload offset for
+cryptsetup.
+.TP
+\fB\-p \fIPROGRAM\fR
+Call this program for uevents which have DEVNAME set.
+.TP
+\fB\-t \fITIMEOUT\fR
+Timeout after \fITIMEOUT\fR milliseconds without uevents.
+.SH AUTHOR
+.PP
+Written by Natanael Copa <ncopa@alpinelinux.org>, Timo Teräs <timo.teras@iki.fi> and others.
+.SH "REPORTING BUGS"
+Alpine Linux Bugtracker: <https://bugs.alpinelinux.org/projects/alpine/issues>
+.SH "SEE ALSO"
+mkinitfs-bootparam(7)

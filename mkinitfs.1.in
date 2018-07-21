@@ -1,0 +1,80 @@
+.TH MKINITFS "1" "July 2018" "mkinitfs @VERSION@" "Early startup"
+.SH NAME
+mkinitfs - Generate an initramfs
+.SH SYNOPSIS
+.PP
+mkinitfs [\fIOPTIONS\fR] [\fIKERNELVERSION\fR]
+.SH DESCRIPTION
+\fBmkinitfs\fR collects files from the root file system and creates a
+compressed initramfs from it.
+.TP
+\fB\-b\fR \fIBASEDIR\fR
+Dont use files from the root file system, use specified path instead.
+.TP
+\fB\-c\fR \fICONFIGFILE\fR
+Use configfile instead of \fI@sysconfdir@/mkinitfs.conf\fR.
+.TP
+\fB\-f\fR \fIFSTAB\fR
+Use fstab instead of \fI@datadir@/fstab\fR.
+.TP
+\fB\-F\fR \fIFEATURES\fR
+Use specified features.
+.TP
+\fB\-h\fR
+Print this help.
+.TP
+\fB\-i \fIINITFILE\fR
+Use initfile as init instead of \fI@datadir@/initramfs-init\fR.
+.TP
+\fB\-k\fR
+Do not clean up temporary files.
+.TP
+\fB\-K\fR
+Also copy also host apk keys to initramfs.
+.TP
+\fB\-l\fR
+Do a dry run and only list files that would have been used.
+.TP
+\fB\-L\fR
+List all available features.
+.TP
+\fB\-n\fR
+Don't include kernel modules or firmware into the initramfs.
+.TP
+\fB\-o \fIOUTFILE\fR
+Set another outfile.
+.TP
+\fB\-P \fIFEATURESDIR\fR
+Prepend features.d search path. Use this if you want to define your own features
+outside of the system-wide directories.
+.TP
+\fB\-q\fR
+Quiet mode.
+.TP
+\fB\-t \fITMPDIR\fR
+Use tempdir when creating initramfs image.
+.SH FILES
+.TP
+\fI@sysconfdir@/mkinitfs.conf\fR
+Default configuration file. It contains the list of default features in the
+format of \fBfeatures="..."\fR.
+.TP
+\fI@sysconfdir@/features.d/FEATURE.modules\fR
+Contains a list of kernel modules. Using the feature will cause the given
+kernel modules to be included in the initramfs. The modules are given by their
+filesystem paths, relative to \fI/lib/modules/KERNELVERSION/\fR.
+.TP
+\fI@sysconfdir@/features.d/FEATURE.files\fR
+Contains an list of absolute file names which will be included into the
+generated initramfs if the feature is enabled.
+.TP
+\fI@datadir@/initramfs-init\fR
+Shell script which will be placed as \fI/init\fR in the initramfs. This
+functions as the first executed program in early userspace.
+.SH AUTHOR
+.PP
+Written by Natanael Copa <ncopa@alpinelinux.org>, Timo Teräs <timo.teras@iki.fi> and others.
+.SH "REPORTING BUGS"
+Alpine Linux Bugtracker: <https://bugs.alpinelinux.org/projects/alpine/issues>
+.SH "SEE ALSO"
+mkinitfs-bootparam(7)
