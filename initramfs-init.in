@@ -412,8 +412,11 @@ if [ -n "$KOPT_cryptroot" ]; then
 	fi
 fi
 
-if [ -n "$KOPT_nbd" ]; then
+if [ -n "$KOPT_ip" ]; then
 	configure_ip
+fi
+
+if [ -n "$KOPT_nbd" ]; then
 	setup_nbd || echo "Failed to setup nbd device."
 fi
 
