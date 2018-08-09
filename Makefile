@@ -1,6 +1,7 @@
 
 VERSION		:= 3.3.0
 
+sbindir		?= /sbin
 sysconfdir	?= /etc/mkinitfs
 datarootdir	?= /usr/share
 datadir		?= $(datarootdir)/mkinitfs
@@ -116,13 +117,13 @@ nlplug-findfs: nlplug-findfs.o
 
 install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
 	for i in $(SBIN_FILES); do \
-		$(INSTALL) -Dm755 $$i $(DESTDIR)/sbin/$$i;\
+		$(INSTALL) -Dm755 $$i $(DESTDIR)/$(sbindir)/$$i;\
 	done
 	for i in $(CONF_FILES); do \
-		$(INSTALL) -Dm644 $$i $(DESTDIR)/etc/mkinitfs/$$i;\
+		$(INSTALL) -Dm644 $$i $(DESTDIR)/$(sysconfdir)/$$i;\
 	done
 	for i in $(SHARE_FILES); do \
-		$(INSTALL) -D $$i $(DESTDIR)/usr/share/mkinitfs/$$i;\
+		$(INSTALL) -D $$i $(DESTDIR)/$(datadir)/$$i;\
 	done
 	for i in $(MAN_FILES); do \
 		$(INSTALL) -D $$i $(DESTDIR)$(mandir)/man$${i##*.}/$$i;\
