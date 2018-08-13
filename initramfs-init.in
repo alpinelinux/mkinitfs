@@ -312,7 +312,7 @@ mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
 set -- $(cat /proc/cmdline)
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
-	cryptdiscards cryptkey debug_init dma init_args keep_apk_new modules ovl_dev
+	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key
 	BOOTIF"
@@ -338,6 +338,9 @@ done
 
 # enable debugging if requested
 [ -n "$KOPT_debug_init" ] && set -x
+
+# set default values
+: ${KOPT_init:=/sbin/init}
 
 # pick first keymap if found
 for map in /etc/keymap/*; do
@@ -486,7 +489,7 @@ if [ -n "$KOPT_root" ]; then
 		fi
 	done
 	sync
-	exec /bin/busybox switch_root $sysroot $chart_init /sbin/init $KOPT_init_args
+	exec /bin/busybox switch_root $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 	echo "initramfs emergency recovery shell launched"
 	exec /bin/busybox sh
 fi
@@ -749,9 +752,9 @@ if [ "$KOPT_chart" = yes ]; then
 	chart_init="/sbin/bootchartd start-rootfs"
 fi
 
-if [ ! -x $sysroot/sbin/init ]; then
+if [ ! -x "${sysroot}${KOPT_init}" ]; then
 	[ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
-	echo "/sbin/init not found in new root. Launching emergency recovery shell"
+	echo "$KOPT_init not found in new root. Launching emergency recovery shell"
 	echo "Type exit to continue boot."
 	/bin/busybox sh
 fi
@@ -767,7 +770,7 @@ sync
 
 [ "$KOPT_splash" = "init" ] && echo exit > $sysroot/$splashfile
 echo ""
-exec /bin/busybox switch_root $sysroot $chart_init /sbin/init $KOPT_init_args
+exec /bin/busybox switch_root $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 
 [ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
 echo "initramfs emergency recovery shell launched"
