@@ -430,12 +430,13 @@ fi
 # zpool reports /dev/zfs missing if it can't read /etc/mtab
 ln -s /proc/mounts /etc/mtab
 
+if [ "$SINGLEMODE" = "yes" ]; then
+        echo "Entering single mode. Type 'exit' to continue booting."
+        sh
+fi
+
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
-	if [ "$SINGLEMODE" = "yes" ]; then
-		echo "Entering single mode. Type 'exit' to continue booting."
-		sh
-	fi
 
 	ebegin "Mounting root"
 	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
@@ -497,12 +498,6 @@ eend $?
 # Setup network interfaces
 if $do_networking; then
 	configure_ip
-fi
-
-# early console?
-if [ "$SINGLEMODE" = "yes" ]; then
-	echo "Entering single mode. Type 'exit' to continue booting."
-	sh
 fi
 
 # mount tmpfs sysroot
