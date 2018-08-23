@@ -257,6 +257,44 @@ rtc_exists() {
 	[ -e "$rtc" ]
 }
 
+splash_start() {
+	if [ "$KOPT_splash" != "no" ]; then
+		echo "IMAGE_ALIGN=CM" > /tmp/fbsplash.cfg
+		for fbdev in /dev/fb[0-9]; do
+			[ -e "$fbdev" ] || break
+			num="${fbdev#/dev/fb}"
+			for img in /media/*/fbsplash$num.ppm; do
+				[ -e "$img" ] || break
+				config="${img%.*}.cfg"
+				[ -e "$config" ] || config=/tmp/fbsplash.cfg
+				fbsplash -s "$img" -d "$fbdev" -i "$config"
+				break
+			done
+		done
+		for fbsplash in /media/*/fbsplash.ppm; do
+			[ -e "$fbsplash" ] && break
+		done
+	fi
+
+	if [ -n "$fbsplash" ] && [ -e "$fbsplash" ]; then
+		ebegin "Starting bootsplash"
+		mkfifo $sysroot/$splashfile
+		config="${fbsplash%.*}.cfg"
+		[ -e "$config" ] || config=/tmp/fbsplash.cfg
+		setsid fbsplash -T 16 -s "$fbsplash" -i $config -f $sysroot/$splashfile &
+		eend 0
+	else
+		KOPT_splash="no"
+	fi
+}
+
+splash_stop() {
+	if [ "$KOPT_splash" != "no" ]; then
+		echo exit > $sysroot/$splashfil
+	fi
+	KOPT_splash="no"
+}
+
 # This is used to predict if network access will be necessary
 is_url() {
 	case "$1" in
@@ -568,34 +606,7 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 	rm -f "$sysroot/etc/.default_boot_services"
 fi
 
-if [ "$KOPT_splash" != "no" ]; then
-	echo "IMAGE_ALIGN=CM" > /tmp/fbsplash.cfg
-	for fbdev in /dev/fb[0-9]; do
-		[ -e "$fbdev" ] || break
-		num="${fbdev#/dev/fb}"
-		for img in /media/*/fbsplash$num.ppm; do
-			[ -e "$img" ] || break
-			config="${img%.*}.cfg"
-			[ -e "$config" ] || config=/tmp/fbsplash.cfg
-			fbsplash -s "$img" -d "$fbdev" -i "$config"
-			break
-		done
-	done
-	for fbsplash in /media/*/fbsplash.ppm; do
-		[ -e "$fbsplash" ] && break
-	done
-fi
-
-if [ -n "$fbsplash" ] && [ -e "$fbsplash" ]; then
-	ebegin "Starting bootsplash"
-	mkfifo $sysroot/$splashfile
-	config="${fbsplash%.*}.cfg"
-	[ -e "$config" ] || config=/tmp/fbsplash.cfg
-	setsid fbsplash -T 16 -s "$fbsplash" -i $config -f $sysroot/$splashfile &
-	eend 0
-else
-	KOPT_splash="no"
-fi
+splash_start
 
 if [ -f $sysroot/etc/fstab ]; then
 	has_fstab=1
@@ -734,7 +745,7 @@ if [ "$KOPT_chart" = yes ]; then
 fi
 
 if [ ! -x $sysroot/sbin/init ]; then
-	[ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
+	splash_stop
 	echo "/sbin/init not found in new root. Launching emergency recovery shell"
 	echo "Type exit to continue boot."
 	/bin/busybox sh
@@ -749,11 +760,11 @@ cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
 done
 sync
 
-[ "$KOPT_splash" = "init" ] && echo exit > $sysroot/$splashfile
+[ "$KOPT_splash" = "init" ] && splash_stop
 echo ""
 exec /bin/busybox switch_root $sysroot $chart_init /sbin/init $KOPT_init_args
 
-[ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
+splash_stop
 echo "initramfs emergency recovery shell launched"
 exec /bin/busybox sh
 reboot
