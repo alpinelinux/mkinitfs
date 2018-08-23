@@ -297,7 +297,7 @@ mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
 ln -s /proc/mounts /etc/mtab
 
 
-# Target: read the kernel options. we need surve things like:
+# Next target: read the kernel options. we need surve things like:
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat /proc/cmdline)
 
@@ -323,6 +323,8 @@ for opt; do
 	done
 done
 
+
+# Next target: apply intermediate kernel options
 [ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
 
 # instruct shell to print all executed commands to stderror
@@ -345,18 +347,8 @@ if [ "$KOPT_chart" = yes ]; then
 	eend 0
 fi
 
-# dma can be problematic
-if [ "$KOPT_dma" = no ]; then
-	modprobe libata dma=0
-fi
-
 # hide kernel messages
 [ "$KOPT_quiet" = yes ] && dmesg -n 1
-
-# optional blacklist
-for i in ${KOPT_blacklist//,/ }; do
-	echo "blacklist $i" >> /etc/modprobe.d/boot-opt-blacklist.conf
-done
 
 # determine if we are going to need networking
 if [ -n "$KOPT_ip" ] || [ -n "$KOPT_nbd" ] || \
@@ -365,6 +357,19 @@ if [ -n "$KOPT_ip" ] || [ -n "$KOPT_nbd" ] || \
 	do_networking=true
 else
 	do_networking=false
+fi
+
+
+# Next target: Load modules and setup drivers
+ebegin "Loading boot drivers"
+
+for i in ${KOPT_blacklist//,/ }; do
+	echo "blacklist $i" >> /etc/modprobe.d/boot-opt-blacklist.conf
+done
+
+# dma can be problematic
+if [ "$KOPT_dma" = no ]; then
+	modprobe libata dma=0
 fi
 
 if [ -n "$KOPT_dasd" ]; then
@@ -387,8 +392,6 @@ if [ "${KOPT_s390x_net%%,*}" = "qeth_l2" ]; then
 fi
 
 # load available drivers to get access to modloop media
-ebegin "Loading boot drivers"
-
 modprobe -a $(echo "$KOPT_modules $KOPT_rootfstype" | tr ',' ' ' ) loop squashfs 2> /dev/null
 if [ -f /etc/modules ] ; then
 	sed 's/\#.*//g' < /etc/modules |
@@ -396,6 +399,7 @@ if [ -f /etc/modules ] ; then
 		modprobe -q $module $args
 	done
 fi
+
 eend 0
 
 if [ -n "$KOPT_cryptroot" ]; then
