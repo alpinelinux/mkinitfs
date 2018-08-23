@@ -402,6 +402,21 @@ fi
 
 eend 0
 
+if [ -n "$KOPT_nbd" ]; then
+	# TODO: Might fail because nlplug-findfs hasn't plugged eth0 yet
+	configure_ip
+	setup_nbd || echo "Failed to setup nbd device."
+fi
+
+if [ "$SINGLEMODE" = "yes" ]; then
+	echo "Entering single mode. Type 'exit' to continue booting."
+	sh
+fi
+
+
+# Next target: use nlplug magic to mount potential boot media and find the rootdev
+ebegin "Searching for boot devices"
+
 if [ -n "$KOPT_cryptroot" ]; then
 	cryptopts="-c ${KOPT_cryptroot}"
 	if [ "$KOPT_cryptdiscards" = "yes" ]; then
@@ -423,23 +438,22 @@ if [ -n "$KOPT_cryptroot" ]; then
 	fi
 fi
 
-if [ -n "$KOPT_nbd" ]; then
-	# TODO: Might fail because nlplug-findfs hasn't plugged eth0 yet
-	configure_ip
-	setup_nbd || echo "Failed to setup nbd device."
+if $do_networking; then
+	# Dont fail when no repo was detected
+	repoopts="-n"
+else
+	# Expect to find a repo on boot media
+	repoopts="-b $repofile"
 fi
 
-if [ "$SINGLEMODE" = "yes" ]; then
-        echo "Entering single mode. Type 'exit' to continue booting."
-        sh
-fi
+nlplug-findfs $cryptopts -p /sbin/mdev \
+	${KOPT_debug_init:+-d} \
+	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
+	${KOPT_root:- $repoopts -a /tmp/apkovls}
+eend $?
 
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
-
-	ebegin "Mounting root"
-	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
-		$KOPT_root
 
 	if echo "$KOPT_modules $KOPT_rootfstype" | grep -qw btrfs; then
 		/sbin/btrfs device scan >/dev/null || \
@@ -468,7 +482,6 @@ if [ -n "$KOPT_root" ]; then
 			$KOPT_root $sysroot
 	fi
 
-	eend $?
 	cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
 		if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
 			mkdir -p $sysroot/$DIR
@@ -480,19 +493,6 @@ if [ -n "$KOPT_root" ]; then
 	echo "initramfs emergency recovery shell launched"
 	exec /bin/busybox sh
 fi
-
-if $do_networking; then
-	repoopts="-n"
-else
-	repoopts="-b $repofile"
-fi
-
-# locate boot media and mount it
-ebegin "Mounting boot media"
-nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
-	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
-	$repoopts -a /tmp/apkovls
-eend $?
 
 # Setup network interfaces
 if $do_networking; then
