@@ -226,8 +226,8 @@ relocate_mount() {
 
 # find the dirs under ALPINE_MNT that are boot repositories
 find_boot_repositories() {
-	if [ -n "$ALPINE_REPO" ]; then
-		echo "$ALPINE_REPO"
+	if [ -n "$KOPT_alpine_repo" ] && [ "$KOPT_alpine_repo" != "auto" ]; then
+		echo "$KOPT_alpine_repo"
 	else
 		find /media/* -name .boot_repository -type f -maxdepth 3 \
 			| sed 's:/.boot_repository$::'
@@ -325,7 +325,7 @@ done
 
 [ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
 
-# enable debugging if requested
+# instruct shell to print all executed commands to stderror
 [ -n "$KOPT_debug_init" ] && set -x
 
 # pick first keymap if found
@@ -350,12 +350,6 @@ if [ "$KOPT_dma" = no ]; then
 	modprobe libata dma=0
 fi
 
-# The following values are supported:
-#   alpine_repo=auto         -- default, search for .boot_repository
-#   alpine_repo=http://...   -- network repository
-ALPINE_REPO=${KOPT_alpine_repo}
-[ "$ALPINE_REPO" = "auto" ] && ALPINE_REPO=
-
 # hide kernel messages
 [ "$KOPT_quiet" = yes ] && dmesg -n 1
 
@@ -366,7 +360,7 @@ done
 
 # determine if we are going to need networking
 if [ -n "$KOPT_ip" ] || [ -n "$KOPT_nbd" ] || \
-	is_url "$KOPT_apkovl" || is_url "$ALPINE_REPO"; then
+	is_url "$KOPT_apkovl" || is_url "$KOPT_alpine_repo"; then
 
 	do_networking=true
 else

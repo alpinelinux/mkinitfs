@@ -94,7 +94,10 @@ in memory from scratch. This is also called diskless mode.
 When booting in diskless mode, the following options are also available:
 .TP
 \fBalpine_repo=\fR(\fIURL\fR | \fIPATH\fR)
-If set, \fI/etc/apk/repositories\fR will be filled with this. May be an URL.
+When booting into diskless mode, this parameter defines the repository where the
+contents of the live system are fetched from. If unset or set to \fBauto\fR,
+local file systems are scanned for repositories. This parameter is reflected by
+the \fI/etc/apk/repositories\fR file in the diskless system.
 .TP
 \fBapkovl=\fR(\fIURL\fR | [\fIDEVICE\fR[:\fIFS_TYPE\fR]:]\fIPATH\fR)\fR
 A HTTP, HTTPS or FTP URL to an apkovl.tar.gz file which will be retrieved and
