@@ -59,9 +59,6 @@ DHCP.
 \fBmodules=\fIMODULE\fR{,\fIMODULE\fR}
 Comma-sparated list of kernel modules to load explicitly.
 .TP
-\fBnodma\fR
-Disable DMA for ATA devices.
-.TP
 \fBoverlaytmpfs\fR
 When booting from an read-only partition, you can specify this flag to have
 your changes written to an in-memory overlayfs.

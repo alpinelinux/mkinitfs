@@ -329,11 +329,6 @@ if [ "$KOPT_chart" = yes ]; then
 	eend 0
 fi
 
-# dma can be problematic
-if [ "$KOPT_dma" = no ]; then
-	modprobe libata dma=0
-fi
-
 # The following values are supported:
 #   alpine_repo=auto         -- default, search for .boot_repository
 #   alpine_repo=http://...   -- network repository
