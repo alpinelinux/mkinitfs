@@ -267,6 +267,7 @@ is_url() {
 	esac
 }
 
+# Target: setup the execution environment
 /bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
 	/media/cdrom /media/usb /tmp /run
 
@@ -292,8 +293,11 @@ mount -t devpts -o gid=5,mode=0620,noexec,nosuid devpts /dev/pts
 [ -d /dev/shm ] || mkdir /dev/shm
 mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
 
+# Workaround: zpool reports /dev/zfs missing if it can't read /etc/mtab
+ln -s /proc/mounts /etc/mtab
 
-# read the kernel options. we need surve things like:
+
+# Target: read the kernel options. we need surve things like:
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat /proc/cmdline)
 
@@ -426,9 +430,6 @@ if [ -n "$KOPT_nbd" ]; then
 	configure_ip
 	setup_nbd || echo "Failed to setup nbd device."
 fi
-
-# zpool reports /dev/zfs missing if it can't read /etc/mtab
-ln -s /proc/mounts /etc/mtab
 
 if [ "$SINGLEMODE" = "yes" ]; then
         echo "Entering single mode. Type 'exit' to continue booting."
