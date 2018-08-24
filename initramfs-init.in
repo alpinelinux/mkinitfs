@@ -7,20 +7,6 @@ sysroot=/sysroot
 splashfile=/.splash.ctrl
 repofile=/tmp/repositories
 
-/bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
-	/media/cdrom /media/usb /tmp /run
-/bin/busybox --install -s
-
-# basic environment
-export PATH=/usr/bin:/bin:/usr/sbin:/sbin
-
-# needed devs
-[ -c /dev/null ] || mknod -m 666 /dev/null c 1 3
-
-# basic mounts
-mount -t proc -o noexec,nosuid,nodev proc /proc
-mount -t sysfs -o noexec,nosuid,nodev sysfs /sys
-
 # some helpers
 ebegin() {
 	last_emsg="$*"
@@ -240,8 +226,8 @@ relocate_mount() {
 
 # find the dirs under ALPINE_MNT that are boot repositories
 find_boot_repositories() {
-	if [ -n "$ALPINE_REPO" ]; then
-		echo "$ALPINE_REPO"
+	if [ -n "$KOPT_alpine_repo" ] && [ "$KOPT_alpine_repo" != "auto" ]; then
+		echo "$KOPT_alpine_repo"
 	else
 		find /media/* -name .boot_repository -type f -maxdepth 3 \
 			| sed 's:/.boot_repository$::'
@@ -271,6 +257,44 @@ rtc_exists() {
 	[ -e "$rtc" ]
 }
 
+splash_start() {
+	if [ "$KOPT_splash" != "no" ]; then
+		echo "IMAGE_ALIGN=CM" > /tmp/fbsplash.cfg
+		for fbdev in /dev/fb[0-9]; do
+			[ -e "$fbdev" ] || break
+			num="${fbdev#/dev/fb}"
+			for img in /media/*/fbsplash$num.ppm; do
+				[ -e "$img" ] || break
+				config="${img%.*}.cfg"
+				[ -e "$config" ] || config=/tmp/fbsplash.cfg
+				fbsplash -s "$img" -d "$fbdev" -i "$config"
+				break
+			done
+		done
+		for fbsplash in /media/*/fbsplash.ppm; do
+			[ -e "$fbsplash" ] && break
+		done
+	fi
+
+	if [ -n "$fbsplash" ] && [ -e "$fbsplash" ]; then
+		ebegin "Starting bootsplash"
+		mkfifo $sysroot/$splashfile
+		config="${fbsplash%.*}.cfg"
+		[ -e "$config" ] || config=/tmp/fbsplash.cfg
+		setsid fbsplash -T 16 -s "$fbsplash" -i $config -f $sysroot/$splashfile &
+		eend 0
+	else
+		KOPT_splash="no"
+	fi
+}
+
+splash_stop() {
+	if [ "$KOPT_splash" != "no" ]; then
+		echo exit > $sysroot/$splashfil
+	fi
+	KOPT_splash="no"
+}
+
 # This is used to predict if network access will be necessary
 is_url() {
 	case "$1" in
@@ -281,7 +305,37 @@ is_url() {
 	esac
 }
 
-# read the kernel options. we need surve things like:
+# Target: setup the execution environment
+/bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
+	/media/cdrom /media/usb /tmp /run
+
+# Spread out busybox symlinks and make them available without full path
+/bin/busybox --install -s
+export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+
+# If we dont pre-create /dev/null, the command mounting the devtmpfs will create it
+# implicitly as an file with the "2>" redirection
+mknod -m 666 /dev/null c 1 3
+
+mount -t proc -o noexec,nosuid,nodev proc /proc
+mount -t sysfs -o noexec,nosuid,nodev sysfs /sys
+mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
+	|| mount -t tmpfs -o exec,nosuid,mode=0755,size=2M tmpfs /dev
+
+# pty device nodes (later system will need it)
+[ -c /dev/ptmx ] || mknod -m 666 /dev/ptmx c 5 2
+[ -d /dev/pts ] || mkdir -m 755 /dev/pts
+mount -t devpts -o gid=5,mode=0620,noexec,nosuid devpts /dev/pts
+
+# shared memory area (later system will need it)
+[ -d /dev/shm ] || mkdir /dev/shm
+mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
+
+# Workaround: zpool reports /dev/zfs missing if it can't read /etc/mtab
+ln -s /proc/mounts /etc/mtab
+
+
+# Next target: read the kernel options. we need surve things like:
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat /proc/cmdline)
 
@@ -307,9 +361,11 @@ for opt; do
 	done
 done
 
+
+# Next target: apply intermediate kernel options
 [ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
 
-# enable debugging if requested
+# instruct shell to print all executed commands to stderror
 [ -n "$KOPT_debug_init" ] && set -x
 
 # pick first keymap if found
@@ -329,44 +385,29 @@ if [ "$KOPT_chart" = yes ]; then
 	eend 0
 fi
 
-# dma can be problematic
-if [ "$KOPT_dma" = no ]; then
-	modprobe libata dma=0
-fi
-
-# The following values are supported:
-#   alpine_repo=auto         -- default, search for .boot_repository
-#   alpine_repo=http://...   -- network repository
-ALPINE_REPO=${KOPT_alpine_repo}
-[ "$ALPINE_REPO" = "auto" ] && ALPINE_REPO=
-
 # hide kernel messages
 [ "$KOPT_quiet" = yes ] && dmesg -n 1
 
-# optional blacklist
-for i in ${KOPT_blacklist//,/ }; do
-	echo "blacklist $i" >> /etc/modprobe.d/boot-opt-blacklist.conf
-done
-
-# setup /dev
-mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
-	|| mount -t tmpfs -o exec,nosuid,mode=0755,size=2M tmpfs /dev
-[ -d /dev/pts ] || mkdir -m 755 /dev/pts
-[ -c /dev/ptmx ] || mknod -m 666 /dev/ptmx c 5 2
-# make sure /dev/null is setup correctly
-[ -f /dev/null ] && rm -f /dev/null
-[ -c /dev/null ] || mknod -m 666 /dev/null c 1 3
-mount -t devpts -o gid=5,mode=0620,noexec,nosuid devpts /dev/pts
-[ -d /dev/shm ] || mkdir /dev/shm
-mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
-
 # determine if we are going to need networking
 if [ -n "$KOPT_ip" ] || [ -n "$KOPT_nbd" ] || \
-	is_url "$KOPT_apkovl" || is_url "$ALPINE_REPO"; then
+	is_url "$KOPT_apkovl" || is_url "$KOPT_alpine_repo"; then
 
 	do_networking=true
 else
 	do_networking=false
+fi
+
+
+# Next target: Load modules and setup drivers
+ebegin "Loading boot drivers"
+
+for i in ${KOPT_blacklist//,/ }; do
+	echo "blacklist $i" >> /etc/modprobe.d/boot-opt-blacklist.conf
+done
+
+# dma can be problematic
+if [ "$KOPT_dma" = no ]; then
+	modprobe libata dma=0
 fi
 
 if [ -n "$KOPT_dasd" ]; then
@@ -389,8 +430,6 @@ if [ "${KOPT_s390x_net%%,*}" = "qeth_l2" ]; then
 fi
 
 # load available drivers to get access to modloop media
-ebegin "Loading boot drivers"
-
 modprobe -a $(echo "$KOPT_modules $KOPT_rootfstype" | tr ',' ' ' ) loop squashfs 2> /dev/null
 if [ -f /etc/modules ] ; then
 	sed 's/\#.*//g' < /etc/modules |
@@ -398,7 +437,23 @@ if [ -f /etc/modules ] ; then
 		modprobe -q $module $args
 	done
 fi
+
 eend 0
+
+if [ -n "$KOPT_nbd" ]; then
+	# TODO: Might fail because nlplug-findfs hasn't plugged eth0 yet
+	configure_ip
+	setup_nbd || echo "Failed to setup nbd device."
+fi
+
+if [ "$SINGLEMODE" = "yes" ]; then
+	echo "Entering single mode. Type 'exit' to continue booting."
+	sh
+fi
+
+
+# Next target: use nlplug magic to mount potential boot media and find the rootdev
+ebegin "Searching for boot devices"
 
 if [ -n "$KOPT_cryptroot" ]; then
 	cryptopts="-c ${KOPT_cryptroot}"
@@ -421,25 +476,22 @@ if [ -n "$KOPT_cryptroot" ]; then
 	fi
 fi
 
-if [ -n "$KOPT_nbd" ]; then
-	# TODO: Might fail because nlplug-findfs hasn't plugged eth0 yet
-	configure_ip
-	setup_nbd || echo "Failed to setup nbd device."
+if $do_networking; then
+	# Dont fail when no repo was detected
+	repoopts="-n"
+else
+	# Expect to find a repo on boot media
+	repoopts="-b $repofile"
 fi
 
-# zpool reports /dev/zfs missing if it can't read /etc/mtab
-ln -s /proc/mounts /etc/mtab
+nlplug-findfs $cryptopts -p /sbin/mdev \
+	${KOPT_debug_init:+-d} \
+	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
+	${KOPT_root:- $repoopts -a /tmp/apkovls}
+eend $?
 
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
-	if [ "$SINGLEMODE" = "yes" ]; then
-		echo "Entering single mode. Type 'exit' to continue booting."
-		sh
-	fi
-
-	ebegin "Mounting root"
-	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
-		$KOPT_root
 
 	if echo "$KOPT_modules $KOPT_rootfstype" | grep -qw btrfs; then
 		/sbin/btrfs device scan >/dev/null || \
@@ -468,7 +520,6 @@ if [ -n "$KOPT_root" ]; then
 			$KOPT_root $sysroot
 	fi
 
-	eend $?
 	cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
 		if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
 			mkdir -p $sysroot/$DIR
@@ -481,28 +532,9 @@ if [ -n "$KOPT_root" ]; then
 	exec /bin/busybox sh
 fi
 
-if $do_networking; then
-	repoopts="-n"
-else
-	repoopts="-b $repofile"
-fi
-
-# locate boot media and mount it
-ebegin "Mounting boot media"
-nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
-	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
-	$repoopts -a /tmp/apkovls
-eend $?
-
 # Setup network interfaces
 if $do_networking; then
-        configure_ip
-fi
-
-# early console?
-if [ "$SINGLEMODE" = "yes" ]; then
-	echo "Entering single mode. Type 'exit' to continue booting."
-	sh
+	configure_ip
 fi
 
 # mount tmpfs sysroot
@@ -574,34 +606,7 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 	rm -f "$sysroot/etc/.default_boot_services"
 fi
 
-if [ "$KOPT_splash" != "no" ]; then
-	echo "IMAGE_ALIGN=CM" > /tmp/fbsplash.cfg
-	for fbdev in /dev/fb[0-9]; do
-		[ -e "$fbdev" ] || break
-		num="${fbdev#/dev/fb}"
-		for img in /media/*/fbsplash$num.ppm; do
-			[ -e "$img" ] || break
-			config="${img%.*}.cfg"
-			[ -e "$config" ] || config=/tmp/fbsplash.cfg
-			fbsplash -s "$img" -d "$fbdev" -i "$config"
-			break
-		done
-	done
-	for fbsplash in /media/*/fbsplash.ppm; do
-		[ -e "$fbsplash" ] && break
-	done
-fi
-
-if [ -n "$fbsplash" ] && [ -e "$fbsplash" ]; then
-	ebegin "Starting bootsplash"
-	mkfifo $sysroot/$splashfile
-	config="${fbsplash%.*}.cfg"
-	[ -e "$config" ] || config=/tmp/fbsplash.cfg
-	setsid fbsplash -T 16 -s "$fbsplash" -i $config -f $sysroot/$splashfile &
-	eend 0
-else
-	KOPT_splash="no"
-fi
+splash_start
 
 if [ -f $sysroot/etc/fstab ]; then
 	has_fstab=1
@@ -740,7 +745,7 @@ if [ "$KOPT_chart" = yes ]; then
 fi
 
 if [ ! -x $sysroot/sbin/init ]; then
-	[ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
+	splash_stop
 	echo "/sbin/init not found in new root. Launching emergency recovery shell"
 	echo "Type exit to continue boot."
 	/bin/busybox sh
@@ -755,11 +760,11 @@ cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
 done
 sync
 
-[ "$KOPT_splash" = "init" ] && echo exit > $sysroot/$splashfile
+[ "$KOPT_splash" = "init" ] && splash_stop
 echo ""
 exec /bin/busybox switch_root $sysroot $chart_init /sbin/init $KOPT_init_args
 
-[ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
+splash_stop
 echo "initramfs emergency recovery shell launched"
 exec /bin/busybox sh
 reboot
