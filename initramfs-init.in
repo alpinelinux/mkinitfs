@@ -138,6 +138,12 @@ setup_inittab_console(){
 # determine the default interface to use if ip=dhcp is set
 # uses the first "eth" interface with operstate 'up'.
 ip_choose_if() {
+	if [ -n "$KOPT_BOOTIF" ]; then
+		mac=$(printf "%s\n" "$KOPT_BOOTIF"|sed 's/^01-//;s/-/:/g')
+		dev=$(grep -l $mac /sys/class/net/*/address|head -n 1)
+		dev=${dev%/*}
+		[ -n "$dev" ] && echo "${dev##*/}"
+	fi
 	for x in /sys/class/net/eth*; do
 		if grep -iq up $x/operstate;then
 			[ -e "$x" ] && echo ${x##*/} && return
@@ -294,7 +300,8 @@ set -- $(cat /proc/cmdline)
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards cryptkey debug_init dma init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
-	blacklist overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key"
+	blacklist overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key
+	BOOTIF"
 
 for opt; do
 	case "$opt" in
