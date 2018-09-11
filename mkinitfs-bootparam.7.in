@@ -50,11 +50,12 @@ Print debug information during boot.
 \fBinit_args=\fIARGUMENTS\fR
 Additional command like arguments for \fI/sbin/init\fR.
 .TP
-\fBip=\fICLIENT-IP\fR::\fIGATEWAY-IP\fR:\fINETMASK\fR::\fIINTERFACE\fR
-Specify the network configuration as a colon-separated list of variable length.
-The 3rd and the 5th list item is ignored. The format is compatible with the
-SYSAPPEND option of syslinux. Use \fBip=dhcp\fR for automatic configuration via
-DHCP.
+\fBip=\fICLIENT-IP\fR:\fISERVER-IP\fR:\fIGATEWAY-IP\fR:\fINETMASK\fR:\fIHOSTNAME\fR:\fIDEVICE\fR:\fIAUTOCONF\fR:\fIDNS-IP\fR:\fIDNS-IP\fR:\fINTP-IP\fR
+Specify the network configuration. The format is equivalent to the linux kernel
+option with the same name. Per default, the \fISERVER-IP\fR, \fIHOSTNAME\fR and
+\fINTP-IP\fR parameters are ignored by the initramfs. Consult the kernel
+documentation on \fInfsroot\fR for further information regarding the fields of
+this parameter.
 .TP
 \fBmodules=\fIMODULE\fR{,\fIMODULE\fR}
 Comma-sparated list of kernel modules to load explicitly.
