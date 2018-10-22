@@ -48,6 +48,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/ubifs.modules \
 		features.d/usb.modules \
 		features.d/virtio.modules \
+		features.d/xenpci.modules \
 		features.d/xfs.files \
 		features.d/xfs.modules \
 		features.d/zfs.files \
