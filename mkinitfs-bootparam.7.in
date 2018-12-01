@@ -48,7 +48,7 @@ Enable DASD devices on S/390x architectures.
 Print debug information during boot.
 .TP
 \fBinit_args=\fIARGUMENTS\fR
-Additional command like arguments for \fI/sbin/init\fR.
+Additional command line arguments for \fI/sbin/init\fR.
 .TP
 \fBip=\fICLIENT-IP\fR:\fISERVER-IP\fR:\fIGATEWAY-IP\fR:\fINETMASK\fR:\fIHOSTNAME\fR:\fIDEVICE\fR:\fIAUTOCONF\fR:\fIDNS-IP\fR:\fIDNS-IP\fR:\fINTP-IP\fR
 Specify the network configuration. The format is equivalent to the linux kernel
@@ -96,7 +96,7 @@ If set, \fI/etc/apk/repositories\fR will be filled with this. May be an URL.
 .TP
 \fBapkovl=\fR(\fIURL\fR | [\fIDEVICE\fR[:\fIFS_TYPE\fR]:]\fIPATH\fR)\fR
 A HTTP, HTTPS or FTP URL to an apkovl.tar.gz file which will be retrieved and
-applied. Can also be an filesystem path, optionally prepended with the device
+applied. Can also be a filesystem path, optionally prepended with the device
 name without the /dev/ prefix.
 .TP
 \fBnokeep_apk_new\fR
