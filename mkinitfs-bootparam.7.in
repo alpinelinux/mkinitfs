@@ -47,6 +47,9 @@ Enable DASD devices on S/390x architectures.
 \fBdebug_init\fR
 Print debug information during boot.
 .TP
+\fBinit=\fIPATH\fR
+Path to init program to execute instead of \fI/sbin/init\fR.
+.TP
 \fBinit_args=\fIARGUMENTS\fR
 Additional command line arguments for \fI/sbin/init\fR.
 .TP
