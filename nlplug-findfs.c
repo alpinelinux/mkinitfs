@@ -961,6 +961,16 @@ static void founddev(struct ueventconf *conf, int found)
 	}
 }
 
+static int is_zfs_pool(const char *path, const char *label)
+{
+	char pool_name[256];
+	char *p;
+	snprintf(pool_name, sizeof(pool_name), "%s", path);
+	if ((p = strchr(pool_name, '/')))
+		*p = '\0';
+	return strcmp(label, pool_name) == 0 ? FOUND_DEVICE : 0;
+}
+
 static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia)
 {
 	struct ueventconf *conf = ev->conf;
@@ -981,10 +991,10 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 
 	type = blkid_get_tag_value(conf->blkid_cache, "TYPE", ev->devnode);
 	uuid = blkid_get_tag_value(conf->blkid_cache, "UUID", ev->devnode);
+	label = blkid_get_tag_value(conf->blkid_cache, "LABEL", ev->devnode);
 
 	if (searchdev != NULL) {
 		if (strncmp("LABEL=", searchdev, 6) == 0) {
-			label = blkid_get_tag_value(conf->blkid_cache, "LABEL", ev->devnode);
 			if (label && strcmp(label, searchdev+6) == 0)
 				rc = FOUND_DEVICE;
 		} else if (strncmp("UUID=", searchdev, 5) == 0) {
@@ -1003,6 +1013,10 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 			start_lvm2(ev->devnode);
 		} else if (strcmp("zfs_member", type) == 0) {
 			start_zpool(uuid);
+			if (searchdev != NULL && label != NULL
+			    && strncmp("ZFS=", searchdev, 4) == 0) {
+				rc = is_zfs_pool(&searchdev[4], label);
+			}
 		} else if (scanbootmedia) {
 			rc = scandev(conf, ev->devnode, type);
 		}
