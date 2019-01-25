@@ -1,1 +1,4 @@
+kernel/arch/*/crypto/crc32*
+kernel/crypto/crc32*
+kernel/fs/crypto/fscrypto
 kernel/fs/f2fs
