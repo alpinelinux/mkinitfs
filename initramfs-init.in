@@ -596,7 +596,7 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 fi
 
 if [ "$KOPT_splash" != "no" ]; then
-	echo "IMAGE_ALIGN=CM" > /tmp/fbsplash.cfg
+	echo "IMG_ALIGN=CM" > /tmp/fbsplash.cfg
 	for fbdev in /dev/fb[0-9]; do
 		[ -e "$fbdev" ] || break
 		num="${fbdev#/dev/fb}"
