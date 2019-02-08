@@ -41,7 +41,7 @@ unpack_apkovl() {
 	fi
 
 	# we need openssl. let apk handle deps
-	apk add --quiet --initdb --repositories-file $repofile libressl || return 1
+	apk add --quiet --initdb --repositories-file $repofile openssl || return 1
 
 	if ! openssl list-cipher-commands | grep "^$suffix$" > /dev/null; then
 		errstr="Cipher $suffix is not supported"
@@ -688,7 +688,7 @@ fi
 if [ -f /var/cache/misc/*modloop*.SIGN.RSA.*.pub ]; then
 	mkdir -p "$sysroot"/var/cache/misc
 	cp /var/cache/misc/*modloop*.SIGN.RSA.*.pub "$sysroot"/var/cache/misc
-	pkgs="$pkgs libressl"
+	pkgs="$pkgs openssl"
 fi
 
 apkflags="--initramfs-diskless-boot --progress"
