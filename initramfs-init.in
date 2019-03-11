@@ -678,7 +678,7 @@ if [ -n "$KOPT_ssh_key" ]; then
 fi
 
 # use swclock if no RTC is found
-if rtc_exists; then
+if rtc_exists || [ "$(uname -m)" = "s390x" ]; then
 	rc_add hwclock boot
 else
 	rc_add swclock boot
