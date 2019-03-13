@@ -1,2 +1,5 @@
 kernel/drivers/md/dm-mod.ko
 kernel/drivers/md/dm-snapshot.ko
+kernel/drivers/md/dm-cache.ko
+kernel/drivers/md/dm-raid.ko
+kernel/drivers/md/dm-thin-pool.ko
