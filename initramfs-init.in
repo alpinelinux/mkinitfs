@@ -279,6 +279,19 @@ is_url() {
 	esac
 }
 
+# Runs scripts in /hooks/$1/
+run_hook () {
+	local hook="${1}"
+	if [ -d "/hooks/${hook}/" ]; then
+		cd "/hooks/${hook}"
+		for script in *; do
+			# no logging since we have `debug_init`.
+			. "${script}"
+		done
+		cd -
+	fi
+}
+
 /bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
         /media/cdrom /media/usb /tmp /run
 
@@ -333,6 +346,8 @@ for opt; do
 		esac
 	done
 done
+
+run_hook 'before_everything'
 
 [ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
 
@@ -497,6 +512,7 @@ if [ -n "$KOPT_root" ]; then
 		fi
 	done
 	sync
+	run_hook 'after_everything'
 	exec /bin/busybox switch_root $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 	echo "initramfs emergency recovery shell launched"
 	exec /bin/busybox sh
@@ -777,6 +793,7 @@ done
 sync
 
 [ "$KOPT_splash" = "init" ] && echo exit > $sysroot/$splashfile
+run_hook 'after_everything'
 echo ""
 exec /bin/busybox switch_root $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 
