@@ -54,7 +54,9 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/zfs.files \
 		features.d/zfs.modules \
 		features.d/qeth.modules \
-		features.d/dasd_mod.modules
+		features.d/dasd_mod.modules \
+		features.d/dhcp.files \
+		features.d/https.files
 MAN_FILES       := mkinitfs.1 mkinitfs-bootparam.7 nlplug-findfs.1
 
 SCRIPTS		:= mkinitfs bootchartd initramfs-init
