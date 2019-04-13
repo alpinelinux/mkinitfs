@@ -386,7 +386,7 @@ if [ -n "$KOPT_dasd" ]; then
 	for mod in dasd_mod dasd_eckd_mod dasd_fba_mod; do
 		modprobe $mod
 	done
-	for _dasd in $(echo "$KOPT_dasd" | tr ',' ' ' ); do
+	for _dasd in $(echo "$KOPT_dasd" | tr ',' ' ' | tr [A-Z] [a-z]); do
 		echo 1 > /sys/bus/ccw/devices/"${_dasd%%:*}"/online
 	done
 fi
@@ -395,7 +395,7 @@ if [ "${KOPT_s390x_net%%,*}" = "qeth_l2" ]; then
 	for mod in qeth qeth_l2 qeth_l3; do
 		modprobe $mod
 	done
-	_channel="${KOPT_s390x_net#*,}"
+	_channel="$(echo ${KOPT_s390x_net#*,} | tr [A-Z] [a-z])"
 	echo "$_channel" > /sys/bus/ccwgroup/drivers/qeth/group
 	echo 1 > /sys/bus/ccwgroup/drivers/qeth/"${_channel%%,*}"/layer2
 	echo 1 > /sys/bus/ccwgroup/drivers/qeth/"${_channel%%,*}"/online
