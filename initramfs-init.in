@@ -128,7 +128,7 @@ ip_choose_if() {
 		mac=$(printf "%s\n" "$KOPT_BOOTIF"|sed 's/^01-//;s/-/:/g')
 		dev=$(grep -l $mac /sys/class/net/*/address|head -n 1)
 		dev=${dev%/*}
-		[ -n "$dev" ] && echo "${dev##*/}"
+		[ -n "$dev" ] && echo "${dev##*/}" && return
 	fi
 	for x in /sys/class/net/eth*; do
 		if grep -iq up $x/operstate;then
