@@ -1213,6 +1213,13 @@ static void usage(int rc)
 	exit(rc);
 }
 
+static int regular_file(const char *path)
+{
+	struct stat st;
+	int r = stat(path, &st);
+	return r == -1 ? 0 : S_ISREG(st.st_mode);
+}
+
 int main(int argc, char *argv[])
 {
 	struct pollfd fds[3];
@@ -1262,6 +1269,12 @@ int main(int argc, char *argv[])
 		break;
 	case 'H':
 		conf.crypt.header.device = EARGF(usage(1));
+		/* the header may be in a regular file and not a device */
+		if (regular_file(conf.crypt.header.device)) {
+			snprintf(conf.crypt.header.devnode,
+				sizeof(conf.crypt.header.devnode),
+				"%s", conf.crypt.header.device);
+		}
 		break;
 	case 'h':
 		usage(0);
