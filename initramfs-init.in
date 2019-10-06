@@ -279,6 +279,25 @@ is_url() {
 	esac
 }
 
+# Do some tasks to make sure mounting the ZFS pool is A-OK
+prepare_zfs_root() {
+	local _root_vol=${KOPT_root#ZFS=}
+	local _root_pool=${_rool_vol%%/*}
+
+	# Force import if this has been imported on a different system previously
+	if [ "$KOPT_zfs_force" = 1 ]; then
+		zpool import -N -f $_root_vol
+	fi
+
+	# Ask for encryption password
+	if [ $(zpool list -H -o feature@encryption $_root_pool) = "active" ]; then
+		local _encryption_root=$(zfs get -H -o value encryptionroot $_root_vol)
+		if [ "$_encryption_root" != "-" ]; then
+			eval zfs load-key $_encryption_root
+		fi
+	fi
+}
+
 /bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
         /media/cdrom /media/usb /tmp /run
 
@@ -484,6 +503,9 @@ if [ -n "$KOPT_root" ]; then
 		mkdir -p /media/root-rw/work /media/root-rw/root
 		mount -t overlay -o lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work overlayfs $sysroot
 	else
+		if [ $rootfstype = "zfs" ]; then
+			prepare_zfs_root
+		fi
 		mount ${rootfstype:+-t} ${rootfstype} \
 			-o ${KOPT_rootflags:-ro} \
 			${KOPT_root#ZFS=} $sysroot

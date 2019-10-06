@@ -119,6 +119,10 @@ Enable splash screen
 \fBusbdelay=\fINUMBER\fR
 Wait \fINUMBER\fR seconds for USB devices to show up before searching for boot
 media.
+.TP
+\fBzfs_force=\fINUMBER\fR
+Enable force importing the root zpool on boot, even if it was previously mounted
+from a different system/OS.
 .SH FILES
 .TP
 \fI@datadir@/initramfs-init\fR
