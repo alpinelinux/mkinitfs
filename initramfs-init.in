@@ -346,7 +346,7 @@ for opt; do
 
 	for i in $myopts; do
 		case "$opt" in
-		$i=*)	eval "KOPT_${i}=${opt#*=}";;
+		$i=*)	eval "KOPT_${i}=\${KOPT_${i}:+\$KOPT_${i} }${opt#*=}";;
 		$i)	eval "KOPT_${i}=yes";;
 		no$i)	eval "KOPT_${i}=no";;
 		esac
@@ -441,7 +441,6 @@ fi
 eend 0
 
 if [ -n "$KOPT_cryptroot" ]; then
-	cryptopts="-c ${KOPT_cryptroot}"
 	if [ "$KOPT_cryptdiscards" = "yes" ]; then
 		cryptopts="$cryptopts -D"
 	fi
@@ -457,7 +456,39 @@ if [ -n "$KOPT_cryptroot" ]; then
 	if [ "$KOPT_cryptkey" = "yes" ]; then
 		cryptopts="$cryptopts -k /crypto_keyfile.bin"
 	elif [ -n "$KOPT_cryptkey" ]; then
-		cryptopts="$cryptopts -k ${KOPT_cryptkey}"
+		case "${KOPT_cryptkey}" in
+		*.img)
+			# TODO: need hotplugging for e.g. USB keyboards.
+			# Is there a better way to do this?
+			ebegin "Hotplugging devices"
+			nlplug-findfs -p /sbin/mdev ${KOPT_debug_init:+-d} -n
+			eend $?
+			ebegin "Unlocking shared key ${KOPT_cryptkey}"
+			/sbin/cryptsetup luksOpen "${KOPT_cryptkey}" __boot_key
+			eend $?
+			cryptopts="$cryptopts -k /dev/mapper/__boot_key"
+			;;
+		*) cryptopts="$cryptopts -k ${KOPT_cryptkey}";;
+		esac
+	fi
+	# If cryptroot is a single argument, pass it along in cryptopts for
+	# later use by nlplug-findfs. Otherwise, try to unlock each device
+	# individually.
+	if [ $(set -f; set -- $KOPT_cryptroot; echo $#) -eq 1 ]; then
+		cryptopts="$cryptopts -c ${KOPT_cryptroot}"
+	else
+		for dev in $KOPT_cryptroot; do
+			# Pick a mapping name for each device. This is intended
+			# to at least match the format luks-<uuid> used in
+			# dracut.
+			case "$dev" in
+			UUID=*) mapping="luks-${dev#UUID=}";;
+			LABEL=*) mapping="luks-${dev#LABEL=}";;
+			*) mapping="luks-$(echo "$dev" | sed 's/\//-/g')";;
+			esac
+			echo "Unlocking $dev as $mapping"
+			nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} -c "$dev" -m "$mapping" $KOPT_root
+		done
 	fi
 fi
 
@@ -480,6 +511,10 @@ if [ -n "$KOPT_root" ]; then
 	ebegin "Mounting root"
 	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 		$KOPT_root
+
+	if [ -f /dev/mapper/__boot_key ]; then
+		/sbin/cryptsetup close __boot_key
+	fi
 
 	if echo "$KOPT_modules $rootfstype" | grep -qw btrfs; then
 		/sbin/btrfs device scan >/dev/null || \
