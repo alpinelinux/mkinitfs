@@ -43,6 +43,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/raid.files \
 		features.d/raid.modules \
 		features.d/reiserfs.modules \
+		features.d/rpirtc.modules \
 		features.d/scsi.modules \
 		features.d/squashfs.modules \
 		features.d/ubifs.modules \
