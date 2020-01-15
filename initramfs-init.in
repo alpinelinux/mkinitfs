@@ -299,7 +299,7 @@ prepare_zfs_root() {
 }
 
 /bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
-        /media/cdrom /media/usb /tmp /run
+        /media/cdrom /media/usb /tmp /run/cryptsetup
 
 # Spread out busybox symlinks and make them available without full path
 /bin/busybox --install -s
