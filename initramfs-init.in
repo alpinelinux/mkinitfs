@@ -43,7 +43,7 @@ unpack_apkovl() {
 	# we need openssl. let apk handle deps
 	apk add --quiet --initdb --repositories-file $repofile openssl || return 1
 
-	if ! openssl list-cipher-commands | grep "^$suffix$" > /dev/null; then
+	if ! openssl list -1 -cipher-commands | grep "^$suffix$" > /dev/null; then
 		errstr="Cipher $suffix is not supported"
 		return 1
 	fi
