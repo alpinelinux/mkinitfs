@@ -122,6 +122,7 @@ initfs_kmods() {
 	for file in $(find_kmods); do
 		echo "${file#/}"
 	done | sort -u | cpio --quiet -pdm "$tmpdir" || return 1
+	mkdir -p "$tmpdir"/lib/modules/$kernel/
 	for file in modules.order modules.builtin; do
 		if [ -f "$kerneldir"/$file ]; then
 			cp "$kerneldir"/$file "$tmpdir"/lib/modules/$kernel/
