@@ -57,6 +57,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/qeth.modules \
 		features.d/dasd_mod.modules \
 		features.d/dhcp.files \
+		features.d/dhcp.modules \
 		features.d/https.files
 MAN_FILES       := mkinitfs.1 mkinitfs-bootparam.7 nlplug-findfs.1
 
