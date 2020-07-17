@@ -121,7 +121,8 @@ initfs_kmods() {
 	cd "${basedir}"
 	for file in $(find_kmods); do
 		echo "${file#/}"
-	done | sort -u | cpio --quiet -pdm "$tmpdir" || return 1
+	# DO NOT return with 1 if there are no custom modules for initramfs
+	done | sort -u | cpio --quiet -pdm "$tmpdir"
 	for file in modules.order modules.builtin; do
 		if [ -f "$kerneldir"/$file ]; then
 			cp "$kerneldir"/$file "$tmpdir"/lib/modules/$kernel/
@@ -135,6 +136,9 @@ initfs_firmware() {
 	[ -z "$nokernel" ] || return 0
 	rm -rf "$tmpdir"/lib/firmware
 	mkdir -p "$tmpdir"/lib/firmware
+	# Verify if there are initfs modules
+	_modules=`find "$tmpdir"/lib/modules -type f -name "*.ko" -print -quit`
+	[ -n "$_modules" ] || return 0
 	find "$tmpdir"/lib/modules -type f -name "*.ko" | xargs modinfo -F firmware | sort -u | while read FW; do
 		[ -e "${basedir}/lib/firmware/${FW}" ] && install -pD "${basedir}/lib/firmware/${FW}" "$tmpdir"/lib/firmware/$FW
 	done
