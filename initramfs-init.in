@@ -106,7 +106,8 @@ list_console_devices() {
 setup_inittab_console(){
 	term=vt100
 	# Inquire the kernel for list of console= devices
-	for tty in $(list_console_devices console); do
+	consoles="$(for c in console $KOPT_consoles; do list_console_devices $c; done)"
+	for tty in $consoles; do
 		# do nothing if inittab already have the tty set up
 		if ! grep -q "^$tty:" $sysroot/etc/inittab; then
 			echo "# enable login on alternative console" \
@@ -340,6 +341,11 @@ for opt; do
 	case "$opt" in
 	s|single|1)
 		SINGLEMODE=yes
+		continue
+		;;
+	console=*)
+		opt="${opt#*=}"
+		KOPT_consoles="${opt%%,*} $KOPT_consoles"
 		continue
 		;;
 	esac
