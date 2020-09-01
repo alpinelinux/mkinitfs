@@ -147,6 +147,15 @@ initfs_apk_keys() {
 	cp "${basedir}etc/apk/keys/"* "$tmpdir"/etc/apk/keys/
 }
 
+initfs_custom_files() {
+	for file in "$custom_files"; do
+		if [ -f "$basedir"/$file ]; then
+			mkdir -p "$tmpdir"/${file%/*}
+			cp "$basedir"/$file "$tmpdir"/$file
+		fi
+	done
+}
+
 initfs_cpio() {
 	if [ -n "$list_sources" ]; then
 		(cd "$tmpdir" && find . | sort)
@@ -287,6 +296,7 @@ initfs_base \
 	&& initfs_kmods \
 	&& initfs_firmware \
 	&& initfs_apk_keys \
+	&& initfs_custom_files \
 	&& initfs_cpio
 rc=$?
 
