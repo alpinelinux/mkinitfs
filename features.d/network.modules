@@ -1,4 +1,5 @@
 kernel/drivers/net/ethernet
+kernel/drivers/net/phy
 kernel/net/packet/af_packet.ko
 kernel/drivers/net/hyperv
 kernel/drivers/net/vmxnet3
