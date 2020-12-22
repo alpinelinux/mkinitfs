@@ -280,6 +280,7 @@ fi
 case "$initfscomp" in
 	gzip) comp="$(command -v pigz 2>/dev/null || echo gzip) -9" ;;
 	xz) cmd_exists xz; comp="xz -C crc32 -T 0" ;;
+	zstd) cmd_exists zstd; comp="zstd -19" ;;
 	*) echo "Initramfs compression \"$initfscomp\" not supported!"; exit 1 ;;
 esac
 
