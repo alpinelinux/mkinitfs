@@ -285,10 +285,14 @@ prepare_zfs_root() {
 	local _root_vol=${KOPT_root#ZFS=}
 	local _root_pool=${_root_vol%%/*}
 
-	# Force import if this has been imported on a different system previously
+	# Force import if this has been imported on a different system previously.
+	# Import normally otherwise
 	if [ "$KOPT_zfs_force" = 1 ]; then
-		zpool import -N -f $_root_vol
+		zpool import -N -d /dev -f $_root_pool
+	else
+		zpool import -N -d /dev $_root_pool
 	fi
+
 
 	# Ask for encryption password
 	if [ $(zpool list -H -o feature@encryption $_root_pool) = "active" ]; then
