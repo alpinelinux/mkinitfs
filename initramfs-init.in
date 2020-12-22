@@ -10,16 +10,19 @@ repofile=/tmp/repositories
 # some helpers
 ebegin() {
 	last_emsg="$*"
+	echo "$last_emsg..." > /dev/kmsg
 	[ "$KOPT_quiet" = yes ] && return 0
 	echo -n " * $last_emsg: "
 }
 eend() {
 	local msg
 	if [ "$1" = 0 ] || [ $# -lt 1 ] ; then
+		echo "$last_emsg: ok." > /dev/kmsg
 		[ "$KOPT_quiet" = yes ] && return 0
 		echo "ok."
 	else
 		shift
+		echo "$last_emsg: failed. $*" > /dev/kmsg
 		if [ "$KOPT_quiet" = "yes" ]; then
 			echo -n "$last_emsg "
 		fi
@@ -191,14 +194,14 @@ configure_ip() {
 			echo "ERROR: DHCP requested but not present in initrd"
 			return 1
 		fi
-		ebegin "Obtaining IP via DHCP ($device)..."
+		ebegin "Obtaining IP via DHCP ($device)"
 		ifconfig "$device" 0.0.0.0
 		udhcpc -i "$device" -f -q
 		eend $?
 	else
 		# manual configuration
 		[ -n "$client_ip" -a -n "$netmask" ] || return
-		ebegin "Setting IP ($device)..."
+		ebegin "Setting IP ($device)"
 		if ifconfig "$device" "$client_ip" netmask "$netmask"; then
 			[ -z "$gw_ip" ] || ip route add 0.0.0.0/0 via "$gw_ip" dev "$device"
 		fi
@@ -316,11 +319,16 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 # error message.
 [ -c /dev/null ] || mknod -m 666 /dev/null c 1 3
 
-mount -t proc -o noexec,nosuid,nodev proc /proc
 mount -t sysfs -o noexec,nosuid,nodev sysfs /sys
 mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
 	|| mount -t tmpfs -o exec,nosuid,mode=0755,size=2M tmpfs /dev
 
+# Make sure /dev/kmsg is a device node. Writing to /dev/kmsg allows the use of the
+# earlyprintk kernel option to monitor early init progress. As above, the -c check
+# prevents an error if the device node has already been seeded.
+[ -c /dev/kmsg ] || mknod -m 660 /dev/kmsg c 1 11
+
+mount -t proc -o noexec,nosuid,nodev proc /proc
 # pty device nodes (later system will need it)
 [ -c /dev/ptmx ] || mknod -m 666 /dev/ptmx c 5 2
 [ -d /dev/pts ] || mkdir -m 755 /dev/pts
@@ -363,6 +371,7 @@ for opt; do
 	done
 done
 
+echo "Alpine Init $VERSION" > /dev/kmsg
 [ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
 
 # enable debugging if requested
