@@ -282,7 +282,7 @@ is_url() {
 # Do some tasks to make sure mounting the ZFS pool is A-OK
 prepare_zfs_root() {
 	local _root_vol=${KOPT_root#ZFS=}
-	local _root_pool=${_rool_vol%%/*}
+	local _root_pool=${_root_vol%%/*}
 
 	# Force import if this has been imported on a different system previously
 	if [ "$KOPT_zfs_force" = 1 ]; then
