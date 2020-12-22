@@ -56,6 +56,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/zfs.modules \
 		features.d/qeth.modules \
 		features.d/dasd_mod.modules \
+		features.d/zfcp.modules \
 		features.d/dhcp.files \
 		features.d/https.files
 MAN_FILES       := mkinitfs.1 mkinitfs-bootparam.7 nlplug-findfs.1
@@ -82,7 +83,7 @@ SED_REPLACE	:= -e 's:@VERSION@:$(FULL_VERSION):g' \
 
 DEFAULT_FEATURES ?= ata base cdrom ext4 keymap kms mmc nvme raid scsi usb virtio
 ifeq ($(shell uname -m), s390x)
-DEFAULT_FEATURES += qeth dasd_mod
+DEFAULT_FEATURES += qeth dasd_mod zfcp
 endif
 
 

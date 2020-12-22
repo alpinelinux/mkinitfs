@@ -334,7 +334,7 @@ myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader crypt
 	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key
-	BOOTIF"
+	BOOTIF zfcp"
 
 for opt; do
 	case "$opt" in
@@ -399,6 +399,13 @@ if [ -n "$KOPT_ip" ] || [ -n "$KOPT_nbd" ] || \
 	do_networking=true
 else
 	do_networking=false
+fi
+
+if [ -n "$KOPT_zfcp" ]; then
+	modprobe zfcp
+	for _zfcp in $(echo "$KOPT_zfcp" | tr ',' ' ' | tr [A-Z] [a-z]); do
+		echo 1 > /sys/bus/ccw/devices/"${_zfcp%%:*}"/online
+	done
 fi
 
 if [ -n "$KOPT_dasd" ]; then

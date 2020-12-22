@@ -44,6 +44,9 @@ Attempt to decrypt \fIDEVICE\fR.
 \fBdasd\fR
 Enable DASD devices on S/390x architectures.
 .TP
+\fBzfcp\fR
+Enable zFCP SCSI devices on S/390x architectures.
+.TP
 \fBdebug_init\fR
 Print debug information during boot.
 .TP
