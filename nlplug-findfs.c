@@ -509,7 +509,7 @@ static void start_lvm2(char *devnode)
 
 static void start_zpool(char *uuid) {
 	char *zpool_argv[] = {
-		ZPOOL_PATH, "import", uuid,
+		ZPOOL_PATH, "import", "-N", uuid,
 		NULL
 	};
 	if (use_zpool && uuid)
