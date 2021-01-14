@@ -67,8 +67,13 @@ this parameter.
 Comma-sparated list of kernel modules to load explicitly.
 .TP
 \fBoverlaytmpfs\fR
-When booting from an read-only partition, you can specify this flag to have
-your changes written to an in-memory overlayfs.
+When booting from a read-only filesystem, you can specify this flag to have
+your changes written to an in-memory temporary overlayfs.  The underlying
+filesystem will always be mounted read-only, the overlay always writable.
+.TP
+\fBoverlaytmpfsflags=\fIOPTIONS\fR
+Optional comma-separated list of tmpfs(5) mount options when \fBoverlaytmpfs\fR
+is used.  The default is \fBmode=0755,rw\fR, you cannot override \fBrw\fR.
 .TP
 \fBquiet\fR
 Generate less output.

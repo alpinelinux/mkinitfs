@@ -346,8 +346,8 @@ set -- $(cat /proc/cmdline)
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
-	blacklist overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key
-	BOOTIF zfcp"
+	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
+	dasd ssh_key BOOTIF zfcp"
 
 for opt; do
 	case "$opt" in
@@ -526,12 +526,21 @@ if [ -n "$KOPT_root" ]; then
 	fi
 
 	if [ "$KOPT_overlaytmpfs" = "yes" ]; then
+		# Create mountpoints
 		mkdir -p /media/root-ro /media/root-rw $sysroot/media/root-ro \
 			$sysroot/media/root-rw
-		mount -o ro $KOPT_root /media/root-ro
-		mount -t tmpfs root-tmpfs /media/root-rw
+		# Mount read-only underlying rootfs
+		rootflags="${KOPT_rootflags:+$KOPT_rootflags,}ro"
+		mount ${KOPT_rootfstype:+-t $KOPT_rootfstype} -o $rootflags \
+			$KOPT_root /media/root-ro
+		# Mount writable overlay tmpfs
+		overlaytmpfsflags="mode=0755,${KOPT_overlaytmpfsflags:+$KOPT_overlaytmpfsflags,}rw"
+		mount -t tmpfs -o $overlaytmpfsflags root-tmpfs /media/root-rw
+		# Create additional mountpoints and do the overlay mount
 		mkdir -p /media/root-rw/work /media/root-rw/root
-		mount -t overlay -o lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work overlayfs $sysroot
+		mount -t overlay -o \
+			lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work \
+			overlayfs $sysroot
 	else
 		if [ "$rootfstype" = "zfs" ]; then
 			prepare_zfs_root
