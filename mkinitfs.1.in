@@ -14,6 +14,9 @@ Dont use files from the root file system, use specified path instead.
 \fB\-c\fR \fICONFIGFILE\fR
 Use configfile instead of \fI@sysconfdir@/mkinitfs.conf\fR.
 .TP
+\fB\-C\fR \fIALGORITHM\fR
+Compress initramfs using gzip (default), xz or zstd.
+.TP
 \fB\-f\fR \fIFSTAB\fR
 Use fstab instead of \fI@datadir@/fstab\fR.
 .TP
@@ -30,7 +33,7 @@ Use initfile as init instead of \fI@datadir@/initramfs-init\fR.
 Do not clean up temporary files.
 .TP
 \fB\-K\fR
-Also copy also host apk keys to initramfs.
+Also copy host apk keys to initramfs.
 .TP
 \fB\-l\fR
 Do a dry run and only list files that would have been used.
@@ -51,6 +54,9 @@ outside of the system-wide directories.
 \fB\-q\fR
 Quiet mode.
 .TP
+\fB\-s\fR
+Include modloop signature.
+.TP
 \fB\-t \fITMPDIR\fR
 Use tempdir when creating initramfs image.
 .SH FILES
@@ -65,7 +71,7 @@ kernel modules to be included in the initramfs. The modules are given by their
 filesystem paths, relative to \fI/lib/modules/KERNELVERSION/\fR.
 .TP
 \fI@sysconfdir@/features.d/FEATURE.files\fR
-Contains an list of absolute file names which will be included into the
+Contains a list of absolute file names which will be included into the
 generated initramfs if the feature is enabled.
 .TP
 \fI@datadir@/initramfs-init\fR
@@ -75,6 +81,6 @@ functions as the first executed program in early userspace.
 .PP
 Written by Natanael Copa <ncopa@alpinelinux.org>, Timo Teräs <timo.teras@iki.fi> and others.
 .SH "REPORTING BUGS"
-Alpine Linux Bugtracker: <https://bugs.alpinelinux.org/projects/alpine/issues>
+Alpine Linux Bugtracker: <https://gitlab.alpinelinux.org/alpine/mkinitfs/-/issues>
 .SH "SEE ALSO"
 mkinitfs-bootparam(7)
