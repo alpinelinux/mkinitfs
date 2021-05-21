@@ -563,6 +563,21 @@ nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 	$repoopts -a /tmp/apkovls
 eend $?
 
+# If the apkovl or alpine_repo specify a local absolute path like /media/sd*, make sure that it is still mounted.
+# If it was put deep enough to not be auto discovered by nlplug-findfs, nlplug-findfs unmounts it.
+# This fix allows having a rescue boot on the EFI partition that doesn't break auto discovery for USB/CD boot.
+# I.E.: You can hide your apks and apkovl under /media/sda1/boot/rescue, use it AND still be able to boot from the USB/CD with auto discovery.
+# Example of working related kernel parameters: apkovl=/media/sda1/boot/rescue/apkovl.tar.gz alpine_repo=/media/sda1/boot/rescue/apks modloop=/boot/rescue/modloop-lts
+for explicit_path in "$KOPT_apkovl" "$ALPINE_REPO"; do
+   explicit_path_device=$(echo "$explicit_path" | sed -n 's|^/media/\(sd[^/]*\)/.*$|\1|p') # Match /media/sd*/... and keep the device name.
+   if [ -n "$explicit_path_device" ]; then # We have a path requiring a media mount if it matched.
+      # If the path was defined by nlplug-findfs and then unmounted because nothing was found.
+      if [ -d "/media/$explicit_path_device" ] && ! mountpoint -q "/media/$explicit_path_device" && [ -e "/dev/$explicit_path_device" ]; then
+         mount "/dev/$explicit_path_device" "/media/$explicit_path_device"
+      fi
+   fi
+done
+
 # Setup network interfaces
 if $do_networking; then
         configure_ip
