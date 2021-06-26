@@ -167,6 +167,12 @@ initfs_cpio() {
 		return
 	fi
 	rm -f $outfile
+
+	if [ -n "$SOURCE_DATE_EPOCH" ]; then
+		# normalize timestamps
+		find "$tmpdir" -exec touch -h -d "@$SOURCE_DATE_EPOCH" {} +
+	fi
+
 	umask 0077
 	(cd "$tmpdir" && find . | sort | cpio --quiet -o -H newc | $comp) > $outfile
 }
