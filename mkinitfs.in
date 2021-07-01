@@ -174,7 +174,7 @@ initfs_cpio() {
 	fi
 
 	umask 0077
-	(cd "$tmpdir" && find . | sort | cpio --quiet -o -H newc | $comp) > $outfile
+	(cd "$tmpdir" && find . | sort | cpio --quiet --renumber-inodes -o -H newc | $comp) > "$outfile"
 }
 
 cmd_exists() {
