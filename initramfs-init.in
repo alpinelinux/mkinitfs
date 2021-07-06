@@ -96,6 +96,8 @@ rc_add() {
 
 # Recursively resolve tty aliases like console or tty0
 list_console_devices() {
+	[ "$1" = "ttyS0" ] && [ -e /sys/class/tty/sclp_line0 ] && return
+
 	if ! [ -e /sys/class/tty/$1/active ]; then
 		echo $1
 		return
@@ -103,6 +105,10 @@ list_console_devices() {
 
 	for dev in $(cat /sys/class/tty/$1/active); do
 		list_console_devices $dev
+	done
+
+	for _tty in hvc0 xvc0 hvsi0 sclp_line0 ttysclp0 "3270!tty1"; do
+		[ -e /sys/class/tty/$_tty ] && echo $_tty
 	done
 }
 
