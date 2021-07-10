@@ -27,19 +27,38 @@ security implications.
 After the block device has been decrypted, make it available as
 /dev/mapper/\fINAME\fR.
 .TP
+\fBcryptdm[0-9]=\fINAME\fR
+After the block device has been decrypted, make it available as
+/dev/mapper/\fINAME\fR. See "CRYPTO NOTES" for details.
+.TP
 \fBcryptheader=\fIDEVICE\fR
 When the LUKS headers and encrypted data are on different devices, this option
 specifies the device with the LUKS headers.
 .TP
+\fBcryptheader[0-9]=\fIDEVICE\fR
+When the LUKS headers and encrypted data are on different devices, this option
+specifies the device with the LUKS headers. See "CRYPTO NOTES" for details.
+.TP
 \fBcryptkey=\fIKEYFILE\fR
 Attempt to decrypt an encypted partition using an keyfile.
+.TP
+\fBcryptkey[0-9]=\fIKEYFILE\fR
+Attempt to decrypt an encypted partition using an keyfile. See "CRYPTO NOTES"
+for details.
 .TP
 \fBcryptoffset=\fISECTORS\fR
 Indicate that the encrypted data begins the given number of sectors after the
 start of the block device.
 .TP
+\fBcryptoffset[0-9]=\fISECTORS\fR
+Indicate that the encrypted data begins the given number of sectors after the
+start of the block device. See "CRYPTO NOTES" for details.
+.TP
 \fBcryptroot=\fIDEVICE\fR
 Attempt to decrypt \fIDEVICE\fR.
+.TP
+\fBcryptroot[0-9]=\fIDEVICE\fR
+Attempt to decrypt \fIDEVICE\fR. See "CRYPTO NOTES" for details.
 .TP
 \fBdasd\fR
 Enable DASD devices on S/390x architectures.
@@ -130,6 +149,15 @@ from a different system/OS.
 .TP
 \fI@datadir@/initramfs-init\fR
 Default script that will be run in the initramfs.
+.SH CRYPTO NOTES
+There are two ways to specify what encrypted device should be unlocked.
+.PP
+One is \fBcryptroot=\fR family of options. 99% of the time this is what you want
+to use. It works just fine as long as you need to unlock just one device.
+.PP
+Other is \fBcryptroot[0-9]=\fR family of options. When you have your root on
+for example btrfs raid1, you need to unlock multiple devices. Up to 10 devices
+can be specified.
 .SH AUTHOR
 .PP
 Written by Natanael Copa <ncopa@alpinelinux.org>, Timo Teräs <timo.teras@iki.fi> and others.

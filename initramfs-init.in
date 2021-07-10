@@ -348,6 +348,10 @@ myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader crypt
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs rootfstype rootflags nbd resume s390x_net dasd ssh_key
 	BOOTIF zfcp"
+for i in `seq 0 9`; do
+	myopts="$myopts cryptroot$i cryptdm$i cryptheader$i cryptoffset$i
+		cryptdiscards$i cryptkey$i"
+done
 
 for opt; do
 	case "$opt" in
@@ -486,6 +490,72 @@ if [ -n "$KOPT_cryptroot" ]; then
 		cryptopts="$cryptopts -k ${KOPT_cryptkey}"
 	fi
 fi
+
+(
+# Helper functions to avoid obscuring logic with so many evals
+for var in cryptroot cryptdiscards cryptdm cryptoffset cryptheader cryptkey; do
+	eval "$var() { eval 'printf -- %s \"\$KOPT_$var'\$1'\"'; }"
+done
+for i in `seq 0 9`; do
+	[ -n "$(cryptroot $i)" ] || continue
+	any=true
+
+	ebegin "Opening encrypted device $(cryptroot $i)"
+
+	opts="-c $(cryptroot $i)"
+
+	if [ "$(cryptdiscards $i)" = "yes" ]; then
+		opts="$opts -D"
+	fi
+
+	if [ -n "$(cryptdm $i)" ]; then
+		name="$(cryptdm $i)"
+	else
+		name=$(
+			dd if=/dev/urandom bs=4096 count=1 2>/dev/null \
+				| sha1sum | tr -d \ -
+		)
+		cat >&2 <<-EOF
+WARNING: cryptsetup does not work without having a device name set. You should
+         provide one using cryptdm$i=. Using temporary name:
+             $name.
+		EOF
+	fi
+	opts="$opts -m $name"
+
+	if [ -n "$(cryptheader $i)" ]; then
+		opts="$opts -H $(cryptheader $i)"
+	fi
+
+	if [ -n "$(cryptoffset $i)" ]; then
+		opts="$opts -o $(cryptoffset $i)"
+	fi
+
+	if [ "$(cryptkey $i)" = "yes" ]; then
+		opts="$opts -k /crypto_keyfile.bin"
+	elif [ -n "$(cryptkey $i)" ]; then
+		opts="$opts -k $(cryptkey $i)"
+	fi
+
+	nlplug-findfs $opts -p /sbin/mdev ${KOPT_debug_init:+-d} \
+		${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
+		/dev/mapper/"$name"
+	eend $?
+done
+
+# We need to continue only if there is at least one cryptrootX specified
+[ "$any" = "true" ] || exit 0
+
+# Since btrfs needs all devices to be present, scanning cannot be done by the
+# nlplug-findfs above. So lets do both lvm and btrfs manually here.
+if [ -x /sbin/lvm ]; then
+	/sbin/lvm vgchange -aya --noudevsync --sysinit -qq
+fi
+if [ -x /sbin/btrfs ]; then
+	/sbin/btrfs device scan >/dev/null || \
+		echo "Failed to scan devices for btrfs filesystem."
+fi
+)
 
 if [ -n "$KOPT_nbd" ]; then
 	# TODO: Might fail because nlplug-findfs hasn't plugged eth0 yet
