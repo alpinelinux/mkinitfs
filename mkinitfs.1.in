@@ -81,6 +81,6 @@ functions as the first executed program in early userspace.
 .PP
 Written by Natanael Copa <ncopa@alpinelinux.org>, Timo Teräs <timo.teras@iki.fi> and others.
 .SH "REPORTING BUGS"
-Alpine Linux Bugtracker: <https://gitlab.alpinelinux.org/alpine/mkinitfs/-/issues>
+Alpine Linux GitLab: <https://gitlab.alpinelinux.org/alpine/mkinitfs/-/issues>
 .SH "SEE ALSO"
 mkinitfs-bootparam(7)

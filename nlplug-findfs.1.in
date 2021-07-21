@@ -59,6 +59,6 @@ Timeout after \fITIMEOUT\fR milliseconds without uevents.
 .PP
 Written by Natanael Copa <ncopa@alpinelinux.org>, Timo Teräs <timo.teras@iki.fi> and others.
 .SH "REPORTING BUGS"
-Alpine Linux Bugtracker: <https://bugs.alpinelinux.org/projects/alpine/issues>
+Alpine Linux GitLab: <https://gitlab.alpinelinux.org/alpine/mkinitfs/-/issues>
 .SH "SEE ALSO"
 mkinitfs-bootparam(7)
