@@ -1,2 +1,4 @@
 /usr/share/udhcpc/default.script
 /usr/bin/ssl_client
+/etc/ssl/cert.pem
+/etc/ssl/certs/ca-certificates.crt
