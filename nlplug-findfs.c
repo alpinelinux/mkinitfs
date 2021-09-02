@@ -488,6 +488,7 @@ static void start_mdadm(char *devnode)
 	char *mdadm_argv[] = {
 		MDADM_PATH,
 		"--incremental",
+		"--run",
 		"--quiet",
 		devnode,
 		NULL
