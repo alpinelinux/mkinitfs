@@ -13,20 +13,21 @@
 #include <dirent.h>
 #include <err.h>
 #include <errno.h>
+#include <fnmatch.h>
+#include <getopt.h>
 #include <limits.h>
 #include <poll.h>
-#include <fnmatch.h>
 #include <pthread.h>
+#include <stdint.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
 #include <termios.h>
 #include <unistd.h>
-#include <stdint.h>
 
 #include <sys/eventfd.h>
-#include <sys/signalfd.h>
 #include <sys/mount.h>
+#include <sys/signalfd.h>
 #include <sys/socket.h>
 #include <sys/stat.h>
 #include <sys/sysmacros.h>
@@ -39,8 +40,6 @@
 #include <libkmod.h>
 #include <blkid.h>
 #include <libcryptsetup.h>
-
-#include "arg.h"
 
 #define MAX_EVENT_TIMEOUT	5000
 #define DEFAULT_EVENT_TIMEOUT	250
@@ -1197,19 +1196,19 @@ static void usage(int rc)
 	"usage: %s [options] DEVICE\n"
 	"\n"
 	"options:\n"
-	" -a OUTFILE      add paths to found apkovls to OUTFILE\n"
-	" -b OUTFILE      add found boot repositories to OUTFILE\n"
-	" -c CRYPTDEVICE  run cryptsetup luksOpen when CRYPTDEVICE is found\n"
-	" -h              show this help\n"
-	" -H HEADERDEVICE use HEADERDEVICE as the LUKS header\n"
-	" -k CRYPTKEY     path to keyfile\n"
-	" -m CRYPTNAME    use CRYPTNAME name for crypto device mapping\n"
-	" -o OFFSET       cryptsetup payload offset\n"
-	" -D              allow discards on crypto device\n"
-	" -d              enable debugging ouput\n"
-	" -f SUBSYSTEM    filter subsystem\n"
-	" -p PROGRAM      use PROGRAM as handler for every event with DEVNAME\n"
-	" -t TIMEOUT      timeout after TIMEOUT milliseconds without uevents\n"
+	" -a, --apkovls-file OUTFILE            add paths to found apkovls to OUTFILE\n"
+	" -b, --boot-repositories-file OUTFILE  add found boot repositories to OUTFILE\n"
+	" -c, --crypt-device CRYPTDEVICE        run cryptsetup luksOpen when CRYPTDEVICE is found\n"
+	" -h, --help                            show this help\n"
+	" -H, --crypt-header HEADER             use HEADER device or file as the LUKS header\n"
+	" -k, --crypt-key KEY                   path to keyfile\n"
+	" -m, --crypt-name NAME                 use NAME as name for crypto device mapping\n"
+	" -o, --crypt-offset OFFSET             cryptsetup payload offset\n"
+	" -D, --crypt-discards                  allow discards on crypto device\n"
+	" -d, --debug                           enable debugging ouput\n"
+	" -f, --filter SUBSYSTEM                filter subsystem\n"
+	" -p, --event-handler PROGRAM           use PROGRAM as handler for every event with DEVNAME\n"
+	" -t, --timeout TIMEOUT                 timeout after TIMEOUT milliseconds without uevents\n"
 	"\n", argv0);
 
 	exit(rc);
@@ -1259,59 +1258,82 @@ int main(int argc, char *argv[])
 	if (argv0++ == NULL)
 		argv0 = argv[0];
 
-	ARGBEGIN {
-	case 'a':
-		conf.apkovls = EARGF(usage(1));;
-		break;
-	case 'b':
-		conf.bootrepos = EARGF(usage(1));
-		break;
-	case 'c':
-		conf.crypt.data.device = EARGF(usage(1));
-		break;
-	case 'H':
-		conf.crypt.header.device = EARGF(usage(1));
-		/* the header may be in a regular file and not a device */
-		if (regular_file(conf.crypt.header.device)) {
-			snprintf(conf.crypt.header.devnode,
-				sizeof(conf.crypt.header.devnode),
-				"%s", conf.crypt.header.device);
+	while (1) {
+		static const struct option options[] = {
+			{ "apkovls-file",		required_argument, NULL, 'a'},
+			{ "boot-repositories-file",	required_argument, NULL, 'b'},
+			{ "crypt-device",		required_argument, NULL, 'c'},
+			{ "help",			no_argument, NULL, 'h'},
+			{ "crypt-header",		required_argument, NULL, 'H'},
+			{ "crypt-key",			required_argument, NULL, 'k'},
+			{ "crypt-name",			required_argument, NULL, 'm'},
+			{ "allow-not-found",		required_argument, NULL, 'n'},
+			{ "crypt-offset",		required_argument, NULL, 'o'},
+			{ "crypt-discards",		no_argument, NULL, 'D'},
+			{ "debug",			no_argument, NULL, 'd'},
+			{ "filter",			required_argument, NULL, 'f'},
+			{ "event-handler",		required_argument, NULL, 'p'},
+			{ "timeout",			required_argument, NULL, 't'},
+		};
+
+		int c = getopt_long(argc, argv, "a:b:c:hH:k:m:no:Ddf:p:t:", options, NULL);
+		if (c == -1)
+			break;
+
+		switch (c) {
+		case 'a':
+			conf.apkovls = optarg;
+			break;
+		case 'b':
+			conf.bootrepos = optarg;
+			break;
+		case 'c':
+			conf.crypt.data.device = optarg;
+			break;
+		case 'H':
+			conf.crypt.header.device = optarg;
+			/* the header may be in a regular file and not a device */
+			if (regular_file(conf.crypt.header.device)) {
+				snprintf(conf.crypt.header.devnode,
+					sizeof(conf.crypt.header.devnode),
+					"%s", conf.crypt.header.device);
+			}
+			break;
+		case 'h':
+			usage(0);
+			break;
+		case 'k':
+			conf.crypt.data.key = optarg;
+			break;
+		case 'm':
+			conf.crypt.data.name = optarg;
+			break;
+		case 'n':
+			not_found_is_ok = 1;
+			break;
+		case 'D':
+			conf.crypt.flags |= CRYPT_ACTIVATE_ALLOW_DISCARDS;
+			break;
+		case 'd':
+			dodebug = 1;
+			break;
+		case 'f':
+			conf.subsystem_filter = optarg;
+			break;
+		case 'o':
+			if(sscanf(optarg, "%zu", &conf.crypt.payload_offset) != 1)
+				err(1, "%s", optarg);
+			break;
+		case 'p':
+			conf.program_argv[0] = optarg;
+			break;
+		case 't':
+			conf.uevent_timeout = atoi(optarg);
+			break;
+		default:
+			usage(1);
 		}
-		break;
-	case 'h':
-		usage(0);
-		break;
-	case 'k':
-		conf.crypt.data.key = EARGF(usage(1));
-		break;
-	case 'm':
-		conf.crypt.data.name = EARGF(usage(1));
-		break;
-	case 'n':
-		not_found_is_ok = 1;
-		break;
-	case 'D':
-		conf.crypt.flags |= CRYPT_ACTIVATE_ALLOW_DISCARDS;
-		break;
-	case 'd':
-		dodebug = 1;
-		break;
-	case 'f':
-		conf.subsystem_filter = EARGF(usage(1));
-		break;
-	case 'o':
-		if(sscanf(EARGF(usage(1)), "%zu", &conf.crypt.payload_offset) != 1)
-			err(1, "sscanf");
-		break;
-	case 'p':
-		conf.program_argv[0] = EARGF(usage(1));
-		break;
-	case 't':
-		conf.uevent_timeout = atoi(EARGF(usage(1)));
-		break;
-	default:
-		usage(1);
-	} ARGEND;
+	}
 
 	if (argc > 0)
 		conf.search_device = argv[0];
