@@ -2,6 +2,6 @@
 bootchartd
 initramfs-init
 mkinitfs
-nlplug-findfs
+nlplug-findfs/nlplug-findfs
 *.[17]
 mkinitfs.conf

@@ -7,7 +7,7 @@ datarootdir	?= /usr/share
 datadir		?= $(datarootdir)/mkinitfs
 mandir		?= $(datarootdir)/man
 
-SBIN_FILES	:= mkinitfs bootchartd nlplug-findfs
+SBIN_FILES	:= mkinitfs bootchartd nlplug-findfs/nlplug-findfs
 SHARE_FILES	:= initramfs-init fstab passwd group
 CONF_FILES	:= mkinitfs.conf \
 		features.d/ata.modules \
@@ -113,7 +113,7 @@ LIBS		= $(BLKID_LIBS) $(LIBKMOD_LIBS) $(CRYPTSETUP_LIBS)
 %.o: %.c
 	$(CC) $(CPPFLAGS) $(CFLAGS) -o $@ -c $<
 
-nlplug-findfs: nlplug-findfs.o
+nlplug-findfs/nlplug-findfs: nlplug-findfs/nlplug-findfs.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
 .SUFFIXES:	.in
