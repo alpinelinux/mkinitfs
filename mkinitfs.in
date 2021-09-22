@@ -153,6 +153,7 @@ initfs_apk_keys() {
 }
 
 initfs_custom_files() {
+        # shellcheck disable=SC2086 # word splitting is required
 	for file in $custom_files; do
 		if [ -f "$basedir"/$file ]; then
 			mkdir -p "$tmpdir"/${file%/*}
