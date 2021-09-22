@@ -153,7 +153,7 @@ initfs_apk_keys() {
 }
 
 initfs_custom_files() {
-	for file in "$custom_files"; do
+	for file in $custom_files; do
 		if [ -f "$basedir"/$file ]; then
 			mkdir -p "$tmpdir"/${file%/*}
 			cp "$basedir"/$file "$tmpdir"/$file
