@@ -1,1 +1,1 @@
-kernel/drivers/pci/xen-pcifront.ko
+kernel/drivers/pci/xen-pcifront.ko*

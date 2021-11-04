@@ -1,5 +1,6 @@
 /bin/busybox
 /bin/sh
+/sbin/modprobe
 /lib/mdev
 /sbin/apk
 /etc/modprobe.d/*.conf

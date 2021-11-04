@@ -1,1 +1,1 @@
-kernel/net/packet/af_packet.ko
+kernel/net/packet/af_packet.ko*
