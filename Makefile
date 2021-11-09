@@ -121,8 +121,9 @@ nlplug-findfs/nlplug-findfs: nlplug-findfs/nlplug-findfs.o
 	${SED} ${SED_REPLACE} ${SED_EXTRA} $< > $@
 
 install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
+	install -d -m755 $(DESTDIR)/$(sbindir)
 	for i in $(SBIN_FILES); do \
-		$(INSTALL) -Dm755 $$i $(DESTDIR)/$(sbindir)/$$i;\
+		$(INSTALL) -Dm755 $$i $(DESTDIR)/$(sbindir)/;\
 	done
 	for i in $(CONF_FILES); do \
 		$(INSTALL) -Dm644 $$i $(DESTDIR)/$(sysconfdir)/$$i;\
