@@ -1,2 +1,3 @@
 kernel/drivers/block/loop.ko*
+kernel/drivers/gpu/drm/tiny/simpledrm.ko*
 kernel/fs/overlayfs

@@ -457,7 +457,7 @@ fi
 # load available drivers to get access to modloop media
 ebegin "Loading boot drivers"
 
-modprobe -a $(echo "$KOPT_modules $rootfstype" | tr ',' ' ' ) loop squashfs 2> /dev/null
+modprobe -a $(echo "$KOPT_modules $rootfstype" | tr ',' ' ' ) loop squashfs simpledrm 2> /dev/null
 if [ -f /etc/modules ] ; then
 	sed 's/\#.*//g' < /etc/modules |
 	while read module args; do
