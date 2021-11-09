@@ -307,7 +307,7 @@ prepare_zfs_root() {
 }
 
 /bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
-        /media/cdrom /media/usb /tmp /run/cryptsetup
+	/media/cdrom /media/usb /tmp /run/cryptsetup
 
 # Spread out busybox symlinks and make them available without full path
 /bin/busybox --install -s
@@ -398,7 +398,7 @@ if [ "$KOPT_chart" = yes ]; then
 fi
 
 # The following values are supported:
-#   alpine_repo=auto         -- default, search for .boot_repository
+#   alpine_repo=auto	 -- default, search for .boot_repository
 #   alpine_repo=http://...   -- network repository
 ALPINE_REPO=${KOPT_alpine_repo}
 [ "$ALPINE_REPO" = "auto" ] && ALPINE_REPO=
@@ -578,7 +578,7 @@ eend $?
 
 # Setup network interfaces
 if $do_networking; then
-        configure_ip
+	configure_ip
 fi
 
 # early console?
@@ -812,7 +812,7 @@ setup_inittab_console
 #fi
 
 ! [ -f "$sysroot"/etc/resolv.conf ] && [ -f /etc/resolv.conf ] && \
-  cp /etc/resolv.conf "$sysroot"/etc
+	cp /etc/resolv.conf "$sysroot"/etc
 
 # setup bootchart for switch_root
 chart_init=""
