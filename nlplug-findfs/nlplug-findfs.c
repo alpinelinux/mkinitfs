@@ -1335,8 +1335,8 @@ int main(int argc, char *argv[])
 		}
 	}
 
-	if (argc > 0)
-		conf.search_device = argv[0];
+	if (argc > optind)
+		conf.search_device = argv[optind];
 
 	initsignals();
 	sigemptyset(&sigchldmask);
