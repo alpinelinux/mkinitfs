@@ -653,6 +653,14 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 
 	rc_add firstboot default
 
+	# add openssh
+	if [ -n "$KOPT_ssh_key" ]; then
+		pkgs="$pkgs openssh"
+		rc_add sshd default
+	fi
+fi
+
+
 	rm -f "$sysroot/etc/.default_boot_services"
 fi
 
@@ -730,12 +738,6 @@ ebegin "Installing packages to root filesystem"
 
 if [ "$KOPT_chart" = yes ]; then
 	pkgs="$pkgs acct"
-fi
-
-# add openssh
-if [ -n "$KOPT_ssh_key" ]; then
-	pkgs="$pkgs openssh"
-	rc_add sshd default
 fi
 
 # use swclock if no RTC is found
