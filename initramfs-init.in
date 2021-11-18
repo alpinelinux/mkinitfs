@@ -466,6 +466,11 @@ if [ -f /etc/modules ] ; then
 fi
 eend 0
 
+# workaround for vmware
+if grep -q VMware /sys/devices/virtual/dmi/id/sys_vendor 2>/dev/null; then
+	modprobe -a ata_piix mptspi sr-mod
+fi
+
 if [ -n "$KOPT_cryptroot" ]; then
 	cryptopts="-c ${KOPT_cryptroot}"
 	if [ "$KOPT_cryptdiscards" = "yes" ]; then
