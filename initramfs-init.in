@@ -663,8 +663,6 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 		pkgs="$pkgs openssh"
 		rc_add sshd default
 	fi
-fi
-
 
 	rm -f "$sysroot/etc/.default_boot_services"
 fi
