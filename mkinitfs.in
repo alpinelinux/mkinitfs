@@ -140,7 +140,7 @@ initfs_firmware() {
 	# Verify if there are initfs modules
 	_modules=`find "$tmpdir"/lib/modules -type f -name "*.ko*" -print -quit`
 	[ -n "$_modules" ] || return 0
-	find "$tmpdir"/lib/modules -type f -name "*.ko*" | xargs modinfo -F firmware | sort -u | while read FW; do
+	find "$tmpdir"/lib/modules -type f -name "*.ko*" | xargs modinfo -k $kernel -F firmware | sort -u | while read FW; do
 		[ -e "${basedir}/lib/firmware/${FW}" ] && install -pD "${basedir}/lib/firmware/${FW}" "$tmpdir"/lib/firmware/$FW
 	done
 	return 0
