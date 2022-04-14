@@ -1396,8 +1396,10 @@ int main(int argc, char *argv[])
 					continue;
 				err(1, "recvmsg");
 			}
-			if (len < 32 || len >= sizeof(buf))
+			if (len < 32 || len >= sizeof(buf)) {
+				warnx("Skipping message due to size=%zu", len);
 				continue;
+			}
 
 			total_bytes += len;
 			chdr = CMSG_FIRSTHDR(&hdr);
