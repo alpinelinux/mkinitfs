@@ -358,6 +358,7 @@ for opt; do
 	console=*)
 		opt="${opt#*=}"
 		KOPT_consoles="${opt%%,*} $KOPT_consoles"
+		switch_root_opts="-c /dev/${opt%%,*}"
 		continue
 		;;
 	esac
@@ -563,7 +564,7 @@ if [ -n "$KOPT_root" ]; then
 		fi
 	done
 	sync
-	exec /bin/busybox switch_root $sysroot $chart_init "$KOPT_init" $KOPT_init_args
+	exec /bin/busybox switch_root $switch_root_opts $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 	echo "initramfs emergency recovery shell launched"
 	exec /bin/busybox sh
 fi
@@ -844,7 +845,7 @@ sync
 
 [ "$KOPT_splash" = "init" ] && echo exit > $sysroot/$splashfile
 echo ""
-exec /bin/busybox switch_root $sysroot $chart_init "$KOPT_init" $KOPT_init_args
+exec /bin/busybox switch_root $switch_root_opts $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 
 [ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
 echo "initramfs emergency recovery shell launched"
