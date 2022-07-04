@@ -124,7 +124,7 @@ initfs_kmods() {
 	# DO NOT return with 1 if there are no custom modules for initramfs
 	done | sort -u | cpio --quiet -pdm "$tmpdir"
 	mkdir -p "$tmpdir"/lib/modules/$kernel/
-	for file in modules.order modules.builtin; do
+	for file in modules.order modules.builtin modules.builtin.modinfo; do
 		if [ -f "$kerneldir"/$file ]; then
 			cp "$kerneldir"/$file "$tmpdir"/lib/modules/$kernel/
 		fi
