@@ -419,7 +419,7 @@ static int init_netlink_socket(void)
 
 	/* kernel will not create events bigger than 16kb, but we need
 	   buffer up all events during coldplug */
-	slen = 512*1024;
+	slen = 1024*1024;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &slen,
 				sizeof(slen)) < 0) {
 		err(1, "setsockopt");
