@@ -1371,7 +1371,7 @@ int main(int argc, char *argv[])
 		}
 
 		if (fds[0].revents & POLLIN) {
-			size_t len;
+			ssize_t len;
 			struct iovec iov;
 			char cbuf[CMSG_SPACE(sizeof(struct ucred))];
 			char buf[16384];
