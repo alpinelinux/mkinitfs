@@ -1,3 +1,4 @@
 kernel/arch/*/crypto/crc32*
 kernel/crypto/crc32*
+kernel/crypto/xxhash_generic.ko*
 kernel/fs/btrfs
