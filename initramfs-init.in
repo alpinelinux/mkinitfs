@@ -287,6 +287,29 @@ setup_nbd() {
 	[ "$n" != 0 ] || return 1
 }
 
+setup_wireguard() {
+	modprobe -q wireguard || return 1
+	local IFS=';'
+	set -- $KOPT_wireguard
+	unset IFS
+
+	local device="$1"
+	local ips="$2"
+	local config="${3:-/etc/wireguard/initrd.conf}"
+
+	local IFS=','
+	set -- $ips
+	unset IFS
+
+	ip link add "$device" type wireguard
+	wg setconf "$device" "$config"
+	ip link set dev "$device" up
+
+	for addr in $@; do
+		ip addr add dev "$device" "$addr"
+	done
+}
+
 rtc_exists() {
 	local rtc=
 	for rtc in /dev/rtc /dev/rtc[0-9]*; do
@@ -378,7 +401,7 @@ myopts="alpine_dev autodetect_serial autoraid chart cryptroot cryptdm cryptheade
 	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
-	dasd ssh_key BOOTIF zfcp uevent_buf_size aoe aoe_iflist aoe_mtu"
+	dasd ssh_key BOOTIF zfcp uevent_buf_size aoe aoe_iflist aoe_mtu wireguard"
 
 for opt; do
 	case "$opt" in
@@ -525,6 +548,11 @@ if [ -n "$KOPT_cryptroot" ]; then
 	elif [ -n "$KOPT_cryptkey" ]; then
 		cryptopts="$cryptopts -k ${KOPT_cryptkey}"
 	fi
+fi
+
+if [ -n "$KOPT_wireguard" ]; then
+	configure_ip
+	setup_wireguard || echo "Failed to setup wireguard tunnel."
 fi
 
 if [ -n "$KOPT_nbd" ]; then
