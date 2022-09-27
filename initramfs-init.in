@@ -223,9 +223,9 @@ relocate_mount() {
 	if ! [ -e $repofile ]; then
 		return
 	fi
-	while read dir; do
+	echo "$ovl" | cat - $repofile | while read dir; do
 		# skip http(s)/ftp repos for netboot
-		if ! [ -d "$dir" ]; then
+		if ! [ -d "$dir" -o -f "$dir" ]; then
 			continue
 		fi
 		local dev=$(df -P "$dir" | tail -1 | awk '{print $1}')
@@ -237,7 +237,7 @@ relocate_mount() {
 				mount -o move "$oldmnt" "$mnt"
 			fi
 		fi
-	done < $repofile
+	done
 }
 
 # find the dirs under ALPINE_MNT that are boot repositories
