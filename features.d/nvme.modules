@@ -1,1 +1,2 @@
 kernel/drivers/nvme
+kernel/drivers/pci/controller/vmd.ko*
