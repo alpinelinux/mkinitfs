@@ -1203,6 +1203,7 @@ static void usage(int rc)
 	" -H, --crypt-header HEADER             use HEADER device or file as the LUKS header\n"
 	" -k, --crypt-key KEY                   path to keyfile\n"
 	" -m, --crypt-name NAME                 use NAME as name for crypto device mapping\n"
+	" -n, --allow-not-found                 return success even if nothing was found\n"
 	" -o, --crypt-offset OFFSET             cryptsetup payload offset\n"
 	" -D, --crypt-discards                  allow discards on crypto device\n"
 	" -d, --debug                           enable debugging ouput\n"
