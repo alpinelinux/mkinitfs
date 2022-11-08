@@ -1,8 +1,15 @@
 kernel/drivers/usb/host
 kernel/drivers/usb/storage
 kernel/drivers/hid/usbhid
-kernel/drivers/hid/hid-generic.ko*
-kernel/drivers/hid/hid-cherry.ko*
 kernel/drivers/hid/hid-apple.ko*
+kernel/drivers/hid/hid-asus.ko*
+kernel/drivers/hid/hid-cherry.ko*
+kernel/drivers/hid/hid-cougar.ko*
+kernel/drivers/hid/hid-generic.ko*
+kernel/drivers/hid/hid-lenovo.ko*
+kernel/drivers/hid/hid-logitech.ko*
+kernel/drivers/hid/hid-microsoft.ko*
+kernel/drivers/hid/hid-roccat.ko*
+kernel/drivers/hid/hid-semitek.ko*
 kernel/fs/fat
 kernel/fs/nls
