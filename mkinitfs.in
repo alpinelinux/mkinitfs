@@ -194,7 +194,7 @@ usage: mkinitfs [-hkKLln] [-b basedir] [-c configfile] [-F features] [-f fstab]
 options:
 	-b  prefix files and kernel modules with basedir
 	-c  use configfile instead of $config
-	-C  initramfs compression (gzip|xz|zstd|lz4 defaults to $initfscomp)
+	-C  initramfs compression (gzip|xz|zstd|lz4|none defaults to $initfscomp)
 	-f  use fstab instead of $fstab
 	-F  use specified features
 	-h  print this help
@@ -303,6 +303,7 @@ case "$initfscomp" in
 	xz) cmd_exists xz; comp="xz -C crc32 -T 0" ;;
 	zstd) cmd_exists zstd; comp="zstd -19" ;;
 	lz4) cmd_exists lz4; comp="lz4 --favor-decSpeed --best -lz" ;;
+	none) comp="cat";;
 	*) echo "Initramfs compression \"$initfscomp\" not supported!"; exit 1 ;;
 esac
 

@@ -15,7 +15,7 @@ Dont use files from the root file system, use specified path instead.
 Use configfile instead of \fI@sysconfdir@/mkinitfs.conf\fR.
 .TP
 \fB\-C\fR \fIALGORITHM\fR
-Compress initramfs using gzip (default), xz, zstd or lz4.
+Compress initramfs using gzip (default), xz, zstd, lz4 or none.
 .TP
 \fB\-f\fR \fIFSTAB\fR
 Use fstab instead of \fI@datadir@/fstab\fR.
