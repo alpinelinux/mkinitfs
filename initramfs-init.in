@@ -504,14 +504,15 @@ ln -s /proc/mounts /etc/mtab
 
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
+	# run nlplug-findfs before SINGLEMODE so we load keyboard drivers
+	ebegin "Mounting root"
+	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
+		$KOPT_root
+
 	if [ "$SINGLEMODE" = "yes" ]; then
 		echo "Entering single mode. Type 'exit' to continue booting."
 		sh
 	fi
-
-	ebegin "Mounting root"
-	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
-		$KOPT_root
 
 	if echo "$KOPT_modules $rootfstype" | grep -qw btrfs; then
 		/sbin/btrfs device scan >/dev/null || \
