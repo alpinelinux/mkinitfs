@@ -347,7 +347,7 @@ myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader crypt
 	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
-	dasd ssh_key BOOTIF zfcp"
+	dasd ssh_key BOOTIF zfcp luksuuid lukskeydesc"
 
 for opt; do
 	case "$opt" in
@@ -365,7 +365,7 @@ for opt; do
 
 	for i in $myopts; do
 		case "$opt" in
-		$i=*)	eval "KOPT_${i}"='${opt#*=}';;
+		$i=*)	eval "KOPT_${i}=\${KOPT_${i}:+\$KOPT_${i} }${opt#*=}";;
 		$i)	eval "KOPT_${i}=yes";;
 		no$i)	eval "KOPT_${i}=no";;
 		esac
@@ -492,6 +492,18 @@ if [ -n "$KOPT_cryptroot" ]; then
 		cryptopts="$cryptopts -k ${KOPT_cryptkey}"
 	fi
 fi
+
+if [ -n "$KOPT_lukskeydesc" ]; then
+	read -s -p "Passphrase for key $KOPT_lukskeydesc: "
+	echo -n "$REPLY" | /bin/keyctl padd user "$KOPT_lukskeydesc" @u
+fi
+
+for uuid in $KOPT_luksuuid; do
+	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} UUID=$uuid
+        dev=$(findfs UUID=$uuid)
+        echo "Unlocking $dev as luks-$uuid"
+	/sbin/cryptsetup open $dev luks-$uuid
+done
 
 if [ -n "$KOPT_nbd" ]; then
 	# TODO: Might fail because nlplug-findfs hasn't plugged eth0 yet
