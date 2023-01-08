@@ -300,7 +300,7 @@ fi
 case "$initfscomp" in
 	gzip) comp="$(command -v pigz 2>/dev/null || echo gzip) -9" ;;
 	xz) cmd_exists xz; comp="xz -C crc32 -T 0" ;;
-	zstd) cmd_exists zstd; comp="zstd -19" ;;
+	zstd) cmd_exists zstd; comp="zstd -T0 -19" ;;
 	lz4) cmd_exists lz4; comp="lz4 --favor-decSpeed --best -lz" ;;
 	none) comp="cat";;
 	*) echo "Initramfs compression \"$initfscomp\" not supported!"; exit 1 ;;
