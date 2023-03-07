@@ -35,6 +35,8 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/lvm-thin.files \
 		features.d/lvm.files \
 		features.d/lvm.modules \
+		features.d/memdisk.files \
+		features.d/memdisk.modules \
 		features.d/mmc.modules \
 		features.d/nbd.files \
 		features.d/nbd.modules \

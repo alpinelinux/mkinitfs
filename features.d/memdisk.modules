@@ -1,0 +1,2 @@
+kernel/drivers/mtd/devices/phram.ko*
+kernel/drivers/mtd/mtdblock.ko*

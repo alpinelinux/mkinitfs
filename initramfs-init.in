@@ -540,6 +540,7 @@ myopts="BOOTIF
 	init_args
 	ip
 	keep_apk_new
+	memdisk
 	modules
 	nbd
 	overlaytmpfs
@@ -616,6 +617,12 @@ if [ "$KOPT_chart" = yes ]; then
 	ebegin "Starting bootchart logging"
 	$MOCK /sbin/bootchartd start-initfs
 	eend 0
+fi
+
+# mount memdisk
+if [ "$KOPT_memdisk" = yes ]; then
+	$MOCK modprobe phram phram=memdisk,$(memdiskfind)
+	$MOCK modprobe mtdblock
 fi
 
 # The following values are supported:
