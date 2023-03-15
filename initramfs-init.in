@@ -347,7 +347,7 @@ myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader crypt
 	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
-	dasd ssh_key BOOTIF zfcp"
+	dasd ssh_key BOOTIF zfcp uevent_buf_size"
 
 for opt; do
 	case "$opt" in
@@ -507,6 +507,7 @@ if [ -n "$KOPT_root" ]; then
 	# run nlplug-findfs before SINGLEMODE so we load keyboard drivers
 	ebegin "Mounting root"
 	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
+		${KOPT_uevent_buf_size:+-U $KOPT_uevent_buf_size} \
 		$KOPT_root
 
 	if [ "$SINGLEMODE" = "yes" ]; then
@@ -580,6 +581,7 @@ fi
 ebegin "Mounting boot media"
 nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
+	${KOPT_uevent_buf_size:+-U $KOPT_uevent_buf_size} \
 	$repoopts -a /tmp/apkovls
 eend $?
 

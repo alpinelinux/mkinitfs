@@ -402,10 +402,10 @@ static void initsignals(void)
 	signal(SIGPIPE, SIG_IGN);
 }
 
-static int init_netlink_socket(void)
+static int init_netlink_socket(unsigned int slen)
 {
 	struct sockaddr_nl nls;
-	int fd, slen;
+	int fd;
 
 	memset(&nls, 0, sizeof(nls));
 	nls.nl_family = AF_NETLINK;
@@ -417,9 +417,6 @@ static int init_netlink_socket(void)
 	if (fd < 0)
 		err(1, "socket");
 
-	/* kernel will not create events bigger than 16kb, but we need
-	   buffer up all events during coldplug */
-	slen = 1024*1024;
 	if (setsockopt(fd, SOL_SOCKET, SO_RCVBUFFORCE, &slen,
 				sizeof(slen)) < 0) {
 		err(1, "setsockopt");
@@ -1209,6 +1206,7 @@ static void usage(int rc)
 	" -f, --filter SUBSYSTEM                filter subsystem\n"
 	" -p, --event-handler PROGRAM           use PROGRAM as handler for every event with DEVNAME\n"
 	" -t, --timeout TIMEOUT                 timeout after TIMEOUT milliseconds without uevents\n"
+	" -U, --uevent-buffer-size SIZE         uevent buffer size in bytes\n"
 	"\n", argv0);
 
 	exit(rc);
@@ -1232,6 +1230,10 @@ int main(int argc, char *argv[])
 	int not_found_is_ok = 0;
 	char *program_argv[2] = {0,0};
 	sigset_t sigchldmask;
+
+	/* kernel will not create events bigger than 16kb, but we need
+	   buffer up all events during coldplug */
+	unsigned int netlink_buf_len = 1024*1024;
 
 	for (r = 0; environ[r]; r++) {
 		if (envcmp(environ[r], "PATH"))
@@ -1274,9 +1276,10 @@ int main(int argc, char *argv[])
 			{ "filter",			required_argument, NULL, 'f'},
 			{ "event-handler",		required_argument, NULL, 'p'},
 			{ "timeout",			required_argument, NULL, 't'},
+			{ "uevent-buffer-size",			required_argument, NULL, 'U'},
 		};
 
-		int c = getopt_long(argc, argv, "a:b:c:hH:k:m:no:Ddf:p:t:", options, NULL);
+		int c = getopt_long(argc, argv, "a:b:c:hH:k:m:no:Ddf:p:t:U:", options, NULL);
 		if (c == -1)
 			break;
 
@@ -1330,6 +1333,11 @@ int main(int argc, char *argv[])
 		case 't':
 			conf.uevent_timeout = atoi(optarg);
 			break;
+		case 'U':
+			if(sscanf(optarg, "%u", &netlink_buf_len) != 1) {
+				err(1, "%s", optarg);
+			}
+			break;
 		default:
 			usage(1);
 		}
@@ -1343,7 +1351,7 @@ int main(int argc, char *argv[])
 	sigaddset(&sigchldmask, SIGCHLD);
 	sigprocmask(SIG_BLOCK, &sigchldmask, NULL);
 
-	fds[0].fd = init_netlink_socket();
+	fds[0].fd = init_netlink_socket(netlink_buf_len);
 	fds[0].events = POLLIN;
 
 	fds[1].fd = signalfd(-1, &sigchldmask, SFD_NONBLOCK|SFD_CLOEXEC);
@@ -1394,6 +1402,8 @@ int main(int argc, char *argv[])
 			if (len < 0) {
 				if (errno == EINTR)
 					continue;
+				if (errno == ENOBUFS)
+				  warnx("uevent buffer overflow: current size is %u, increase the buffer size with the uevent_buf_size kernel param", netlink_buf_len);
 				err(1, "recvmsg");
 			}
 			if (len < 32 || len >= sizeof(buf)) {
