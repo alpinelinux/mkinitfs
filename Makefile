@@ -90,7 +90,7 @@ endif
 all:	$(SBIN_FILES) $(SCRIPTS) $(CONF_FILES) $(MAN_FILES)
 
 clean:
-	rm -f $(SCRIPTS) $(MAN_FILES) mkinitfs.conf
+	rm -f $(SBIN_FILES) $(SCRIPTS) $(MAN_FILES) mkinitfs.conf
 
 help:
 	@echo mkinitfs $(VERSION)
@@ -137,3 +137,5 @@ install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
 
 mkinitfs.conf:
 	echo 'features="$(DEFAULT_FEATURES)"' > $@
+
+.PHONY: all clean help install
