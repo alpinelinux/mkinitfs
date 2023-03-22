@@ -1,0 +1,126 @@
+0-a apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+0-ackm apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+0-ackmH apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+0-an apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+0-anckm apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+0-anckmH apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+0-b bootrepo=/media/vda1/bar status=0
+0-bckm bootrepo=/media/vda1/bar status=0
+0-bckmH bootrepo=/media/vda1/bar status=0
+0-bn bootrepo=/media/vda1/bar status=0
+0-bnckm bootrepo=/media/vda1/bar status=0
+0-bnckmH bootrepo=/media/vda1/bar status=0
+0-ab apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+0-abckm apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+0-abckmH apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+0-abn apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+0-abnckm apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+0-abnckmH apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+05-a apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz status=0
+05-ackm apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz status=0
+05-ackmH apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz status=0
+05-an apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz status=0
+05-anckm apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz status=0
+05-anckmH apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz status=0
+05-b bootrepo=/media/vda1/bar status=0
+05-bckm bootrepo=/media/vda1/bar status=0
+05-bckmH bootrepo=/media/vda1/bar status=0
+05-bn bootrepo=/media/vda1/bar status=0
+05-bnckm bootrepo=/media/vda1/bar status=0
+05-bnckmH bootrepo=/media/vda1/bar status=0
+05-ab apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+05-abckm apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+05-abckmH apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+05-abn apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+05-abnckm apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+05-abnckmH apkovl=/media/vda1/foo.apkovl.tar.gz:/media/md0/foo.apkovl.tar.gz bootrepo=/media/vda1/bar status=0
+1-a apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-ackm apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-ackmH apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-an apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-anckm apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-anckmH apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-b status=0
+1-bckm status=0
+1-bckmH status=0
+1-bn status=0
+1-bnckm status=0
+1-bnckmH status=0
+1-ab apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-abckm apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-abckmH apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-abn apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-abnckm apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+1-abnckmH apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+12-a apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+12-ackm apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+12-ackmH apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+12-an apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+12-anckm apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+12-anckmH apkovl=/media/vda1/foo.apkovl.tar.gz status=0
+12-b bootrepo=/media/vdb2/bar status=0
+12-bckm bootrepo=/media/vdb2/bar status=0
+12-bckmH bootrepo=/media/vdb2/bar status=0
+12-bn bootrepo=/media/vdb2/bar status=0
+12-bnckm bootrepo=/media/vdb2/bar status=0
+12-bnckmH bootrepo=/media/vdb2/bar status=0
+12-ab apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vdb2/bar status=0
+12-abckm apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vdb2/bar status=0
+12-abckmH apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vdb2/bar status=0
+12-abn apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vdb2/bar status=0
+12-abnckm apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vdb2/bar status=0
+12-abnckmH apkovl=/media/vda1/foo.apkovl.tar.gz bootrepo=/media/vdb2/bar status=0
+2-a status=0
+2-ackm apkovl=/media/dm-1/foo.apkovl.tar.gz status=0
+2-ackmH status=0
+2-an status=0
+2-anckm apkovl=/media/dm-1/foo.apkovl.tar.gz status=0
+2-anckmH status=0
+2-b bootrepo=/media/vda2/bar status=0
+2-bckm bootrepo=/media/vda2/bar status=0
+2-bckmH bootrepo=/media/vda2/bar status=0
+2-bn bootrepo=/media/vda2/bar status=0
+2-bnckm bootrepo=/media/vda2/bar status=0
+2-bnckmH bootrepo=/media/vda2/bar status=0
+2-ab bootrepo=/media/vda2/bar status=0
+2-abckm apkovl=/media/dm-1/foo.apkovl.tar.gz bootrepo=/media/vda2/bar status=0
+2-abckmH bootrepo=/media/vda2/bar status=0
+2-abn bootrepo=/media/vda2/bar status=0
+2-abnckm apkovl=/media/dm-1/foo.apkovl.tar.gz bootrepo=/media/vda2/bar status=0
+2-abnckmH bootrepo=/media/vda2/bar status=0
+3-a status=1
+3-ackm apkovl=/media/dm-0/foo.apkovl.tar.gz status=0
+3-ackmH status=1
+3-an status=0
+3-anckm apkovl=/media/dm-0/foo.apkovl.tar.gz status=0
+3-anckmH status=0
+3-b status=1
+3-bckm bootrepo=/media/dm-0/bar status=0
+3-bckmH status=1
+3-bn status=0
+3-bnckm bootrepo=/media/dm-0/bar status=0
+3-bnckmH status=0
+3-ab status=1
+3-abckm apkovl=/media/dm-0/foo.apkovl.tar.gz bootrepo=/media/dm-0/bar status=0
+3-abckmH status=1
+3-abn status=0
+3-abnckm apkovl=/media/dm-0/foo.apkovl.tar.gz bootrepo=/media/dm-0/bar status=0
+3-abnckmH status=0
+45-a apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-ackm apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-ackmH apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-an apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-anckm apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-anckmH apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-b status=0
+45-bckm status=0
+45-bckmH bootrepo=/media/dm-0/bar status=0
+45-bn status=0
+45-bnckm status=0
+45-bnckmH bootrepo=/media/dm-0/bar status=0
+45-ab apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-abckm apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-abckmH apkovl=/media/md0/foo.apkovl.tar.gz bootrepo=/media/dm-0/bar status=0
+45-abn apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-abnckm apkovl=/media/md0/foo.apkovl.tar.gz status=0
+45-abnckmH apkovl=/media/md0/foo.apkovl.tar.gz bootrepo=/media/dm-0/bar status=0

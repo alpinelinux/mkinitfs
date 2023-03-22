@@ -90,7 +90,8 @@ endif
 all:	$(SBIN_FILES) $(SCRIPTS) $(CONF_FILES) $(MAN_FILES)
 
 clean:
-	rm -f $(SBIN_FILES) $(SCRIPTS) $(MAN_FILES) mkinitfs.conf
+	rm -fr $(SBIN_FILES) $(SCRIPTS) $(MAN_FILES) mkinitfs.conf \
+		nlplug-findfs/actual nlplug-findfs/build
 
 help:
 	@echo mkinitfs $(VERSION)
@@ -116,6 +117,12 @@ LIBS		= $(BLKID_LIBS) $(LIBKMOD_LIBS) $(CRYPTSETUP_LIBS)
 nlplug-findfs/nlplug-findfs: nlplug-findfs/nlplug-findfs.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
+check: nlplug-findfs/build
+	nlplug-findfs/test.sh run
+
+nlplug-findfs/build: nlplug-findfs/init.sh nlplug-findfs/nlplug-findfs nlplug-findfs/test.sh
+	nlplug-findfs/test.sh build
+
 .SUFFIXES:	.in
 .in:
 	${SED} ${SED_REPLACE} ${SED_EXTRA} $< > $@
@@ -138,4 +145,4 @@ install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
 mkinitfs.conf:
 	echo 'features="$(DEFAULT_FEATURES)"' > $@
 
-.PHONY: all clean help install
+.PHONY: all check clean help install
