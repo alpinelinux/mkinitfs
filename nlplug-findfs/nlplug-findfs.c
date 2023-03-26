@@ -1233,7 +1233,7 @@ int main(int argc, char *argv[])
 
 	/* kernel will not create events bigger than 16kb, but we need
 	   buffer up all events during coldplug */
-	unsigned int netlink_buf_len = 1024*1024;
+	unsigned int netlink_buf_len = 4*1024*1024;
 
 	for (r = 0; environ[r]; r++) {
 		if (envcmp(environ[r], "PATH"))
