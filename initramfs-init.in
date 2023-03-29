@@ -679,6 +679,13 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 		rc_add sshd default
 	fi
 
+	if findfs LABEL=cidata >/dev/null 2>&1 || findfs LABEL=CIDATA >/dev/null 2>&1; then
+		pkgs="$pkgs tiny-cloud-nocloud ifupdown-ng"
+		rc_add tiny-cloud-early boot
+		rc_add tiny-cloud default
+		rc_add tiny-cloud-final default
+	fi
+
 	rm -f "$sysroot/etc/.default_boot_services"
 fi
 
