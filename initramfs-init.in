@@ -773,11 +773,16 @@ else
 fi
 
 # enable support for modloop verification
-if [ -f "$ROOT"/var/cache/misc/*modloop*.SIGN.RSA.*.pub ]; then
+for _pubkey in "$ROOT"/var/cache/misc/*modloop*.SIGN.RSA.*.pub; do
+	# check only if the glob matched something
+	[ -f "$_pubkey" ] || continue
+
+	# then do it in one iteration anyway
 	mkdir -p "$sysroot"/var/cache/misc
 	cp "$ROOT"/var/cache/misc/*modloop*.SIGN.RSA.*.pub "$sysroot"/var/cache/misc
 	pkgs="$pkgs openssl"
-fi
+	break
+done
 
 apkflags="--initramfs-diskless-boot --progress"
 if [ -z "$MAC_ADDRESS" ]; then
