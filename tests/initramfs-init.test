@@ -6,7 +6,8 @@ init_tests \
 	initramfs_init_cmdline_root \
 	initramfs_init_blacklist \
 	initramfs_init_tmpfs_root \
-	initramfs_init_tmpfs_root_modloop_sign
+	initramfs_init_tmpfs_root_modloop_sign \
+	initramfs_init_tmpfs_root_net_apkovl
 
 fake_cmdline() {
 	mkdir -p proc
@@ -78,4 +79,16 @@ initramfs_init_tmpfs_root_modloop_sign_body() {
 		test -f sysroot/var/cache/misc/modloop.SIGN.RSA.ncopa-4d1b7620.rsa.pub
 }
 
+initramfs_init_tmpfs_root_net_apkovl_body() {
+	fake_cmdline "apkovl=https://example.com/{UUID}/foo.apkovl.tar.gz"
+	fake_switch_root
+	fake_sysroot_init
+
+	mkdir -p sys/class/dmi/id
+	echo "c7c29fe0-cf90-4024-8ba3-208387fc7ac6" > sys/class/dmi/id/product_uuid
+
+	atf_check \
+		-o match:"wget .* https://example.com/c7c29fe0-cf90-4024-8ba3-208387fc7ac6/foo.apkovl.tar.gz" \
+		initramfs-init
+}
 

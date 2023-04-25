@@ -130,12 +130,12 @@ setup_inittab_console(){
 ip_choose_if() {
 	if [ -n "$KOPT_BOOTIF" ]; then
 		mac=$(printf "%s\n" "$KOPT_BOOTIF"|sed 's/^01-//;s/-/:/g')
-		dev=$(grep -l $mac /sys/class/net/*/address|head -n 1)
+		dev=$(grep -l $mac "$ROOT"/sys/class/net/*/address|head -n 1)
 		dev=${dev%/*}
 		[ -n "$dev" ] && echo "${dev##*/}" && return
 	fi
-	for x in /sys/class/net/eth*; do
-		if grep -iq up $x/operstate;then
+	for x in "$ROOT"/sys/class/net/eth*; do
+		if grep -iq up $x/operstate 2>/dev/null;then
 			[ -e "$x" ] && echo ${x##*/} && return
 		fi
 	done
@@ -190,13 +190,13 @@ configure_ip() {
 
 	if [ "$autoconf" = "dhcp" ]; then
 		# automatic configuration
-		if [ ! -e /usr/share/udhcpc/default.script ]; then
+		if [ ! -e "$ROOT"/usr/share/udhcpc/default.script ]; then
 			echo "ERROR: DHCP requested but not present in initrd"
 			return 1
 		fi
 		ebegin "Obtaining IP via DHCP ($device)"
-		ifconfig "$device" 0.0.0.0
-		udhcpc -i "$device" -f -q
+		$MOCK ifconfig "$device" 0.0.0.0
+		$MOCK udhcpc -i "$device" -f -q
 		eend $?
 	else
 		# manual configuration
@@ -627,10 +627,10 @@ if [ -z "$KOPT_apkovl" ]; then
 	fi
 elif is_url "$KOPT_apkovl"; then
 	# Fetch apkovl via network
-	MACHINE_UUID=$(cat /sys/class/dmi/id/product_uuid 2>/dev/null)
+	MACHINE_UUID=$(cat "$ROOT"/sys/class/dmi/id/product_uuid 2>/dev/null)
 	url="$(echo "$KOPT_apkovl" | sed -e "s/{MAC}/$MAC_ADDRESS/" -e "s/{UUID}/$MACHINE_UUID/")"
 	ovl=/tmp/${url##*/}
-	wget -O "$ovl" "$url" || ovl=
+	$MOCK wget -O "$ovl" "$url" || ovl=
 else
 	ovl="$KOPT_apkovl"
 fi
