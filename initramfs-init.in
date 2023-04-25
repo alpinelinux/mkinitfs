@@ -3,26 +3,26 @@
 # this is the init script version
 VERSION=@VERSION@
 SINGLEMODE=no
-sysroot=/sysroot
+sysroot="$ROOT"/sysroot
 splashfile=/.splash.ctrl
-repofile=/tmp/repositories
+repofile="$ROOT"/tmp/repositories
 
 # some helpers
 ebegin() {
 	last_emsg="$*"
-	echo "$last_emsg..." > /dev/kmsg
+	echo "$last_emsg..." > "$ROOT"/dev/kmsg
 	[ "$KOPT_quiet" = yes ] && return 0
 	echo -n " * $last_emsg: "
 }
 eend() {
 	local msg
 	if [ "$1" = 0 ] || [ $# -lt 1 ] ; then
-		echo "$last_emsg: ok." > /dev/kmsg
+		echo "$last_emsg: ok." > "$ROOT"/dev/kmsg
 		[ "$KOPT_quiet" = yes ] && return 0
 		echo "ok."
 	else
 		shift
-		echo "$last_emsg: failed. $*" > /dev/kmsg
+		echo "$last_emsg: failed. $*" > "$ROOT"/dev/kmsg
 		if [ "$KOPT_quiet" = "yes" ]; then
 			echo -n "$last_emsg "
 		fi
@@ -306,12 +306,21 @@ prepare_zfs_root() {
 	fi
 }
 
-/bin/busybox mkdir -p /usr/bin /usr/sbin /proc /sys /dev $sysroot \
-	/media/cdrom /media/usb /tmp /run/cryptsetup
+/bin/busybox mkdir -p "$ROOT"/usr/bin \
+	"$ROOT"/usr/sbin \
+	"$ROOT"/proc \
+	"$ROOT"/sys \
+	"$ROOT"/dev \
+	"$sysroot" \
+	"$ROOT"/media/cdrom \
+	"$ROOT"/media/usb \
+	"$ROOT"/tmp \
+	"$ROOT"/etc \
+	"$ROOT"/run/cryptsetup
 
 # Spread out busybox symlinks and make them available without full path
 /bin/busybox --install -s
-export PATH=/usr/bin:/bin:/usr/sbin:/sbin
+export PATH="$PATH:/usr/bin:/bin:/usr/sbin:/sbin"
 
 # Make sure /dev/null is a device node. If /dev/null does not exist yet, the command
 # mounting the devtmpfs will create it implicitly as an file with the "2>" redirection.
@@ -319,29 +328,29 @@ export PATH=/usr/bin:/bin:/usr/sbin:/sbin
 # error message.
 [ -c /dev/null ] || mknod -m 666 /dev/null c 1 3
 
-mount -t sysfs -o noexec,nosuid,nodev sysfs /sys
-mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
-	|| mount -t tmpfs -o exec,nosuid,mode=0755,size=2M tmpfs /dev
+$MOCK mount -t sysfs -o noexec,nosuid,nodev sysfs /sys
+$MOCK mount -t devtmpfs -o exec,nosuid,mode=0755,size=2M devtmpfs /dev 2>/dev/null \
+	|| $MOCK mount -t tmpfs -o exec,nosuid,mode=0755,size=2M tmpfs /dev
 
 # Make sure /dev/kmsg is a device node. Writing to /dev/kmsg allows the use of the
 # earlyprintk kernel option to monitor early init progress. As above, the -c check
 # prevents an error if the device node has already been seeded.
 [ -c /dev/kmsg ] || mknod -m 660 /dev/kmsg c 1 11
 
-mount -t proc -o noexec,nosuid,nodev proc /proc
+$MOCK mount -t proc -o noexec,nosuid,nodev proc /proc
 # pty device nodes (later system will need it)
 [ -c /dev/ptmx ] || mknod -m 666 /dev/ptmx c 5 2
 [ -d /dev/pts ] || mkdir -m 755 /dev/pts
-mount -t devpts -o gid=5,mode=0620,noexec,nosuid devpts /dev/pts
+$MOCK mount -t devpts -o gid=5,mode=0620,noexec,nosuid devpts /dev/pts
 
 # shared memory area (later system will need it)
 [ -d /dev/shm ] || mkdir /dev/shm
-mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
+$MOCK mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
 
 
 # read the kernel options. we need surve things like:
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
-set -- $(cat /proc/cmdline)
+set -- $(cat "$ROOT"/proc/cmdline)
 
 myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
@@ -372,7 +381,7 @@ for opt; do
 	done
 done
 
-echo "Alpine Init $VERSION" > /dev/kmsg
+echo "Alpine Init $VERSION" > "$ROOT"/dev/kmsg
 [ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
 
 # enable debugging if requested
@@ -382,7 +391,7 @@ echo "Alpine Init $VERSION" > /dev/kmsg
 : ${KOPT_init:=/sbin/init}
 
 # pick first keymap if found
-for map in /etc/keymap/*; do
+for map in "$ROOT"/etc/keymap/*; do
 	if [ -f "$map" ]; then
 		ebegin "Setting keymap ${map##*/}"
 		zcat "$map" | loadkmap
@@ -409,7 +418,7 @@ ALPINE_REPO=${KOPT_alpine_repo}
 
 # optional blacklist
 for i in ${KOPT_blacklist//,/ }; do
-	echo "blacklist $i" >> /etc/modprobe.d/boot-opt-blacklist.conf
+	echo "blacklist $i" >> "$ROOT"/etc/modprobe.d/boot-opt-blacklist.conf
 done
 
 # determine if we are going to need networking
@@ -458,8 +467,8 @@ fi
 # load available drivers to get access to modloop media
 ebegin "Loading boot drivers"
 
-modprobe -a $(echo "$KOPT_modules $rootfstype" | tr ',' ' ' ) loop squashfs simpledrm 2> /dev/null
-if [ -f /etc/modules ] ; then
+$MOCK modprobe -a $(echo "$KOPT_modules $rootfstype" | tr ',' ' ' ) loop squashfs simpledrm 2> /dev/null
+if [ -f "$ROOT"/etc/modules ] ; then
 	sed 's/\#.*//g' < /etc/modules |
 	while read module args; do
 		modprobe -q $module $args
@@ -500,13 +509,13 @@ if [ -n "$KOPT_nbd" ]; then
 fi
 
 # zpool reports /dev/zfs missing if it can't read /etc/mtab
-ln -s /proc/mounts /etc/mtab
+ln -s /proc/mounts "$ROOT"/etc/mtab
 
 # check if root=... was set
 if [ -n "$KOPT_root" ]; then
 	# run nlplug-findfs before SINGLEMODE so we load keyboard drivers
 	ebegin "Mounting root"
-	nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
+	$MOCK nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 		${KOPT_uevent_buf_size:+-U $KOPT_uevent_buf_size} \
 		$KOPT_root
 
@@ -553,20 +562,20 @@ if [ -n "$KOPT_root" ]; then
 		if [ "$rootfstype" = "zfs" ]; then
 			prepare_zfs_root
 		fi
-		mount ${rootfstype:+-t} ${rootfstype} \
+		$MOCK mount ${rootfstype:+-t} ${rootfstype} \
 			-o ${KOPT_rootflags:-ro} \
 			${KOPT_root#ZFS=} $sysroot
 	fi
 
 	eend $?
-	cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
+	cat "$ROOT"/proc/mounts 2>/dev/null | while read DEV DIR TYPE OPTS ; do
 		if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
 			mkdir -p $sysroot/$DIR
-			mount -o move $DIR $sysroot/$DIR
+			$MOCK mount -o move $DIR $sysroot/$DIR
 		fi
 	done
-	sync
-	exec /bin/busybox switch_root $switch_root_opts $sysroot $chart_init "$KOPT_init" $KOPT_init_args
+	$MOCK sync
+	exec switch_root $switch_root_opts $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 	echo "initramfs emergency recovery shell launched"
 	exec /bin/busybox sh
 fi

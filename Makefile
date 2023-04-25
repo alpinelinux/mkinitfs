@@ -137,7 +137,7 @@ Kyuafile:
 	echo "include('tests/Kyuafile')" >> $@.tmp
 	mv $@.tmp $@
 
-check: tests/Kyuafile Kyuafile mkinitfs
+check: tests/Kyuafile Kyuafile mkinitfs initramfs-init
 	kyua test || { kyua report --verbose && exit 1 ; }
 
 .SUFFIXES:	.in

@@ -1,0 +1,30 @@
+#!/usr/bin/env atf-sh
+
+. $(atf_get_srcdir)/test_env.sh
+
+init_tests \
+	initramfs_init_cmdline_root \
+
+fake_cmdline() {
+	mkdir -p proc
+	echo "$@" > proc/cmdline
+}
+
+fake_bin() {
+	mkdir -p bin
+	cat > bin/"$1"
+	chmod +x bin/"$1"
+}
+
+initramfs_init_cmdline_root_body() {
+	fake_cmdline "root=/dev/vda1"
+	fake_bin switch_root <<-EOF
+		#!/bin/sh
+		echo "switch_root OK"
+	EOF
+	atf_check -o match:"Alpine Init" \
+		-o match:"nlplug-findfs" \
+		-o match:"mount.*-o ro.*/dev/vda1.*/sysroot" \
+		-o match:"switch_root OK" \
+		initramfs-init
+}

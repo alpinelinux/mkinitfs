@@ -2,9 +2,10 @@
 
 atf_srcdir="$(atf_get_srcdir)"
 srcdir="$atf_srcdir/.."
-PATH="$srcdir:$PATH"
+PATH="$srcdir:$PWD/bin:$PATH"
 
 export ROOT="$PWD"
+export MOCK=echo
 
 init_tests() {
 	TESTS=
