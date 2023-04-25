@@ -117,15 +117,34 @@ LIBS		= $(BLKID_LIBS) $(LIBKMOD_LIBS) $(CRYPTSETUP_LIBS)
 nlplug-findfs/nlplug-findfs: nlplug-findfs/nlplug-findfs.o
 	$(CC) $(LDFLAGS) -o $@ $^ $(LIBS)
 
-check: nlplug-findfs/build
+check-nlplug-findfs: nlplug-findfs/build
 	nlplug-findfs/test.sh run
 
 nlplug-findfs/build: nlplug-findfs/init.sh nlplug-findfs/nlplug-findfs nlplug-findfs/test.sh
 	nlplug-findfs/test.sh build
 
+tests/Kyuafile: $(wildcard tests/*.test)
+	echo "syntax(2)" > $@.tmp
+	echo "test_suite('mkinitfs')" >> $@.tmp
+	for i in $(notdir $(wildcard tests/*.test)); do \
+		echo "atf_test_program{name='$$i',timeout=5}" >> $@.tmp ; \
+	done
+	mv $@.tmp $@
+
+Kyuafile:
+	echo "syntax(2)" > $@.tmp
+	echo "test_suite('mkinitfs')" >> $@.tmp
+	echo "include('tests/Kyuafile')" >> $@.tmp
+	mv $@.tmp $@
+
+check: tests/Kyuafile Kyuafile mkinitfs
+	kyua test || { kyua report --verbose && exit 1 ; }
+
 .SUFFIXES:	.in
 .in:
-	${SED} ${SED_REPLACE} ${SED_EXTRA} $< > $@
+	${SED} ${SED_REPLACE} ${SED_EXTRA} $< > $@.tmp
+	chmod +x $@.tmp
+	mv $@.tmp $@
 
 install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
 	install -d -m755 $(DESTDIR)/$(sbindir)

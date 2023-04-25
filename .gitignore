@@ -5,3 +5,5 @@ mkinitfs
 nlplug-findfs/nlplug-findfs
 *.[17]
 mkinitfs.conf
+Kyuafile
+tests/Kyuafile
