@@ -4,7 +4,8 @@
 
 init_tests \
 	initramfs_init_cmdline_root \
-	initramfs_init_blacklist
+	initramfs_init_blacklist \
+	initramfs_init_tmpfs_root
 
 fake_cmdline() {
 	mkdir -p proc
@@ -15,6 +16,12 @@ fake_bin() {
 	mkdir -p bin
 	cat > bin/"$1"
 	chmod +x bin/"$1"
+}
+
+fake_sysroot_init() {
+	mkdir -p sysroot/sbin
+	touch sysroot/sbin/init
+	chmod +x sysroot/sbin/init
 }
 
 fake_switch_root() {
@@ -44,6 +51,17 @@ initramfs_init_blacklist_body() {
 	atf_check -o match:"blacklist dummy" \
 		-o match:"blacklist evbug" \
 		cat etc/modprobe.d/*
+}
+
+initramfs_init_tmpfs_root_body() {
+	fake_cmdline ""
+	fake_switch_root
+	fake_sysroot_init
+	atf_check \
+		-o match:"nlplug-findfs" \
+		-o match:"mount.*tmpfs .*/sysroot" \
+		-o match:"switch_root OK" \
+		initramfs-init
 }
 
 

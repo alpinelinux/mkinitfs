@@ -112,7 +112,7 @@ setup_inittab_console(){
 	consoles="$(for c in console $KOPT_consoles; do list_console_devices $c; done)"
 	for tty in $consoles; do
 		# do nothing if inittab already have the tty set up
-		if ! grep -q "^$tty:" $sysroot/etc/inittab; then
+		if ! grep -q "^$tty:" $sysroot/etc/inittab 2>/dev/null; then
 			echo "# enable login on alternative console" \
 				>> $sysroot/etc/inittab
 			# Baudrate of 0 keeps settings from kernel
@@ -231,10 +231,10 @@ relocate_mount() {
 		local dev=$(df -P "$dir" | tail -1 | awk '{print $1}')
 		local mnt=$(find_mnt $dev $fstab)
 		if [ -n "$mnt" ]; then
-			local oldmnt=$(awk -v d=$dev '$1==d {print $2}' /proc/mounts)
+			local oldmnt=$(awk -v d=$dev '$1==d {print $2}' "$ROOT"/proc/mounts 2>/dev/null)
 			if [ "$oldmnt" != "$mnt" ]; then
 				mkdir -p "$mnt"
-				mount -o move "$oldmnt" "$mnt"
+				$MOCK mount -o move "$oldmnt" "$mnt"
 			fi
 		fi
 	done
@@ -551,14 +551,14 @@ if [ -n "$KOPT_root" ]; then
 			$sysroot/media/root-rw
 		# Mount read-only underlying rootfs
 		rootflags="${KOPT_rootflags:+$KOPT_rootflags,}ro"
-		mount ${KOPT_rootfstype:+-t $KOPT_rootfstype} -o $rootflags \
+		$MOCK mount ${KOPT_rootfstype:+-t $KOPT_rootfstype} -o $rootflags \
 			$KOPT_root /media/root-ro
 		# Mount writable overlay tmpfs
 		overlaytmpfsflags="mode=0755,${KOPT_overlaytmpfsflags:+$KOPT_overlaytmpfsflags,}rw"
-		mount -t tmpfs -o $overlaytmpfsflags root-tmpfs /media/root-rw
+		$MOCK mount -t tmpfs -o $overlaytmpfsflags root-tmpfs /media/root-rw
 		# Create additional mountpoints and do the overlay mount
 		mkdir -p /media/root-rw/work /media/root-rw/root
-		mount -t overlay -o \
+		$MOCK mount -t overlay -o \
 			lowerdir=/media/root-ro,upperdir=/media/root-rw/root,workdir=/media/root-rw/work \
 			overlayfs $sysroot
 	else
@@ -591,7 +591,7 @@ fi
 
 # locate boot media and mount it
 ebegin "Mounting boot media"
-nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
+$MOCK nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
 	${KOPT_uevent_buf_size:+-U $KOPT_uevent_buf_size} \
 	$repoopts -a /tmp/apkovls
@@ -618,7 +618,7 @@ if [ -n "$KOPT_rootflags" ]; then
 	rootflags="$rootflags,$KOPT_rootflags"
 fi
 
-mount -t tmpfs -o $rootflags tmpfs $sysroot
+$MOCK mount -t tmpfs -o $rootflags tmpfs $sysroot
 
 if [ -z "$KOPT_apkovl" ]; then
 	# Not manually set, use the apkovl found by nlplug
@@ -719,13 +719,13 @@ if [ -f $sysroot/etc/fstab ]; then
 	# let user override tmpfs size in fstab in apkovl
 	mountopts=$(awk '$2 == "/" && $3 == "tmpfs" { print $4 }' $sysroot/etc/fstab)
 	if [ -n "$mountopts" ]; then
-		mount -o remount,$mountopts $sysroot
+		$MOCK mount -o remount,$mountopts $sysroot
 	fi
 	# move the ALPINE_MNT if ALPINE_DEV is specified in users fstab
 	# this is so a generated /etc/apk/repositories will use correct
 	# mount dir
 	relocate_mount "$sysroot"/etc/fstab
-elif [ -f /etc/fstab ]; then
+elif [ -f "$ROOT"/etc/fstab ]; then
 	relocate_mount /etc/fstab
 fi
 
@@ -789,20 +789,20 @@ if [ "$KOPT_keep_apk_new" != yes ]; then
 	[ -n "$ovlfiles" ] && apkflags="$apkflags --overlay-from-stdin"
 fi
 mkdir -p $sysroot/sys $sysroot/proc $sysroot/dev
-mount -o bind /sys $sysroot/sys
-mount -o bind /proc $sysroot/proc
-mount -o bind /dev $sysroot/dev
+$MOCK mount -o bind /sys $sysroot/sys
+$MOCK mount -o bind /proc $sysroot/proc
+$MOCK mount -o bind /dev $sysroot/dev
 if [ -n "$ovlfiles" ]; then
 	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles
 else
 	apk add --root $sysroot $repo_opt $apkflags $pkgs
 fi
-umount $sysroot/sys $sysroot/proc $sysroot/dev
+$MOCK umount $sysroot/sys $sysroot/proc $sysroot/dev
 eend $?
 
 # unmount ovl mount if needed
 if [ -n "$ovl_unmount" ]; then
-	umount $ovl_unmount 2>/dev/null
+	$MOCK umount $ovl_unmount 2>/dev/null
 fi
 
 # remount according default fstab from package
@@ -819,7 +819,7 @@ fi
 if [ -f "$sysroot"/etc/fstab ]; then
 	opts=$(awk "\$2 == \"$ALPINE_MNT\" {print \$4}" $sysroot/etc/fstab)
 	if [ -n "$opts" ]; then
-		mount -o remount,$opts "$ALPINE_MNT"
+		$MOCK mount -o remount,$opts "$ALPINE_MNT"
 	fi
 fi
 
@@ -850,17 +850,17 @@ if [ ! -x "${sysroot}${KOPT_init}" ]; then
 fi
 
 # switch over to new root
-cat /proc/mounts | while read DEV DIR TYPE OPTS ; do
+cat "$ROOT"/proc/mounts 2>/dev/null | while read DEV DIR TYPE OPTS ; do
 	if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
 		mkdir -p $sysroot/$DIR
-		mount -o move $DIR $sysroot/$DIR
+		$MOCK mount -o move $DIR $sysroot/$DIR
 	fi
 done
 sync
 
 [ "$KOPT_splash" = "init" ] && echo exit > $sysroot/$splashfile
 echo ""
-exec /bin/busybox switch_root $switch_root_opts $sysroot $chart_init "$KOPT_init" $KOPT_init_args
+exec switch_root $switch_root_opts $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 
 [ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
 echo "initramfs emergency recovery shell launched"
