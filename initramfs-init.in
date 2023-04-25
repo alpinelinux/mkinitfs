@@ -418,6 +418,7 @@ ALPINE_REPO=${KOPT_alpine_repo}
 
 # optional blacklist
 for i in ${KOPT_blacklist//,/ }; do
+	mkdir -p "$ROOT"/etc/modprobe.d
 	echo "blacklist $i" >> "$ROOT"/etc/modprobe.d/boot-opt-blacklist.conf
 done
 

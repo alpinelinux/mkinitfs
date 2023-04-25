@@ -4,6 +4,7 @@
 
 init_tests \
 	initramfs_init_cmdline_root \
+	initramfs_init_blacklist
 
 fake_cmdline() {
 	mkdir -p proc
@@ -16,15 +17,33 @@ fake_bin() {
 	chmod +x bin/"$1"
 }
 
-initramfs_init_cmdline_root_body() {
-	fake_cmdline "root=/dev/vda1"
+fake_switch_root() {
 	fake_bin switch_root <<-EOF
 		#!/bin/sh
 		echo "switch_root OK"
 	EOF
+}
+
+initramfs_init_cmdline_root_body() {
+	fake_cmdline "root=/dev/vda1"
+	fake_switch_root
+
 	atf_check -o match:"Alpine Init" \
 		-o match:"nlplug-findfs" \
 		-o match:"mount.*-o ro.*/dev/vda1.*/sysroot" \
 		-o match:"switch_root OK" \
 		initramfs-init
 }
+
+initramfs_init_blacklist_body() {
+	fake_cmdline "root=/dev/vda1 blacklist=dummy,evbug"
+	fake_switch_root
+	atf_check -o match:"switch_root OK" \
+		initramfs-init
+
+	atf_check -o match:"blacklist dummy" \
+		-o match:"blacklist evbug" \
+		cat etc/modprobe.d/*
+}
+
+
