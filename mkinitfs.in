@@ -211,7 +211,6 @@ options:
 	-t  use tempdir when creating initramfs image
 
 EOF
-	exit 1
 }
 
 # main
@@ -224,7 +223,7 @@ while getopts "b:c:C:f:F:hi:kKLlno:P:qs:t:" opt; do
 		C) initfscomp="$OPTARG";;
 		F) myfeatures="$OPTARG";;
 		f) fstab="$OPTARG";;
-		h) usage;;
+		h) usage; exit 0;;
 		i) init=$OPTARG;;
 		k) keeptmp=1;;
 		K) hostkeys=1;;
@@ -236,7 +235,7 @@ while getopts "b:c:C:f:F:hi:kKLlno:P:qs:t:" opt; do
 		q) quiet=1;;
 		s) modloop_sig="$OPTARG";;
 		t) tmpdir="$OPTARG";;
-		*) usage;;
+		*) usage >&2; exit 1;;
 	esac
 done
 shift $(( $OPTIND - 1 ))
