@@ -417,10 +417,12 @@ ALPINE_REPO=${KOPT_alpine_repo}
 [ "$KOPT_quiet" = yes ] && dmesg -n 1
 
 # optional blacklist
-for i in ${KOPT_blacklist//,/ }; do
+if [ -n "$KOPT_blacklist" ]; then
 	mkdir -p "$ROOT"/etc/modprobe.d
-	echo "blacklist $i" >> "$ROOT"/etc/modprobe.d/boot-opt-blacklist.conf
-done
+	for i in $(echo "$KOPT_blacklist" | tr ',' ' '); do
+		echo "blacklist $i" >> "$ROOT"/etc/modprobe.d/boot-opt-blacklist.conf
+	done
+fi
 
 # determine if we are going to need networking
 if [ -n "$KOPT_ip" ] || [ -n "$KOPT_nbd" ] || \
