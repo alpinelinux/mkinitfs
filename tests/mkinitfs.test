@@ -3,8 +3,14 @@
 . $(atf_get_srcdir)/test_env.sh
 
 init_tests \
-	mkinitfs_help
+	mkinitfs_help \
+	mkinitfs_invalid_opt
 
 mkinitfs_help_body() {
 	atf_check -o match:"usage:" mkinitfs -h
+}
+
+mkinitfs_invalid_opt_body() {
+	atf_check -s exit:1 -e match:"usage" \
+		mkinitfs -Z
 }
