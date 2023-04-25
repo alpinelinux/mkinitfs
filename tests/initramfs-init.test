@@ -5,7 +5,8 @@
 init_tests \
 	initramfs_init_cmdline_root \
 	initramfs_init_blacklist \
-	initramfs_init_tmpfs_root
+	initramfs_init_tmpfs_root \
+	initramfs_init_tmpfs_root_modloop_sign
 
 fake_cmdline() {
 	mkdir -p proc
@@ -62,6 +63,19 @@ initramfs_init_tmpfs_root_body() {
 		-o match:"mount.*tmpfs .*/sysroot" \
 		-o match:"switch_root OK" \
 		initramfs-init
+}
+
+initramfs_init_tmpfs_root_modloop_sign_body() {
+	fake_cmdline ""
+	fake_switch_root
+	fake_sysroot_init
+	mkdir -p var/cache/misc
+	touch var/cache/misc/modloop.SIGN.RSA.ncopa-4d1b7620.rsa.pub
+	atf_check \
+		-o match:"switch_root OK" \
+		initramfs-init
+	atf_check \
+		test -f sysroot/var/cache/misc/modloop.SIGN.RSA.ncopa-4d1b7620.rsa.pub
 }
 
 
