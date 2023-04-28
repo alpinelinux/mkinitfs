@@ -36,6 +36,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/mmc.modules \
 		features.d/nbd.files \
 		features.d/nbd.modules \
+		features.d/nfit.modules \
 		features.d/network.files \
 		features.d/network.modules \
 		features.d/nvme.modules \
