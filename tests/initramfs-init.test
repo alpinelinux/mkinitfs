@@ -7,7 +7,8 @@ init_tests \
 	initramfs_init_blacklist \
 	initramfs_init_tmpfs_root \
 	initramfs_init_tmpfs_root_modloop_sign \
-	initramfs_init_tmpfs_root_net_apkovl
+	initramfs_init_tmpfs_root_net_apkovl \
+	initramfs_init_tmpfs_root_console_serial
 
 fake_cmdline() {
 	mkdir -p proc
@@ -90,5 +91,26 @@ initramfs_init_tmpfs_root_net_apkovl_body() {
 	atf_check \
 		-o match:"wget .* https://example.com/c7c29fe0-cf90-4024-8ba3-208387fc7ac6/foo.apkovl.tar.gz" \
 		initramfs-init
+}
+
+initramfs_init_tmpfs_root_console_serial_body() {
+	fake_cmdline "console=ttyS0"
+	fake_switch_root
+	fake_sysroot_init
+	fake_bin stty <<-EOF
+		#!/bin/sh
+		true
+	EOF
+
+	mkdir -p sys/class/tty/console
+	echo tty0 > sys/class/tty/console/active
+
+	atf_check \
+		-o ignore \
+		initramfs-init
+	atf_check \
+		-o match:"tty0::respawn:/sbin/getty" \
+		-o match:"ttyS0::respawn:/sbin/getty" \
+		cat sysroot/etc/inittab
 }
 

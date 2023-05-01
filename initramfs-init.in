@@ -96,12 +96,12 @@ rc_add() {
 
 # Recursively resolve tty aliases like console or tty0
 list_console_devices() {
-	if ! [ -e /sys/class/tty/$1/active ]; then
+	if ! [ -e "$ROOT"/sys/class/tty/$1/active ]; then
 		echo $1
 		return
 	fi
 
-	for dev in $(cat /sys/class/tty/$1/active); do
+	for dev in $(cat "$ROOT"/sys/class/tty/$1/active); do
 		list_console_devices $dev
 	done
 }
