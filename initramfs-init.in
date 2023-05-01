@@ -107,7 +107,7 @@ list_console_devices() {
 }
 
 detect_serial_console() {
-	local n=$(awk '$7 ~ /CTS/ || $7 ~ /DSR/ { print $1 }' "$ROOT"/proc/tty/drivers/serial 2>/dev/null)
+	local n=$(awk '$7 ~ /CTS/ || $7 ~ /DSR/ { print $1 }' "$ROOT"/proc/tty/driver/serial 2>/dev/null)
 	if [ -n "$n" ]; then
 		echo ttyS${n%:}
 	fi

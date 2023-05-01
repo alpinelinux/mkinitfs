@@ -124,8 +124,8 @@ initramfs_init_tmpfs_root_autodetect_serial_body() {
 		true
 	EOF
 
-	mkdir -p proc/tty/drivers
-	cat > proc/tty/drivers/serial <<-EOF
+	mkdir -p proc/tty/driver
+	cat > proc/tty/driver/serial <<-EOF
 		0: uart:16550A port:000003F8 irq:4 tx:0 rx:0 CTS|DSR
 		1: uart:16550A port:000002F8 irq:3 tx:103 rx:0 RTS|DTR
 		2: uart:unknown port:000003E8 irq:4
