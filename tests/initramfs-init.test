@@ -8,7 +8,8 @@ init_tests \
 	initramfs_init_tmpfs_root \
 	initramfs_init_tmpfs_root_modloop_sign \
 	initramfs_init_tmpfs_root_net_apkovl \
-	initramfs_init_tmpfs_root_console_serial
+	initramfs_init_tmpfs_root_console_serial \
+	initramfs_init_tmpfs_root_autodetect_serial
 
 fake_cmdline() {
 	mkdir -p proc
@@ -110,6 +111,31 @@ initramfs_init_tmpfs_root_console_serial_body() {
 		initramfs-init
 	atf_check \
 		-o match:"tty0::respawn:/sbin/getty" \
+		-o match:"ttyS0::respawn:/sbin/getty" \
+		cat sysroot/etc/inittab
+}
+
+initramfs_init_tmpfs_root_autodetect_serial_body() {
+	fake_cmdline ""
+	fake_switch_root
+	fake_sysroot_init
+	fake_bin stty <<-EOF
+		#!/bin/sh
+		true
+	EOF
+
+	mkdir -p proc/tty/drivers
+	cat > proc/tty/drivers/serial <<-EOF
+		0: uart:16550A port:000003F8 irq:4 tx:0 rx:0 CTS|DSR
+		1: uart:16550A port:000002F8 irq:3 tx:103 rx:0 RTS|DTR
+		2: uart:unknown port:000003E8 irq:4
+		3: uart:unknown port:000002E8 irq:3
+	EOF
+
+	atf_check \
+		-o ignore \
+		initramfs-init
+	atf_check \
 		-o match:"ttyS0::respawn:/sbin/getty" \
 		cat sysroot/etc/inittab
 }

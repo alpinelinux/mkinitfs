@@ -106,10 +106,17 @@ list_console_devices() {
 	done
 }
 
-setup_inittab_console(){
+detect_serial_console() {
+	local n=$(awk '$7 ~ /CTS/ || $7 ~ /DSR/ { print $1 }' "$ROOT"/proc/tty/drivers/serial 2>/dev/null)
+	if [ -n "$n" ]; then
+		echo ttyS${n%:}
+	fi
+}
+
+setup_inittab_console() {
 	term=vt100
 	# Inquire the kernel for list of console= devices
-	consoles="$(for c in console $KOPT_consoles; do list_console_devices $c; done)"
+	consoles="$(for c in console $KOPT_consoles $(detect_serial_console); do list_console_devices $c; done)"
 	for tty in $consoles; do
 		# ignore tty devices that gives I/O error
 		if ! stty -g -F /dev/$tty >/dev/null 2>/dev/null; then
