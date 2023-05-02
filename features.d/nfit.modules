@@ -1,1 +1,2 @@
-kernel/drivers/acpi/nfit/nfit.ko*
+kernel/drivers/acpi/nfit/*
+kernel/drivers/nvdimm/*
