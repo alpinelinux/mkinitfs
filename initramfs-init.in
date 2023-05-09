@@ -62,30 +62,28 @@ unpack_apkovl() {
 	return 1
 }
 
-# find mount dir for given device in an fstab
-# returns global MNTOPTS
-find_mnt() {
+# find mount dir and mount opts for given device in an fstab
+get_fstab_mount_info() {
 	local search_dev="$1"
 	local fstab="$2"
+	local mntopts=
 	case "$search_dev" in
 	UUID*|LABEL*) search_dev=$(findfs "$search_dev");;
 	esac
-	MNTOPTS=
 	[ -r "$fstab" ] || return 1
 	local search_maj_min=$(stat -L -c '%t,%T' $search_dev)
-	while read dev mnt fs MNTOPTS chk; do
+	while read dev mnt fs mntopts chk; do
 		case "$dev" in
 		UUID*|LABEL*) dev=$(findfs "$dev");;
 		esac
-		if [ -b "$dev" ]; then
+		if [ -b "$dev" ] || [ -n "$ROOT" ]; then
 			local maj_min=$(stat -L -c '%t,%T' $dev)
 			if [ "$maj_min" = "$search_maj_min" ]; then
-				echo "$mnt"
+				echo "$mnt $mntopts"
 				return
 			fi
 		fi
 	done < $fstab
-	MNTOPTS=
 }
 
 #  add a boot service to $sysroot
@@ -227,25 +225,30 @@ configure_ip() {
 	MAC_ADDRESS=$(cat /sys/class/net/$device/address)
 }
 
-# relocate mountpoint according given fstab
-relocate_mount() {
+# relocate mountpoint according given fstab and set mount options
+remount_fstab_entry() {
 	local fstab="${1}"
 	local dir=
-	if ! [ -e $repofile ]; then
+	if ! [ -e "$repofile" ]; then
 		return
 	fi
-	echo "$ovl" | cat - $repofile | while read dir; do
+	echo "$ovl" | cat - "$repofile" | while read dir; do
 		# skip http(s)/ftp repos for netboot
-		if ! [ -d "$dir" -o -f "$dir" ]; then
+		if [ -z "$dir" ] || ! [ -d "$ROOT/$dir" -o -f "$ROOT/$dir" ]; then
 			continue
 		fi
 		local dev=$(df -P "$dir" | tail -1 | awk '{print $1}')
-		local mnt=$(find_mnt $dev $fstab)
+		local mntinfo="$(get_fstab_mount_info "$dev" "$fstab")"
+		local mnt="${mntinfo% *}"
+		local mntopts="${mntinfo#* }"
 		if [ -n "$mnt" ]; then
-			local oldmnt=$(awk -v d=$dev '$1==d {print $2}' "$ROOT"/proc/mounts 2>/dev/null)
+			local oldmnt=$(awk -v d=$ROOT$dev '$1==d {print $2}' "$ROOT"/proc/mounts 2>/dev/null)
 			if [ "$oldmnt" != "$mnt" ]; then
 				mkdir -p "$mnt"
 				$MOCK mount -o move "$oldmnt" "$mnt"
+			fi
+			if [ -n "$mntopts" ]; then
+				$MOCK mount -o remount,"$mntopts" "$mnt"
 			fi
 		fi
 	done
@@ -605,7 +608,7 @@ ebegin "Mounting boot media"
 $MOCK nlplug-findfs $cryptopts -p /sbin/mdev ${KOPT_debug_init:+-d} \
 	${KOPT_usbdelay:+-t $(( $KOPT_usbdelay * 1000 ))} \
 	${KOPT_uevent_buf_size:+-U $KOPT_uevent_buf_size} \
-	$repoopts -a /tmp/apkovls
+	$repoopts -a "$ROOT"/tmp/apkovls
 eend $?
 
 # Setup network interfaces
@@ -633,8 +636,8 @@ $MOCK mount -t tmpfs -o $rootflags tmpfs $sysroot
 
 if [ -z "$KOPT_apkovl" ]; then
 	# Not manually set, use the apkovl found by nlplug
-	if [ -e /tmp/apkovls ]; then
-		ovl=$(head -n 1 /tmp/apkovls)
+	if [ -e "$ROOT"/tmp/apkovls ]; then
+		ovl=$(head -n 1 "$ROOT"/tmp/apkovls)
 	fi
 elif is_url "$KOPT_apkovl"; then
 	# Fetch apkovl via network
@@ -741,9 +744,9 @@ if [ -f $sysroot/etc/fstab ]; then
 	# move the ALPINE_MNT if ALPINE_DEV is specified in users fstab
 	# this is so a generated /etc/apk/repositories will use correct
 	# mount dir
-	relocate_mount "$sysroot"/etc/fstab
+	remount_fstab_entry "$sysroot"/etc/fstab
 elif [ -f "$ROOT"/etc/fstab ]; then
-	relocate_mount /etc/fstab
+	remount_fstab_entry "$ROOT"/etc/fstab
 fi
 
 # hack so we get openrc
@@ -829,20 +832,12 @@ fi
 
 # remount according default fstab from package
 if [ -z "$has_fstab" ] && [ -f "$sysroot"/etc/fstab ]; then
-	relocate_mount "$sysroot"/etc/fstab
+	remount_fstab_entry "$sysroot"/etc/fstab
 fi
 
 # generate repositories if none exists. this needs to be done after relocation
 if ! [ -f "$sysroot"/etc/apk/repositories ]; then
 	find_boot_repositories > "$sysroot"/etc/apk/repositories
-fi
-
-# respect mount options in fstab for ALPINE_MNT (e.g if user wants rw)
-if [ -f "$sysroot"/etc/fstab ]; then
-	opts=$(awk "\$2 == \"$ALPINE_MNT\" {print \$4}" $sysroot/etc/fstab)
-	if [ -n "$opts" ]; then
-		$MOCK mount -o remount,$opts "$ALPINE_MNT"
-	fi
 fi
 
 # fix inittab if alternative console

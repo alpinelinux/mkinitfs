@@ -9,7 +9,9 @@ init_tests \
 	initramfs_init_tmpfs_root_modloop_sign \
 	initramfs_init_tmpfs_root_net_apkovl \
 	initramfs_init_tmpfs_root_console_serial \
-	initramfs_init_tmpfs_root_autodetect_serial
+	initramfs_init_tmpfs_root_autodetect_serial \
+	initramfs_init_tmpfs_root_remount_opts
+
 
 fake_cmdline() {
 	mkdir -p proc
@@ -138,5 +140,48 @@ initramfs_init_tmpfs_root_autodetect_serial_body() {
 	atf_check \
 		-o match:"ttyS0::respawn:/sbin/getty" \
 		cat sysroot/etc/inittab
+}
+
+initramfs_init_tmpfs_root_remount_opts_body() {
+	fake_cmdline ""
+	fake_switch_root
+	fake_sysroot_init
+	fake_bin df <<-EOF
+		#!/bin/sh
+		echo "Filesystem           1024-blocks    Used Available Capacity Mounted on"
+		echo "/dev/sr0    514938888 417682860  73101632  85% /media/sr0"
+	EOF
+	fake_bin stat <<-EOF
+		#!/bin/sh
+		for i; do
+			case "\$i" in
+				/dev/sr0|/dev/cdrom)
+					echo "b,0"
+					exit 0
+					;;
+			esac
+		done
+		echo "0,0"
+	EOF
+
+	mkdir -p sysroot/etc
+	cat >sysroot/etc/fstab <<-EOF
+		/dev/cdrom	/media/cdrom	iso9660	noauto,ro,customopts 0 0
+		/dev/usbdisk	/media/usb	vfat	noauto,ro 0 0
+	EOF
+	cat >proc/mounts <<-EOF
+		sysfs /sys sysfs rw,nosuid,nodev,noexec,relatime 0 0
+		devtmpfs /dev devtmpfs rw,nosuid,noexec,relatime,size=10240k,nr_inodes=4080869,mode=755,inode64 0 0
+		proc /proc proc rw,nosuid,nodev,noexec,relatime 0 0
+		/dev/sr0 /media/sr0 iso9660 rw,noatime,data=ordered 0 0
+	EOF
+	mkdir -p tmp dev media/sr0/apks
+	echo "/media/sr0/apks" > tmp/repositories
+	ln -s sr0 dev/cdrom
+
+	atf_check \
+		-o match:"mount -o move.*/media/cdrom" \
+		-o match:"mount -o remount.*customopts.*/media/cdrom" \
+		initramfs-init
 }
 
