@@ -134,11 +134,20 @@ initramfs_init_tmpfs_root_autodetect_serial_body() {
 		3: uart:unknown port:000002E8 irq:3
 	EOF
 
+	mkdir -p sys/devices/platform/ARMH0011:00/tty/ttyAMA0
+	ln -s ../../../ARMH0011:00 \
+		sys/devices/platform/ARMH0011:00/tty/ttyAMA0/device
+
+	mkdir -p sys/class/tty/
+	ln -s ../../devices/platform/ARMH0011:00/tty/ttyAMA0 \
+		sys/class/tty/ttyAMA0
+
 	atf_check \
 		-o ignore \
 		initramfs-init
 	atf_check \
 		-o match:"ttyS0::respawn:/sbin/getty" \
+		-o match:"ttyAMA0::respawn:/sbin/getty" \
 		cat sysroot/etc/inittab
 }
 
