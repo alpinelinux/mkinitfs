@@ -15,7 +15,8 @@ init_tests \
 	initramfs_init_tmpfs_root_remount_opts \
 	initramfs_init_tmpfs_root_tiny_cloud \
 	initramfs_init_tmpfs_root_tiny_cloud_disabled \
-	initramfs_init_tmpfs_root_apkovl_url
+	initramfs_init_tmpfs_root_apkovl_url \
+	initramfs_init_aoe
 
 fake_cmdline() {
 	mkdir -p proc
@@ -287,4 +288,14 @@ initramfs_init_tmpfs_root_apkovl_url_body() {
 		initramfs-init
 }
 
+initramfs_init_aoe_body() {
+	fake_cmdline "aoe=yes aoe_iflist=eth0 aoe_mtu=9000"
+	fake_sysroot_init
+	fake_switch_root
 
+	atf_check \
+		-o match:'ip link set dev eth0 up' \
+		-o match:'ip link set dev eth0 mtu 9000' \
+		-o match:'modprobe aoe aoe_iflist=eth0' \
+		initramfs-init
+}

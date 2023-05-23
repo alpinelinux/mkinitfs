@@ -11,6 +11,7 @@ SBIN_FILES	:= mkinitfs bootchartd nlplug-findfs/nlplug-findfs
 SHARE_FILES	:= initramfs-init fstab passwd group
 CONF_FILES	:= mkinitfs.conf \
 		features.d/ata.modules \
+		features.d/aoe.modules \
 		features.d/base.files \
 		features.d/base.modules \
 		features.d/bootchart.files \

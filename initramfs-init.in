@@ -378,7 +378,7 @@ myopts="alpine_dev autodetect_serial autoraid chart cryptroot cryptdm cryptheade
 	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
-	dasd ssh_key BOOTIF zfcp uevent_buf_size"
+	dasd ssh_key BOOTIF zfcp uevent_buf_size aoe aoe_iflist aoe_mtu"
 
 for opt; do
 	case "$opt" in
@@ -531,6 +531,28 @@ if [ -n "$KOPT_nbd" ]; then
 	# TODO: Might fail because nlplug-findfs hasn't plugged eth0 yet
 	configure_ip
 	setup_nbd || echo "Failed to setup nbd device."
+fi
+
+if [ -n "$KOPT_aoe" ]; then
+	if [ -n "$KOPT_aoe_iflist" ]; then
+		for iface in $(echo "$KOPT_aoe_iflist" | tr ',' ' '); do
+			$MOCK ip link set dev "$iface" up
+			if [ -n "$KOPT_aoe_mtu" ]; then
+				$MOCK ip link set dev "$iface" mtu "$KOPT_aoe_mtu"
+			fi
+		done
+		$MOCK modprobe aoe aoe_iflist="$KOPT_aoe_iflist"
+	else
+		$MOCK modprobe aoe
+	fi
+	if [ "$KOPT_aoe" != "yes" ]; then
+		for target in $(echo "$KOPT_aoe" | tr ',' ' '); do
+			while [ ! -e /dev/etherd/e$target ]; do
+					echo discover "$target" >>/dev/etherd/discover
+					sleep 1
+			done
+		done
+	fi
 fi
 
 # zpool reports /dev/zfs missing if it can't read /etc/mtab
