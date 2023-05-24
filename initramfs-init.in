@@ -700,8 +700,9 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 
 	if findfs LABEL=cidata >/dev/null 2>&1 || findfs LABEL=CIDATA >/dev/null 2>&1; then
 		pkgs="$pkgs tiny-cloud-alpine ifupdown-ng"
-		rc_add tiny-cloud-early boot
-		rc_add tiny-cloud default
+		rc_add tiny-cloud-boot boot
+		rc_add tiny-cloud-early default
+		rc_add tiny-cloud-main default
 		rc_add tiny-cloud-final default
 	fi
 
