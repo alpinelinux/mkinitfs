@@ -297,11 +297,16 @@ if [ -z "$list_sources" ] && [ -z "$quiet" ]; then
 	echo "==> initramfs: creating $outfile"
 fi
 
+complevel_gzip="${complevel_gzip:--9}"
+complevel_xz="${complevel_xz:--9}"
+complevel_zstd="${complevel_zstd:--19}"
+complevel_lz4="${complevel_lz4:--12}"
+
 case "$initfscomp" in
-	gzip) comp="$(command -v pigz 2>/dev/null || echo gzip) -9" ;;
-	xz) cmd_exists xz; comp="xz -C crc32 -T 0" ;;
-	zstd) cmd_exists zstd; comp="zstd -T0 -19" ;;
-	lz4) cmd_exists lz4; comp="lz4 --favor-decSpeed --best -lz" ;;
+	gzip) comp="$(command -v pigz 2>/dev/null || echo gzip) $complevel_gzip" ;;
+	xz) cmd_exists xz; comp="xz -C crc32 -T0 $complevel_xz" ;;
+	zstd) cmd_exists zstd; comp="zstd -T0 $complevel_zstd" ;;
+	lz4) cmd_exists lz4; comp="lz4 --favor-decSpeed -lz $complevel_lz4" ;;
 	none) comp="cat";;
 	*) echo "Initramfs compression \"$initfscomp\" not supported!"; exit 1 ;;
 esac
