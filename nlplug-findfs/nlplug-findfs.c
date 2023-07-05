@@ -972,7 +972,7 @@ static int is_zfs_pool(const char *path, const char *label)
 static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia)
 {
 	struct ueventconf *conf = ev->conf;
-	char *type = NULL, *label = NULL, *uuid = NULL;
+	char *type = NULL, *label = NULL, *uuid = NULL, *partuuid = NULL;
 	int rc = 0;
 
 	if (searchdev == NULL && !scanbootmedia)
@@ -989,6 +989,7 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 
 	type = blkid_get_tag_value(conf->blkid_cache, "TYPE", ev->devnode);
 	uuid = blkid_get_tag_value(conf->blkid_cache, "UUID", ev->devnode);
+	partuuid = blkid_get_tag_value(conf->blkid_cache, "PARTUUID", ev->devnode);
 	label = blkid_get_tag_value(conf->blkid_cache, "LABEL", ev->devnode);
 
 	if (searchdev != NULL) {
@@ -998,11 +999,14 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 		} else if (strncmp("UUID=", searchdev, 5) == 0) {
 			if (uuid && strcmp(uuid, searchdev+5) == 0)
 				rc = FOUND_DEVICE;
+		} else if (strncmp("PARTUUID=", searchdev, 9) == 0) {
+			if (partuuid && strcmp(partuuid, searchdev+9) == 0)
+				rc = FOUND_DEVICE;
 		}
 	}
 
-	dbg("searchdev: dev='%s' type='%s' label='%s' uuid='%s'",
-		ev->devnode, type, label, uuid);
+	dbg("searchdev: dev='%s' type='%s' label='%s' uuid='%s' partuuid='%s'",
+		ev->devnode, type, label, uuid, partuuid);
 
 	if (!rc && type) {
 		if (strcmp("linux_raid_member", type) == 0) {
@@ -1026,6 +1030,8 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 		free(label);
 	if (uuid)
 		free(uuid);
+	if (partuuid)
+		free(partuuid);
 
 	return rc;
 }
