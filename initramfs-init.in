@@ -648,7 +648,8 @@ elif is_url "$KOPT_apkovl"; then
 	# Fetch apkovl via network
 	MACHINE_UUID=$(cat "$ROOT"/sys/class/dmi/id/product_uuid 2>/dev/null)
 	url="$(echo "$KOPT_apkovl" | sed -e "s/{MAC}/$MAC_ADDRESS/" -e "s/{UUID}/$MACHINE_UUID/")"
-	ovl=/tmp/${url##*/}
+	ovl="/tmp/${url##*/}"
+	ovl="${ovl%%\?*}"
 	$MOCK wget -O "$ovl" "$url" || ovl=
 else
 	ovl="$KOPT_apkovl"
