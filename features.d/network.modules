@@ -5,3 +5,5 @@ kernel/drivers/net/hyperv
 kernel/drivers/net/vmxnet3
 kernel/drivers/virtio/virtio_pci.ko*
 kernel/drivers/net/virtio_net.ko*
+kernel/arch/*/crypto/crc32*
+kernel/crypto/crc32*
