@@ -1,7 +1,7 @@
 extra/avl
 extra/nvpair
-extra/spl
+extra/spl*
 extra/unicode
 extra/zcommon
-extra/zfs
+extra/zfs*
 extra/zpios
