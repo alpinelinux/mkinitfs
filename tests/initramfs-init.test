@@ -11,7 +11,8 @@ init_tests \
 	initramfs_init_tmpfs_root_console_serial \
 	initramfs_init_tmpfs_root_autodetect_serial \
 	initramfs_init_tmpfs_root_remount_opts \
-	initramfs_init_tmpfs_root_tiny_cloud
+	initramfs_init_tmpfs_root_tiny_cloud \
+	initramfs_init_tmpfs_root_tiny_cloud_disabled
 
 fake_cmdline() {
 	mkdir -p proc
@@ -209,5 +210,24 @@ initramfs_init_tmpfs_root_tiny_cloud_body() {
 	atf_check \
 		-o not-empty \
 		find sysroot/ -name '*tiny-cloud*'
+}
+
+initramfs_init_tmpfs_root_tiny_cloud_disabled_body() {
+	fake_cmdline ""
+	fake_switch_root
+	fake_sysroot_init
+	fake_bin findfs <<-EOF
+		#!/bin/sh
+		true
+	EOF
+
+	mkdir -p sysroot/etc
+	touch sysroot/etc/tiny-cloud.disabled
+
+	atf_check \
+		-o ignore \
+		initramfs-init
+	atf_check \
+		find sysroot/etc/runlevels -name '*tiny-cloud*'
 }
 
