@@ -12,7 +12,8 @@ init_tests \
 	initramfs_init_tmpfs_root_autodetect_serial \
 	initramfs_init_tmpfs_root_remount_opts \
 	initramfs_init_tmpfs_root_tiny_cloud \
-	initramfs_init_tmpfs_root_tiny_cloud_disabled
+	initramfs_init_tmpfs_root_tiny_cloud_disabled \
+	initramfs_init_tmpfs_root_apkovl_url
 
 fake_cmdline() {
 	mkdir -p proc
@@ -230,4 +231,15 @@ initramfs_init_tmpfs_root_tiny_cloud_disabled_body() {
 	atf_check \
 		find sysroot/etc/runlevels -name '*tiny-cloud*'
 }
+
+initramfs_init_tmpfs_root_apkovl_url_body() {
+	fake_cmdline "apkovl=http://example.tld/some/path/to/file?some=queries&forExample=for:Validation"
+	fake_switch_root
+	fake_sysroot_init
+
+	atf_check \
+		-o match:"wget.*/tmp/file[^?]" \
+		initramfs-init
+}
+
 
