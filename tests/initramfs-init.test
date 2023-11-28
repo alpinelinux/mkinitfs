@@ -10,8 +10,8 @@ init_tests \
 	initramfs_init_tmpfs_root_net_apkovl \
 	initramfs_init_tmpfs_root_console_serial \
 	initramfs_init_tmpfs_root_autodetect_serial \
-	initramfs_init_tmpfs_root_remount_opts
-
+	initramfs_init_tmpfs_root_remount_opts \
+	initramfs_init_tmpfs_root_tiny_cloud
 
 fake_cmdline() {
 	mkdir -p proc
@@ -192,5 +192,22 @@ initramfs_init_tmpfs_root_remount_opts_body() {
 		-o match:"mount -o move.*/media/cdrom" \
 		-o match:"mount -o remount.*customopts.*/media/cdrom" \
 		initramfs-init
+}
+
+initramfs_init_tmpfs_root_tiny_cloud_body() {
+	fake_cmdline ""
+	fake_switch_root
+	fake_sysroot_init
+	fake_bin findfs <<-EOF
+		#!/bin/sh
+		true
+	EOF
+
+	atf_check \
+		-o ignore \
+		initramfs-init
+	atf_check \
+		-o not-empty \
+		find sysroot/ -name '*tiny-cloud*'
 }
 
