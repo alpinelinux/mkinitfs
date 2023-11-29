@@ -159,7 +159,7 @@ initramfs_init_tmpfs_root_autodetect_serial_body() {
 }
 
 initramfs_init_tmpfs_root_disable_autodetect_serial_body() {
-	fake_cmdline "autodetect=no"
+	fake_cmdline "autodetect_serial=no"
 	fake_switch_root
 	fake_sysroot_init
 	fake_serial_devices

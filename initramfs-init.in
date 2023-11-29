@@ -105,7 +105,7 @@ list_console_devices() {
 }
 
 detect_serial_consoles() {
-	if [ -f "$ovl" ] || [ "$KOPT_autodetect" = "no" ]; then
+	if [ -f "$ovl" ] || [ "$KOPT_autodetect_serial" = "no" ]; then
 		return
 	fi
 	local n=$(awk '$7 ~ /CTS/ || $7 ~ /DSR/ { print $1 }' "$ROOT"/proc/tty/driver/serial 2>/dev/null)
@@ -374,7 +374,7 @@ $MOCK mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat "$ROOT"/proc/cmdline)
 
-myopts="alpine_dev autodetect autoraid chart cryptroot cryptdm cryptheader cryptoffset
+myopts="alpine_dev autodetect_serial autoraid chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
