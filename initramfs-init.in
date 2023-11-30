@@ -351,6 +351,16 @@ prepare_zfs_root() {
 	fi
 }
 
+want_tiny_cloud() {
+	if [ -f "$sysroot/etc/tiny-cloud.disabled" ]; then
+		return 1
+	fi
+	case "$KOPT_ds" in
+		nocloud*) return 0;;
+	esac
+	findfs LABEL=cidata >/dev/null 2>&1 || findfs LABEL=CIDATA >/dev/null 2>&1
+}
+
 /bin/busybox mkdir -p "$ROOT"/usr/bin \
 	"$ROOT"/usr/sbin \
 	"$ROOT"/proc \
@@ -398,7 +408,7 @@ $MOCK mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
 set -- $(cat "$ROOT"/proc/cmdline)
 
 myopts="alpine_dev autodetect_serial autoraid chart cryptroot cryptdm cryptheader cryptoffset
-	cryptdiscards cryptkey debug_init dma init init_args keep_apk_new modules ovl_dev
+	cryptdiscards cryptkey debug_init dma ds init init_args keep_apk_new modules ovl_dev
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
 	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
 	dasd ssh_key BOOTIF zfcp uevent_buf_size aoe aoe_iflist aoe_mtu wireguard"
@@ -752,7 +762,7 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 		rc_add sshd default
 	fi
 
-	if ! [ -f "$sysroot/etc/tiny-cloud.disabled" ] && (findfs LABEL=cidata >/dev/null 2>&1 || findfs LABEL=CIDATA >/dev/null 2>&1); then
+	if want_tiny_cloud; then
 		pkgs="$pkgs tiny-cloud-alpine ifupdown-ng"
 		rc_add tiny-cloud-boot boot
 		rc_add tiny-cloud-early default
