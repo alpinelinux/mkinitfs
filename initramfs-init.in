@@ -288,7 +288,7 @@ setup_nbd() {
 }
 
 setup_wireguard() {
-	modprobe -q wireguard || return 1
+	$MOCK modprobe -q wireguard || return 1
 	local IFS=';'
 	set -- $KOPT_wireguard
 	unset IFS
@@ -301,12 +301,12 @@ setup_wireguard() {
 	set -- $ips
 	unset IFS
 
-	ip link add "$device" type wireguard
-	wg setconf "$device" "$config"
-	ip link set dev "$device" up
+	$MOCK ip link add "$device" type wireguard
+	$MOCK wg setconf "$device" "$config"
+	$MOCK ip link set dev "$device" up
 
 	for addr in $@; do
-		ip addr add dev "$device" "$addr"
+		$MOCK ip addr add dev "$device" "$addr"
 	done
 }
 

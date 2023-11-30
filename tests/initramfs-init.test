@@ -16,7 +16,8 @@ init_tests \
 	initramfs_init_tmpfs_root_tiny_cloud \
 	initramfs_init_tmpfs_root_tiny_cloud_disabled \
 	initramfs_init_tmpfs_root_apkovl_url \
-	initramfs_init_aoe
+	initramfs_init_aoe \
+	initramfs_init_wireguard
 
 fake_cmdline() {
 	mkdir -p proc
@@ -297,5 +298,16 @@ initramfs_init_aoe_body() {
 		-o match:'ip link set dev eth0 up' \
 		-o match:'ip link set dev eth0 mtu 9000' \
 		-o match:'modprobe aoe aoe_iflist=eth0' \
+		initramfs-init
+}
+
+initramfs_init_wireguard_body() {
+	fake_cmdline "wireguard=eth0;192.168.0.1/24"
+	fake_sysroot_init
+	fake_switch_root
+
+	atf_check \
+		-o match:'ip link set dev eth0 up' \
+		-o match:'modprobe.*wireguard' \
 		initramfs-init
 }
