@@ -267,7 +267,7 @@ find_boot_repositories() {
 	if [ -n "$ALPINE_REPO" ]; then
 		echo "$ALPINE_REPO"
 	else
-		find /media/* -name .boot_repository -type f -maxdepth 3 \
+		find /media/* -maxdepth 3 -name .boot_repository -type f \
 			| sed 's:/.boot_repository$::'
 	fi
 }
