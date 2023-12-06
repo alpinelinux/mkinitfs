@@ -358,6 +358,9 @@ want_tiny_cloud() {
 	case "$KOPT_ds" in
 		nocloud*) return 0;;
 	esac
+	if grep -q "^ds=nocloud" "$ROOT"/sys/class/dmi/id/product_serial 2>/dev/null; then
+		return 0
+	fi
 	findfs LABEL=cidata >/dev/null 2>&1 || findfs LABEL=CIDATA >/dev/null 2>&1
 }
 

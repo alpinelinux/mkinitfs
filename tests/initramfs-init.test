@@ -16,6 +16,7 @@ init_tests \
 	initramfs_init_tmpfs_root_tiny_cloud \
 	initramfs_init_tmpfs_root_tiny_cloud_disabled \
 	initramfs_init_tmpfs_root_tiny_cloud_net \
+	initramfs_init_tmpfs_root_tiny_cloud_smbios \
 	initramfs_init_tmpfs_root_apkovl_url \
 	initramfs_init_aoe \
 	initramfs_init_wireguard
@@ -288,6 +289,25 @@ initramfs_init_tmpfs_root_tiny_cloud_net_body() {
 		#!/bin/sh
 		false
 	EOF
+
+	atf_check \
+		-o ignore \
+		initramfs-init
+	atf_check \
+		-o not-empty \
+		find sysroot/ -name '*tiny-cloud*'
+}
+
+initramfs_init_tmpfs_root_tiny_cloud_smbios_body() {
+	fake_cmdline ""
+	fake_switch_root
+	fake_sysroot_init
+	fake_bin findfs <<-EOF
+		#!/bin/sh
+		false
+	EOF
+	mkdir -p sys/class/dmi/id
+	echo "ds=nocloud;s=http://10.0.2.2:8000/" > sys/class/dmi/id/product_serial
 
 	atf_check \
 		-o ignore \
