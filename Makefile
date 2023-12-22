@@ -1,4 +1,3 @@
-
 VERSION		:= 3.9.0
 
 sbindir		?= /sbin
@@ -10,6 +9,7 @@ mandir		?= $(datarootdir)/man
 SBIN_FILES	:= mkinitfs bootchartd nlplug-findfs/nlplug-findfs
 SHARE_FILES	:= initramfs-init fstab passwd group
 CONF_FILES	:= mkinitfs.conf \
+		features.d/9p.modules \
 		features.d/ata.modules \
 		features.d/aoe.modules \
 		features.d/base.files \
