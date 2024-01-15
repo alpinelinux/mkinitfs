@@ -7,3 +7,6 @@ nlplug-findfs/nlplug-findfs
 mkinitfs.conf
 Kyuafile
 tests/Kyuafile
+
+# vim temporary files
+*.swp
