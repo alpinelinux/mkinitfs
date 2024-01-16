@@ -340,12 +340,12 @@ initramfs_init_aoe_body() {
 }
 
 initramfs_init_wireguard_body() {
-	fake_cmdline "wireguard=eth0;192.168.0.1/24"
+	fake_cmdline "wireguard=wg0;192.168.0.1/24"
 	fake_sysroot_init
 	fake_switch_root
 
 	atf_check \
-		-o match:'ip link set dev eth0 up' \
+		-o match:'ip link set dev wg0 up' \
 		-o match:'modprobe.*wireguard' \
 		initramfs-init
 }
