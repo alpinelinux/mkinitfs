@@ -442,9 +442,9 @@ $MOCK mount -t tmpfs -o nodev,nosuid,noexec shm /dev/shm
 #  acpi_osi="!Windows 2006" xen-pciback.hide=(01:00.0)
 set -- $(cat "$ROOT"/proc/cmdline)
 
-myopts="alpine_dev autodetect_serial autoraid chart cryptroot cryptdm cryptheader cryptoffset
-	cryptdiscards cryptkey debug_init dma ds init init_args keep_apk_new modules ovl_dev
-	pkgs quiet root_size root usbdelay ip alpine_repo apkovl alpine_start splash
+myopts="autodetect_serial chart cryptroot cryptdm cryptheader cryptoffset
+	cryptdiscards cryptkey debug_init ds init init_args keep_apk_new modules
+	pkgs quiet root_size root usbdelay ip alpine_repo apkovl splash
 	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
 	dasd ssh_key BOOTIF zfcp uevent_buf_size aoe aoe_iflist aoe_mtu wireguard"
 
@@ -846,7 +846,7 @@ if [ -f $sysroot/etc/fstab ]; then
 	if [ -n "$mountopts" ]; then
 		$MOCK mount -o remount,$mountopts $sysroot
 	fi
-	# move the ALPINE_MNT if ALPINE_DEV is specified in users fstab
+	# relocate mounts and adjust mount options
 	# this is so a generated /etc/apk/repositories will use correct
 	# mount dir
 	remount_fstab_entry "$sysroot"/etc/fstab
