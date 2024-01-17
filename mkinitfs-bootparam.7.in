@@ -113,6 +113,10 @@ name without the /dev/ prefix.
 \fBautodetect_serial=no\fR
 Disable automatic detection and setup of serial console.
 .TP
+\fBds=\fIOPTIONS\fR
+Data source for tiny-cloud. If \fIOPTIONS\fR starts with \fBnocloud\fR,
+tiny-cloud will be enabled.
+.TP
 \fBnokeep_apk_new\fR
 Setup a fresh system, ignore any \fBapkovl\fR.
 .TP
@@ -125,7 +129,7 @@ This setting installs openssh and places the public key given as value in
 If the value is an HTTP or FTP url, its fetches the key(s) from there.
 .TP
 \fBsplash\fR
-Enable splash screen
+Enable splash screen.
 .TP
 \fBusbdelay=\fINUMBER\fR
 Wait \fINUMBER\fR seconds for USB devices to show up before searching for boot
