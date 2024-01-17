@@ -55,6 +55,7 @@ Call this program for uevents which have DEVNAME set.
 .TP
 \fB\-t \fITIMEOUT\fR
 Timeout after \fITIMEOUT\fR milliseconds without uevents.
+.TP
 \fB\-U \fISIZE\fR
 uevent buffer size in bytes.
 .SH AUTHOR
