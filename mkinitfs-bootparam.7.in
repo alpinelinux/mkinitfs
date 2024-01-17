@@ -100,6 +100,9 @@ Configure network devices for the S/390x architecture.
 .TP
 \fBsingle\fR
 Launch root shell before switching to the root partition.
+.TP
+\fBuevent_buf_size=\fIBYTES\fR
+Set the buffer size for kernel uevents.
 .PP
 If no \fBroot=\fR parameter is given, the initramfs will build an live system
 in memory from scratch. This is also called diskless mode.
