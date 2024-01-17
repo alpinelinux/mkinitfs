@@ -142,7 +142,8 @@ Kyuafile:
 	mv $@.tmp $@
 
 check: tests/Kyuafile Kyuafile mkinitfs initramfs-init
-	kyua test || { kyua report --verbose && exit 1 ; }
+	kyua --variable parallelism=$(shell nproc) test \
+		|| { kyua report --verbose && exit 1; }
 
 .SUFFIXES:	.in
 .in:
