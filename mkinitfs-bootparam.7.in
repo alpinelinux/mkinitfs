@@ -66,6 +66,10 @@ this parameter.
 \fBmodules=\fIMODULE\fR{,\fIMODULE\fR}
 Comma-sparated list of kernel modules to load explicitly.
 .TP
+\fBnbd=\fIHOST\fR:\fIPORT\fR{,\fI...\fR}
+Comma-separated list of nbd servers. Connects to each server running
+\fInbd-server\fR to use its exported block device.
+.TP
 \fBoverlaytmpfs\fR
 When booting from a read-only filesystem, you can specify this flag to have
 your changes written to an in-memory temporary overlayfs.  The underlying
