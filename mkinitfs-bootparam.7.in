@@ -110,6 +110,9 @@ A HTTP, HTTPS or FTP URL to an apkovl.tar.gz file which will be retrieved and
 applied. Can also be a filesystem path, optionally prepended with the device
 name without the /dev/ prefix.
 .TP
+\fBautodetect_serial=no\fR
+Disable automatic detection and setup of serial console.
+.TP
 \fBnokeep_apk_new\fR
 Setup a fresh system, ignore any \fBapkovl\fR.
 .TP
