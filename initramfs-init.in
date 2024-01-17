@@ -142,21 +142,31 @@ setup_inittab_console() {
 	done
 }
 
-# determine the default interface to use if ip=dhcp is set
-# uses the first "eth" interface with operstate 'up'.
-ip_choose_if() {
-	if [ -n "$KOPT_BOOTIF" ]; then
-		mac=$(printf "%s\n" "$KOPT_BOOTIF"|sed 's/^01-//;s/-/:/g')
-		dev=$(grep -l $mac "$ROOT"/sys/class/net/*/address|head -n 1)
-		dev=${dev%/*}
-		[ -n "$dev" ] && echo "${dev##*/}" && return
-	fi
-	for x in "$ROOT"/sys/class/net/eth*; do
-		if grep -iq up $x/operstate 2>/dev/null;then
-			[ -e "$x" ] && echo ${x##*/} && return
-		fi
+# collect ethernet interfaces, sorted by index
+ethernets() {
+	for i in "$ROOT/sys/class/net/"*; do
+		local iface="${i##*/}"
+		case "$iface" in
+			eth*) echo "$(cat "$i/ifindex") $iface";;
+		esac
+	done | sort -n | awk '{print $2}'
+}
+
+# find the interface that is has operstate up
+find_first_interface_up() {
+	local n=0
+	[ $# -eq 0 ] && return 0
+	while [ "$n" -le "${LINK_WAIT_MAX:-10}" ]; do
+		for i in "$@"; do
+			if grep -q -F -x "up" "$ROOT/sys/class/net/$i/operstate"; then
+				echo "$i"
+				return
+			fi
+		done
+		sleep 0.1
+		n=$((n+1))
 	done
-	[ -e "$x" ] && echo ${x##*/} && return
+	return 1
 }
 
 # if "ip=dhcp" is specified on the command line, we obtain an IP address
@@ -182,13 +192,14 @@ configure_ip() {
 	[ -n "$MAC_ADDRESS" ] && return
 
 	local IFS=':'
+	# shellcheck disable=SC2086
 	set -- ${KOPT_ip:-dhcp}
 	unset IFS
 
 	local client_ip="$1"
 	local gw_ip="$3"
 	local netmask="$4"
-	local device="$6"
+	local iface="$6"
 	local autoconf="$7"
 	local dns1="$8"
 	local dns2="$9"
@@ -198,10 +209,29 @@ configure_ip() {
 		dhcp) autoconf="dhcp";;
 	esac
 
-	[ -n "$device" ] || device=$(ip_choose_if)
+	if [ -z "$iface" ] && [ -n "$KOPT_BOOTIF" ]; then
+		mac=$(printf "%s\n" "$KOPT_BOOTIF"|sed 's/^01-//;s/-/:/g')
+		iface=$(grep -l "$mac" "$ROOT"/sys/class/net/*/address | awk -F/ '{print $(NF-1); exit}')
+	fi
 
-	if [ -z "$device" ]; then
-		echo "ERROR: IP requested but no network device was found"
+	if [ -z "$iface" ]; then
+		# shellcheck disable=SC2046
+		set -- $(ethernets)
+		for i in "$@"; do
+			$MOCK ip link set dev "$i" up
+		done
+		iface=$(find_first_interface_up "$@") || iface="$1"
+
+		# we will use the found interface later so lets keep it up
+		for i in "$@"; do
+			if [ "$i" != "$iface" ]; then
+				$MOCK ip link set dev "$i" down
+			fi
+		done
+	fi
+
+	if [ -z "$iface" ]; then
+		echo "ERROR: IP requested but no network interface was found"
 		return 1
 	fi
 
@@ -211,16 +241,18 @@ configure_ip() {
 			echo "ERROR: DHCP requested but not present in initrd"
 			return 1
 		fi
-		ebegin "Obtaining IP via DHCP ($device)"
-		$MOCK ifconfig "$device" 0.0.0.0
-		$MOCK udhcpc -i "$device" -f -q
+		ebegin "Obtaining IP via DHCP ($iface)"
+		$MOCK ip link set dev "$iface" up
+		$MOCK udhcpc -i "$iface" -f -q
 		eend $?
 	else
 		# manual configuration
-		[ -n "$client_ip" -a -n "$netmask" ] || return
-		ebegin "Setting IP ($device)"
-		if ifconfig "$device" "$client_ip" netmask "$netmask"; then
-			[ -z "$gw_ip" ] || ip route add 0.0.0.0/0 via "$gw_ip" dev "$device"
+		if [ -z "$client_ip" ] && [ -z "$netmask" ]; then
+			return
+		fi
+		ebegin "Setting IP ($iface)"
+		if ifconfig "$iface" "$client_ip" netmask "$netmask"; then
+			[ -z "$gw_ip" ] || ip route add 0.0.0.0/0 via "$gw_ip" dev "$iface"
 		fi
 		eend $?
 	fi
@@ -230,7 +262,7 @@ configure_ip() {
 		echo "nameserver $i" >> /etc/resolv.conf
 	done
 
-	MAC_ADDRESS=$(cat /sys/class/net/$device/address)
+	MAC_ADDRESS=$(cat "$ROOT/sys/class/net/$iface/address")
 }
 
 # relocate mountpoint according given fstab and set mount options

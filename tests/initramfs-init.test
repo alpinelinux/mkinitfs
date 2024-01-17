@@ -19,6 +19,9 @@ init_tests \
 	initramfs_init_tmpfs_root_tiny_cloud_smbios \
 	initramfs_init_tmpfs_root_apkovl_url \
 	initramfs_init_tmpfs_root_ip_dhcp_no_iface \
+	initramfs_init_tmpfs_root_ip_dhcp_all_down \
+	initramfs_init_tmpfs_root_ip_dhcp_first_up \
+	initramfs_init_tmpfs_root_ip_dhcp_BOOTIF \
 	initramfs_init_aoe \
 	initramfs_init_wireguard
 
@@ -62,6 +65,19 @@ fake_serial_devices() {
 	mkdir -p sys/class/tty/
 	ln -s ../../devices/platform/ARMH0011:00/tty/ttyAMA0 \
 		sys/class/tty/ttyAMA0
+}
+
+fake_ifaces() {
+	local n=1
+	mkdir -p usr/share/udhcpc
+	touch usr/share/udhcpc/default.script
+	for i; do
+		mkdir -p sys/class/net/$i
+		printf "$n\n" > sys/class/net/$i/ifindex
+		printf "down\n" >sys/class/net/$i/operstate
+		printf "02:00:00:00:00:%.2x\n" $n >sys/class/net/$i/address
+		n=$((n+1))
+	done
 }
 
 initramfs_init_cmdline_root_body() {
@@ -334,7 +350,50 @@ initramfs_init_tmpfs_root_ip_dhcp_no_iface_body() {
 	fake_sysroot_init
 
 	atf_check \
-		-o match:"ERROR: IP requested but no network device was found" \
+		-o match:"ERROR: IP requested but no network interface was found" \
+		initramfs-init
+}
+
+initramfs_init_tmpfs_root_ip_dhcp_all_down_body() {
+	fake_cmdline "ip=dhcp"
+	fake_switch_root
+	fake_sysroot_init
+	fake_ifaces eth0 eth1 eth2
+
+	atf_check \
+		-o match:"udhcpc -i eth0" \
+		initramfs-init
+}
+
+initramfs_init_tmpfs_root_ip_dhcp_first_up_body() {
+	fake_cmdline "ip=dhcp"
+	fake_switch_root
+	fake_sysroot_init
+	fake_ifaces eth0 eth1 eth2
+	echo "up" > sys/class/net/eth1/operstate
+	echo "up" > sys/class/net/eth2/operstate
+
+	atf_check \
+		-o match:"ip link set dev eth0 up" \
+		-o match:"ip link set dev eth1 up" \
+		-o match:"ip link set dev eth2 up" \
+		-o match:"ip link set dev eth2 down" \
+		-o not-match:"ip link set dev eth1 down" \
+		-o match:"ip link set dev eth0 down" \
+		-o match:"udhcpc -i eth1" \
+		initramfs-init
+}
+
+initramfs_init_tmpfs_root_ip_dhcp_BOOTIF_body() {
+	fake_cmdline "ip=dhcp BOOTIF=02:00:00:00:00:03"
+	fake_switch_root
+	fake_sysroot_init
+	fake_ifaces eth0 eth1 eth2
+
+	atf_check \
+		-o not-match:"ip link set dev eth[01]" \
+		-o match:"ip link set dev eth2 up" \
+		-o match:"udhcpc -i eth2" \
 		initramfs-init
 }
 
