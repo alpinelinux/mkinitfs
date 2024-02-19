@@ -3,3 +3,4 @@ kernel/drivers/virtio
 kernel/drivers/net/virtio_net*
 kernel/drivers/char/virtio_console*
 kernel/fs/fuse/virtiofs*
+kernel/drivers/gpu/drm/virtio
