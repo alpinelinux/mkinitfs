@@ -98,7 +98,10 @@ is used.  The default is \fBmode=0755,rw\fR, you cannot override \fBrw\fR.
 Generate less output.
 .TP
 \fBresume=\fIDEVICE\fR
-Swap partition to resume from.
+Partition to resume from. This can either be a swap partition or a partition containing a swap file. If this is a partition containing a swap file, you must also use \fBresume_offset\fR.
+.TP
+\fBresume_offset=\fIOFFSET\fR
+If \fBresume\fR specifies a partition containing a swap file to resume from, you must also specify the offset of that file from the beginning of the partition using this flag.
 .TP
 \fBroot=\fR(\fIDEVICE\fR | nfs:\fIIP-ADDRESS\fR:\fIPATH\fR)
 Device or NFS url for the root partition.
