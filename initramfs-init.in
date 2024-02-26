@@ -445,8 +445,8 @@ set -- $(cat "$ROOT"/proc/cmdline)
 myopts="autodetect_serial chart cryptroot cryptdm cryptheader cryptoffset
 	cryptdiscards cryptkey debug_init ds init init_args keep_apk_new modules
 	pkgs quiet root_size root usbdelay ip alpine_repo apkovl splash
-	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume s390x_net
-	dasd ssh_key BOOTIF zfcp uevent_buf_size aoe aoe_iflist aoe_mtu wireguard"
+	blacklist overlaytmpfs overlaytmpfsflags rootfstype rootflags nbd resume resume_offset
+	s390x_net dasd ssh_key BOOTIF zfcp uevent_buf_size aoe aoe_iflist aoe_mtu wireguard"
 
 for opt; do
 	case "$opt" in
@@ -657,6 +657,9 @@ if [ -n "$KOPT_root" ]; then
 			*) resume_dev="$KOPT_resume";;
 			esac
 			printf "%d:%d" $(stat -Lc "0x%t 0x%T" "$resume_dev") >/sys/power/resume
+			if [ -n "$KOPT_resume_offset" ]; then
+				echo "$KOPT_resume_offset" > /sys/power/resume_offset
+			fi
 		else
 			echo "resume: no hibernation support found"
 		fi
