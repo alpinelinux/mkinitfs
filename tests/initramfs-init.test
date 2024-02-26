@@ -23,7 +23,8 @@ init_tests \
 	initramfs_init_tmpfs_root_ip_dhcp_first_up \
 	initramfs_init_tmpfs_root_ip_dhcp_BOOTIF \
 	initramfs_init_aoe \
-	initramfs_init_wireguard
+	initramfs_init_wireguard \
+	initramfs_init_resume_offset
 
 fake_cmdline() {
 	mkdir -p proc
@@ -419,3 +420,21 @@ initramfs_init_wireguard_body() {
 		-o match:'modprobe.*wireguard' \
 		initramfs-init
 }
+
+initramfs_init_resume_offset_body() {
+	fake_cmdline "root=fake_dev resume=fake_dev resume_offset=3549184"
+	fake_sysroot_init
+	fake_switch_root
+
+	mkdir -p sys/power
+	touch sys/power/resume
+	touch fake_dev
+
+	atf_check \
+		-o ignore \
+		initramfs-init
+	atf_check \
+		-o match:'3549184' \
+		cat sys/power/resume_offset
+}
+

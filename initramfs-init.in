@@ -651,14 +651,14 @@ if [ -n "$KOPT_root" ]; then
 
 	if [ -n "$KOPT_resume" ]; then
 		echo "Resume from disk"
-		if [ -e /sys/power/resume ]; then
+		if [ -e $ROOT/sys/power/resume ]; then
 			case "$KOPT_resume" in
 			UUID*|LABEL*) resume_dev=$(findfs "$KOPT_resume");;
 			*) resume_dev="$KOPT_resume";;
 			esac
-			printf "%d:%d" $(stat -Lc "0x%t 0x%T" "$resume_dev") >/sys/power/resume
+			printf "%d:%d" $(stat -Lc "0x%t 0x%T" "$resume_dev") > $ROOT/sys/power/resume
 			if [ -n "$KOPT_resume_offset" ]; then
-				echo "$KOPT_resume_offset" > /sys/power/resume_offset
+				echo "$KOPT_resume_offset" > $ROOT/sys/power/resume_offset
 			fi
 		else
 			echo "resume: no hibernation support found"
