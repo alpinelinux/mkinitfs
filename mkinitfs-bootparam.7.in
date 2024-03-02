@@ -13,6 +13,21 @@ documented in \fIbootparam(7)\fR.
 The options documented here are interpreted by the initramfs-init script that is
 part of the initramfs, see \fImkinitfs(1)\fR to learn how to customize it.
 .TP
+\fBaoe=\fI0.0\fR,\fI2.1\fR,\fI...\fR
+A comma separated list of ATA-over-Ethernet \fBshelf.slot\fR required for boot.
+If this is left empty, \fBaoe\fR will be enabled, but boot will not pause for
+device discovery.
+.TP
+\fBaoe_iflist=\fIeth0\fR,\fI...\fR
+This is a \fBmandatory\fR parameter if you intend to use \fBaoe\fR at boot. It
+is a comma separated list of ethernet interfaces to use with the \fBaoe\fR
+module.
+.TP
+\fBaoe_mtu=\fI1500\fR
+Maximum Transmission Unit (MTU) to use for \fBaoe\fR interfaces on networks
+that support jumbo packets. The default (usually 1500) is used if this is not
+set.
+.TP
 \fBblacklist=\fIMODULE\fR{,\fIMODULE\fR}
 This comma-separated list names kernel modules that modprobe will reject to load.
 .TP
