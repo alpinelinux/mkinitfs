@@ -241,7 +241,7 @@ static void spawn_execute(struct spawn_manager *mgr, struct spawn_task *task)
 
 	if (!(pid = fork())) {
 		execve(task->argv[0], task->argv, task->envp ? task->envp : default_envp);
-		err(127, task->argv[0]);
+		err(127, "%s", task->argv[0]);
 	}
 	if (pid < 0)
 		err(1, "fork");
