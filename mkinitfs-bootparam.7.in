@@ -47,7 +47,7 @@ When the LUKS headers and encrypted data are on different devices, this option
 specifies the device with the LUKS headers.
 .TP
 \fBcryptkey=\fIKEYFILE\fR
-Attempt to decrypt an encypted partition using an keyfile.
+Attempt to decrypt an encypted partition using a keyfile.
 .TP
 \fBcryptoffset=\fISECTORS\fR
 Indicate that the encrypted data begins the given number of sectors after the
@@ -122,13 +122,13 @@ Launch root shell before switching to the root partition.
 \fBuevent_buf_size=\fIBYTES\fR
 Set the buffer size for kernel uevents.
 .PP
-If no \fBroot=\fR parameter is given, the initramfs will build an live system
+If no \fBroot=\fR parameter is given, the initramfs will build a live system
 in memory from scratch. This is also called diskless mode.
 .PP
 When booting in diskless mode, the following options are also available:
 .TP
 \fBalpine_repo=\fR(\fIURL\fR | \fIPATH\fR)
-If set, \fI/etc/apk/repositories\fR will be filled with this. May be an URL.
+If set, \fI/etc/apk/repositories\fR will be filled with this. May be a URL.
 .TP
 \fBapkovl=\fR(\fIURL\fR | [\fIDEVICE\fR[:\fIFS_TYPE\fR]:]\fIPATH\fR)\fR
 A HTTP, HTTPS or FTP URL to an apkovl.tar.gz file which will be retrieved and
