@@ -160,6 +160,11 @@ Enable splash screen.
 Wait \fINUMBER\fR seconds for USB devices to show up before searching for boot
 media.
 .TP
+\fBwireguard=\fIINTERFACE;IP_ADDRESS{,IP_ADDRESS,...}[;WG_CONFIG_FILE]\fR
+Set up a wireguard interface named \fIINTERFACE\fR with the addresses
+\fIIP_ADDRESS\fR and use \fI/etc/wireguard/initrd.conf\fR or \fIWG_CONFIG_FILE\fR
+as a classic wg (not wg-quick) config.
+.TP
 \fBzfs_force=\fINUMBER\fR
 Enable force importing the root zpool on boot, even if it was previously mounted
 from a different system/OS.
