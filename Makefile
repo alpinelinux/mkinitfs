@@ -160,10 +160,10 @@ install: $(SBIN_FILES) $(SHARE_FILES) $(CONF_FILES)
 		$(INSTALL) -Dm644 $$i $(DESTDIR)/$(sysconfdir)/$$i;\
 	done
 	for i in $(SHARE_FILES); do \
-		$(INSTALL) -D $$i $(DESTDIR)/$(datadir)/$$i;\
+		$(INSTALL) -Dm644 $$i $(DESTDIR)/$(datadir)/$$i;\
 	done
 	for i in $(MAN_FILES); do \
-		$(INSTALL) -D $$i $(DESTDIR)$(mandir)/man$${i##*.}/$$i;\
+		$(INSTALL) -Dm644 $$i $(DESTDIR)$(mandir)/man$${i##*.}/$$i;\
 	done
 
 mkinitfs.conf:
