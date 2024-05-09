@@ -297,7 +297,7 @@ remount_fstab_entry() {
 # find the dirs under ALPINE_MNT that are boot repositories
 find_boot_repositories() {
 	if [ -n "$ALPINE_REPO" ]; then
-		echo "$ALPINE_REPO"
+		echo "$ALPINE_REPO" | tr ',' '\n'
 	else
 		find /media/* -maxdepth 3 -name .boot_repository -type f \
 			| sed 's:/.boot_repository$::'
