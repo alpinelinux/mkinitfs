@@ -240,7 +240,9 @@ while getopts "b:c:C:f:F:hi:kKLlno:P:qs:t:" opt; do
 done
 shift $(( $OPTIND - 1 ))
 
-. $(readlink -f "$config")
+if [ -e "$config" ]; then
+	. "$config"
+fi
 [ -n "$myfeatures" ] && features="$myfeatures"
 
 if [ -n "$list_features" ]; then
