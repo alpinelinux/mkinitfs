@@ -4,7 +4,8 @@
 
 init_tests \
 	mkinitfs_help \
-	mkinitfs_invalid_opt
+	mkinitfs_invalid_opt \
+	mkinitfs_list_features
 
 mkinitfs_help_body() {
 	atf_check -o match:"usage:" mkinitfs -h
@@ -13,4 +14,20 @@ mkinitfs_help_body() {
 mkinitfs_invalid_opt_body() {
 	atf_check -s exit:1 -e match:"usage" \
 		mkinitfs -Z
+}
+
+mkinitfs_invalid_opt_body() {
+	atf_check -s exit:1 -e match:"usage" \
+		mkinitfs -Z
+}
+
+mkinitfs_list_features_body() {
+	mkdir -p etc/mkinitfs/features.d
+	touch etc/mkinitfs/features.d/myfeature1.files
+	touch etc/mkinitfs/features.d/myfeature2.modules
+
+	features_dir="$PWD"/etc/mkinitfs/features.d atf_check \
+		-o match:"myfeature1" \
+		-o match:"myfeature2" \
+		mkinitfs -b "$PWD" -L
 }
