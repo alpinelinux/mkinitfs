@@ -22,6 +22,7 @@ init_tests \
 	initramfs_init_tmpfs_root_ip_dhcp_all_down \
 	initramfs_init_tmpfs_root_ip_dhcp_first_up \
 	initramfs_init_tmpfs_root_ip_dhcp_BOOTIF \
+	initramfs_init_tmpfs_root_ip_mactab \
 	initramfs_init_aoe \
 	initramfs_init_wireguard \
 	initramfs_init_resume_offset
@@ -395,6 +396,19 @@ initramfs_init_tmpfs_root_ip_dhcp_BOOTIF_body() {
 		-o not-match:"ip link set dev eth[01]" \
 		-o match:"ip link set dev eth2 up" \
 		-o match:"udhcpc -i eth2" \
+		initramfs-init
+}
+
+initramfs_init_tmpfs_root_ip_mactab_body() {
+	fake_cmdline "ip=dhcp"
+	fake_switch_root
+	fake_sysroot_init
+
+	mkdir -p etc
+	touch etc/mactab
+
+	atf_check \
+		-o match:"nameif" \
 		initramfs-init
 }
 

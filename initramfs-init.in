@@ -209,6 +209,10 @@ configure_ip() {
 		dhcp) autoconf="dhcp";;
 	esac
 
+	if [ -e "$ROOT"/etc/mactab ]; then
+		$MOCK nameif -s
+	fi
+
 	if [ -z "$iface" ] && [ -n "$KOPT_BOOTIF" ]; then
 		mac=$(printf "%s\n" "$KOPT_BOOTIF"|sed 's/^01-//;s/-/:/g')
 		iface=$(grep -l "$mac" "$ROOT"/sys/class/net/*/address | awk -F/ '{print $(NF-1); exit}')
