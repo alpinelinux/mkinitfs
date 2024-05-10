@@ -23,6 +23,7 @@ init_tests \
 	initramfs_init_tmpfs_root_ip_dhcp_first_up \
 	initramfs_init_tmpfs_root_ip_dhcp_BOOTIF \
 	initramfs_init_tmpfs_root_ip_mactab \
+	initramfs_init_tmpfs_root_alpine_repo \
 	initramfs_init_aoe \
 	initramfs_init_wireguard \
 	initramfs_init_resume_offset
@@ -410,6 +411,22 @@ initramfs_init_tmpfs_root_ip_mactab_body() {
 	atf_check \
 		-o match:"nameif" \
 		initramfs-init
+}
+
+initramfs_init_tmpfs_root_alpine_repo_body() {
+	fake_cmdline "alpine_repo=https://example.com/a,https://example.com/b"
+	fake_switch_root
+	fake_sysroot_init
+
+	atf_check \
+		-o match:"switch_root OK" \
+		-e ignore \
+		initramfs-init
+
+	atf_check \
+		-o match:"^https://example.com/a$" \
+		-o match:"^https://example.com/b$" \
+		cat sysroot/etc/apk/repositories
 }
 
 initramfs_init_aoe_body() {
