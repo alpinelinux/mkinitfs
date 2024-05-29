@@ -143,7 +143,22 @@ initfs_firmware() {
 	find "$tmpdir"/lib/modules -type f -name "*.ko*" | xargs modinfo -k $kernel -F firmware | sort -u | while read FW; do
 		for fname in "$FW" "$FW.zst" "$FW.xz"; do
 			if [ -e "${basedir}/lib/firmware/$fname" ]; then
-				install -pD "${basedir}/lib/firmware/$fname" "$tmpdir"/lib/firmware/$fname
+				local IFS=/ cur_path=lib/firmware
+				# Copy the firmware while preserving symlinks to avoid duplication
+				set -- $fname
+				while [ "$#" -gt 0 ]; do
+					cur_path=$cur_path/$1
+					shift
+
+					if [ -L "$basedir/$cur_path" ] && [ ! -L "$tmpdir/$cur_path" ]; then
+						mkdir -p "$tmpdir/${cur_path%/*}"
+						cp -pP "$basedir/$cur_path" "$tmpdir/${cur_path%/*}/"
+						set -- $(readlink -- "$basedir/$cur_path") "$@"
+						cur_path=${cur_path%/*}
+					fi
+				done
+				mkdir -p "$tmpdir/${cur_path%/*}"
+				cp -pP "$basedir/$cur_path" "$tmpdir/${cur_path%/*}/"
 				break
 			fi
 		done
