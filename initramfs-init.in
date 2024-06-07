@@ -156,7 +156,7 @@ ethernets() {
 find_first_interface_up() {
 	local n=0
 	[ $# -eq 0 ] && return 0
-	while [ "$n" -le "${LINK_WAIT_MAX:-10}" ]; do
+	while [ "$n" -le "${LINK_WAIT_MAX:-40}" ]; do
 		for i in "$@"; do
 			if grep -q -F -x "up" "$ROOT/sys/class/net/$i/operstate"; then
 				echo "$i"
