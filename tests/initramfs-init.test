@@ -19,6 +19,7 @@ init_tests \
 	initramfs_init_tmpfs_root_tiny_cloud_smbios \
 	initramfs_init_tmpfs_root_apkovl_url \
 	initramfs_init_tmpfs_root_ip_dhcp_no_iface \
+	initramfs_init_tmpfs_root_ip_dhcp_no_physical_iface \
 	initramfs_init_tmpfs_root_ip_dhcp_all_down \
 	initramfs_init_tmpfs_root_ip_dhcp_first_up \
 	initramfs_init_tmpfs_root_ip_dhcp_BOOTIF \
@@ -75,10 +76,10 @@ fake_ifaces() {
 	mkdir -p usr/share/udhcpc
 	touch usr/share/udhcpc/default.script
 	for i; do
-		mkdir -p sys/class/net/$i
+		mkdir -p sys/class/net/$i/device
 		printf "$n\n" > sys/class/net/$i/ifindex
-		printf "down\n" >sys/class/net/$i/operstate
-		printf "02:00:00:00:00:%.2x\n" $n >sys/class/net/$i/address
+		printf "down\n" > sys/class/net/$i/operstate
+		printf "02:00:00:00:00:%.2x\n" $n > sys/class/net/$i/address
 		n=$((n+1))
 	done
 }
@@ -351,6 +352,19 @@ initramfs_init_tmpfs_root_ip_dhcp_no_iface_body() {
 	fake_cmdline "ip=dhcp"
 	fake_switch_root
 	fake_sysroot_init
+
+	atf_check \
+		-o match:"ERROR: IP requested but no network interface was found" \
+		initramfs-init
+}
+
+initramfs_init_tmpfs_root_ip_dhcp_no_physical_iface_body() {
+	fake_cmdline "ip=dhcp"
+	fake_switch_root
+	fake_sysroot_init
+	fake_ifaces veth0 veth1
+	rm -rf sys/class/net/veth0/device
+	rm -rf sys/class/net/veth1/device
 
 	atf_check \
 		-o match:"ERROR: IP requested but no network interface was found" \

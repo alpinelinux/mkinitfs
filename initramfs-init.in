@@ -146,9 +146,9 @@ setup_inittab_console() {
 ethernets() {
 	for i in "$ROOT/sys/class/net/"*; do
 		local iface="${i##*/}"
-		case "$iface" in
-			eth*) echo "$(cat "$i/ifindex") $iface";;
-		esac
+		if [ -d "$i/device" ]; then
+			echo "$(cat "$i/ifindex") $iface"
+		fi
 	done | sort -n | awk '{print $2}'
 }
 
