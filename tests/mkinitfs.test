@@ -7,6 +7,7 @@ init_tests \
 	mkinitfs_invalid_opt \
 	mkinitfs_list_features \
 	mkinitfs_list_files \
+	mkinitfs_list_modules
 
 mkinitfs_help_body() {
 	atf_check -o match:"usage:" mkinitfs -h
@@ -40,4 +41,58 @@ mkinitfs_list_files_body() {
 	DATADIR="$srcdir" atf_check \
 		-o match:"testfile" \
 		mkinitfs -b "$PWD" -P "$PWD/etc/mkinitfs/features.d" -n -F myfiles -l
+}
+
+mkinitfs_list_modules_body() {
+	kver=6.6.35-lts
+	mkdir -p etc/mkinitfs/features.d \
+		lib/modules/"$kver" \
+		lib/firmware/e100 \
+		bin
+
+	touch testfile
+	echo "/testfile" > etc/mkinitfs/features.d/myfeature.files
+	echo "kernel/fs/ext4/ext4.ko*" > etc/mkinitfs/features.d/myfeature.modules
+	echo "kernel/drivers/net/ethernet" >> etc/mkinitfs/features.d/myfeature.modules
+	cat > lib/modules/"$kver"/modules.dep <<-EOF
+		kernel/fs/mbcache.ko.gz:
+		kernel/fs/ext4/ext4.ko.gz: kernel/lib/crc16.ko.gz kernel/fs/mbcache.ko.gz kernel/fs/jbd2/jbd2.ko.gz
+		kernel/fs/ext2/ext2.ko.gz: kernel/fs/mbcache.ko.gz
+		kernel/fs/jbd2/jbd2.ko.gz:
+		kernel/fs/squashfs/squashfs.ko.gz:
+		kernel/fs/fat/fat.ko.gz:
+		kernel/fs/fat/vfat.ko.gz: kernel/fs/fat/fat.ko.gz
+		kernel/fs/fat/msdos.ko.gz: kernel/fs/fat/fat.ko.gz
+		kernel/lib/crc16.ko.gz:
+		kernel/drivers/misc/eeprom/ee1004.ko.gz:
+		kernel/drivers/net/ethernet/intel/e100.ko.gz: kernel/drivers/net/mii.ko.gz
+		kernel/drivers/net/mii.ko.gz:
+	EOF
+	# create fake modules
+	for i in $(cut -d: -f1 lib/modules/$kver/modules.dep); do
+		mkdir -p lib/modules/$kver/${i%/*}
+		touch lib/modules/$kver/$i
+	done
+
+	# fake modinfo
+	cat > bin/modinfo <<-EOF
+		#!/bin/sh
+		echo e100/d102e_ucode.bin
+		echo e100/d101s_ucode.bin
+		echo e100/d101m_ucode.bin
+	EOF
+	chmod +x bin/modinfo
+
+	touch lib/firmware/e100/d102e_ucode.bin \
+		lib/firwmare/e100/d101s_ucode.bin \
+		lib/firmware/e100/d101m_ucode.bin
+
+	DATADIR="$srcdir" atf_check \
+		-o match:"ext4.ko.gz$" \
+		-o match:"mbcache.ko.gz$" \
+		-o match:"jbd2.ko.gz$" \
+		-o match:"e100.ko.gz$" \
+		-o match:"e100/d102e_ucode.bin" \
+		-o not-match:"ext2" \
+		mkinitfs -b "$PWD" -P "$PWD/etc/mkinitfs/features.d" -F myfeature -l "$kver"
 }

@@ -129,7 +129,7 @@ initfs_kmods() {
 			cp "$kerneldir"/$file "$tmpdir"/lib/modules/$kernel/
 		fi
 	done
-	depmod $kernel -b "$tmpdir"
+	$MOCK depmod $kernel -b "$tmpdir"
 	cd "$oldpwd"
 }
 
