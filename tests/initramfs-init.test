@@ -363,7 +363,7 @@ initramfs_init_tmpfs_root_ip_dhcp_all_down_body() {
 	fake_sysroot_init
 	fake_ifaces eth0 eth1 eth2
 
-	atf_check \
+	LINK_WAIT_MAX=1 atf_check \
 		-o match:"udhcpc -i eth0" \
 		initramfs-init
 }
