@@ -2,7 +2,7 @@ test-default:
   image: alpine:latest
   stage: test
   script:
-    - apk add make kyua kmod-dev util-linux-dev cryptsetup-dev linux-headers
+    - apk add make kyua kmod-dev util-linux-dev cryptsetup-dev linux-headers lddtree
     - make -j $(nproc) check
   tags:
     - docker-alpine
