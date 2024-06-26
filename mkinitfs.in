@@ -1,8 +1,8 @@
 #!/bin/sh
 
 VERSION=@VERSION@
-sysconfdir=@sysconfdir@
-datadir=@datadir@
+sysconfdir="${SYSCONFDIR:-@sysconfdir@}"
+datadir="${DATADIR:-@datadir@}"
 
 config="$sysconfdir"/mkinitfs.conf
 init="$datadir"/initramfs-init
@@ -149,7 +149,9 @@ initfs_firmware() {
 initfs_apk_keys() {
 	mkdir -p "$tmpdir"/etc/apk/keys
 	[ "$hostkeys" ] && cp "/etc/apk/keys/"* "$tmpdir"/etc/apk/keys/
-	cp "${basedir}etc/apk/keys/"* "$tmpdir"/etc/apk/keys/
+	if [ -d "${basedir}etc/apk/keys" ]; then
+		cp "${basedir}etc/apk/keys/"* "$tmpdir"/etc/apk/keys/
+	fi
 }
 
 initfs_custom_files() {

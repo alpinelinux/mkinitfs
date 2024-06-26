@@ -5,7 +5,8 @@
 init_tests \
 	mkinitfs_help \
 	mkinitfs_invalid_opt \
-	mkinitfs_list_features
+	mkinitfs_list_features \
+	mkinitfs_list_files \
 
 mkinitfs_help_body() {
 	atf_check -o match:"usage:" mkinitfs -h
@@ -30,4 +31,13 @@ mkinitfs_list_features_body() {
 		-o match:"myfeature1" \
 		-o match:"myfeature2" \
 		mkinitfs -b "$PWD" -L
+}
+
+mkinitfs_list_files_body() {
+	mkdir -p etc/mkinitfs/features.d
+	touch testfile
+	echo "/testfile" > etc/mkinitfs/features.d/myfiles.files
+	DATADIR="$srcdir" atf_check \
+		-o match:"testfile" \
+		mkinitfs -b "$PWD" -P "$PWD/etc/mkinitfs/features.d" -n -F myfiles -l
 }
