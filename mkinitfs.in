@@ -137,10 +137,7 @@ initfs_firmware() {
 	[ -z "$nokernel" ] || return 0
 	rm -rf "$tmpdir"/lib/firmware
 	mkdir -p "$tmpdir"/lib/firmware
-	# Verify if there are initfs modules
-	_modules=`find "$tmpdir"/lib/modules -type f -name "*.ko*" -print -quit`
-	[ -n "$_modules" ] || return 0
-	find "$tmpdir"/lib/modules -type f -name "*.ko*" | xargs modinfo -k $kernel -F firmware | sort -u | while read FW; do
+	find "$tmpdir"/lib/modules -type f -name "*.ko*" -exec modinfo -k $kernel -F firmware -- {} + | sort -u | while read FW; do
 		for fname in "$FW" "$FW.zst" "$FW.xz"; do
 			if [ -e "${basedir}/lib/firmware/$fname" ]; then
 				local IFS=/ cur_path=lib/firmware
