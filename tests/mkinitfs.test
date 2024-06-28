@@ -11,6 +11,11 @@ init_tests \
 	mkinitfs_find_zst_compressed_firmware_blob \
 	mkinitfs_copy_firmware
 
+mock_depmod() {
+	echo '#!/bin/sh' > bin/depmod
+	chmod +x bin/depmod
+}
+
 mkinitfs_help_body() {
 	atf_check -o match:"usage:" mkinitfs -h
 }
@@ -85,6 +90,8 @@ mkinitfs_list_modules_body() {
 	EOF
 	chmod +x bin/modinfo
 
+	mock_depmod
+
 	touch lib/firmware/e100/d102e_ucode.bin \
 		lib/firmware/e100/d101s_ucode.bin \
 		lib/firmware/e100/d101m_ucode.bin
@@ -106,12 +113,10 @@ mkinitfs_find_zst_compressed_firmware_blob_body() {
 		lib/firmware/e100 \
 		bin
 
-	touch testfile
+	touch testfile lib/modules/"$kver"/mock.ko.gz
 	echo "/testfile" > etc/mkinitfs/features.d/myfeature.files
 	echo "kernel/drivers/net/ethernet" >> etc/mkinitfs/features.d/myfeature.modules
 	echo "mock.ko.gz" > etc/mkinitfs/features.d/myfeature.modules
-	touch lib/modules/"$kver"/mock.ko.gz
-	touch lib/modules/"$kver"/modules.dep
 
 	# fake modinfo
 	cat > bin/modinfo <<-EOF
@@ -121,6 +126,8 @@ mkinitfs_find_zst_compressed_firmware_blob_body() {
 		echo e100/d101m_ucode.bin
 	EOF
 	chmod +x bin/modinfo
+
+	mock_depmod
 
 	touch lib/firmware/e100/d102e_ucode.bin.xz \
 		lib/firmware/e100/d101s_ucode.bin.zst \
@@ -139,9 +146,9 @@ mkinitfs_copy_firmware_body() {
 		lib/modules/"$kver" \
 		lib/firmware/dir1 \
 		lib/firmware/dir2/sub/deep \
-		bin
+		bin boot
 
-	touch testfile lib/modules/"$kver"/modules.dep
+	touch testfile lib/modules/"$kver"/mock.ko.gz
 	echo "/testfile" > etc/mkinitfs/features.d/myfeature.files
 	echo "mock.ko.gz" > etc/mkinitfs/features.d/myfeature.modules
 
@@ -150,7 +157,6 @@ mkinitfs_copy_firmware_body() {
 	ln -s .. lib/firmware/dir1/link4
 	touch lib/firmware/root2
 
-	touch lib/modules/"$kver"/mock.ko.gz
 	ln -s ../dir2/sub lib/firmware/dir1/link3
 	ln -s ../dir1/link3/deep lib/firmware/dir2/link2
 	ln -s dir2/link2/file1 lib/firmware/link1
@@ -168,8 +174,10 @@ mkinitfs_copy_firmware_body() {
 	EOF
 	chmod +x bin/modinfo
 
-	DATADIR="$srcdir" atf_check -o ignore -s exit:0 mkinitfs -b "$PWD" -P \
-		"$PWD/etc/mkinitfs/features.d" -F myfeature -l -t "$PWD"/tmp -k "$kver"
+	mock_depmod
+
+	DATADIR="$srcdir" atf_check -s exit:0 mkinitfs -b "$PWD" -q -P \
+		"$PWD/etc/mkinitfs/features.d" -F myfeature -t "$PWD"/tmp -k "$kver"
 
 	cd tmp/lib/firmware
 
