@@ -16,6 +16,11 @@ nlplug-findfs will link against the following libraries (runtime deps):
 - libblkid (from util-linux)
 - libcryptsetup
 
+To run the tests you need:
+
+- kyua
+- lddtree
+
 ## Installation
 
 Build mkinitfs via `make` and install it via `make install`.
@@ -26,3 +31,14 @@ For testing, its not necessary to install `mkinitfs` into your root file system.
 ## Tweaking
 
 The Makefile is kept slim and debuggable.
+
+## Testing
+
+Run `make check` to run the tests.
+
+Useful references:
+
+- https://manned.org/kyua.1
+- https://github.com/freebsd/kyua/wiki/Quickstart-atf-sh-test
+- https://manned.org/atf-sh-api
+
