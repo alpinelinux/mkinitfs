@@ -3,46 +3,12 @@
 . $(atf_get_srcdir)/test_env.sh
 
 init_tests \
-	mkinitfs_find_zst_compressed_firmware_blob \
 	mkinitfs_help \
 	mkinitfs_invalid_opt \
 	mkinitfs_list_features \
 	mkinitfs_list_files \
-	mkinitfs_list_modules
-
-mkinitfs_find_zst_compressed_firmware_blob_body() {
-	kver=6.6.35-lts
-	mkdir -p etc/mkinitfs/features.d \
-		lib/modules/"$kver" \
-		lib/firmware/e100 \
-		bin
-
-	touch testfile
-	echo "/testfile" > etc/mkinitfs/features.d/myfeature.files
-	echo "kernel/drivers/net/ethernet" >> etc/mkinitfs/features.d/myfeature.modules
-	echo "mock.ko.gz" > etc/mkinitfs/features.d/myfeature.modules
-	touch lib/modules/"$kver"/mock.ko.gz
-	touch lib/modules/"$kver"/modules.dep
-
-	# fake modinfo
-	cat > bin/modinfo <<-EOF
-		#!/bin/sh
-		echo e100/d102e_ucode.bin
-		echo e100/d101s_ucode.bin
-		echo e100/d101m_ucode.bin
-	EOF
-	chmod +x bin/modinfo
-
-	touch lib/firmware/e100/d102e_ucode.bin.xz \
-		lib/firmware/e100/d101s_ucode.bin.zst \
-		lib/firmware/e100/d101m_ucode.bin.tar.gz
-
-	DATADIR="$srcdir" atf_check \
-		-o match:"e100/d102e_ucode.bin.xz" \
-		-o match:"e100/d101s_ucode.bin.zst" \
-		-o not-match:"e100/d101m_ucode.bin.tar.gz" \
-		mkinitfs -b "$PWD" -P "$PWD/etc/mkinitfs/features.d" -F myfeature -l "$kver"
-}
+	mkinitfs_list_modules \
+	mkinitfs_find_zst_compressed_firmware_blob
 
 mkinitfs_help_body() {
 	atf_check -o match:"usage:" mkinitfs -h
@@ -131,3 +97,38 @@ mkinitfs_list_modules_body() {
 		-o not-match:"ext2" \
 		mkinitfs -b "$PWD" -P "$PWD/etc/mkinitfs/features.d" -F myfeature -l "$kver"
 }
+
+mkinitfs_find_zst_compressed_firmware_blob_body() {
+	kver=6.6.35-lts
+	mkdir -p etc/mkinitfs/features.d \
+		lib/modules/"$kver" \
+		lib/firmware/e100 \
+		bin
+
+	touch testfile
+	echo "/testfile" > etc/mkinitfs/features.d/myfeature.files
+	echo "kernel/drivers/net/ethernet" >> etc/mkinitfs/features.d/myfeature.modules
+	echo "mock.ko.gz" > etc/mkinitfs/features.d/myfeature.modules
+	touch lib/modules/"$kver"/mock.ko.gz
+	touch lib/modules/"$kver"/modules.dep
+
+	# fake modinfo
+	cat > bin/modinfo <<-EOF
+		#!/bin/sh
+		echo e100/d102e_ucode.bin
+		echo e100/d101s_ucode.bin
+		echo e100/d101m_ucode.bin
+	EOF
+	chmod +x bin/modinfo
+
+	touch lib/firmware/e100/d102e_ucode.bin.xz \
+		lib/firmware/e100/d101s_ucode.bin.zst \
+		lib/firmware/e100/d101m_ucode.bin.tar.gz
+
+	DATADIR="$srcdir" atf_check \
+		-o match:"e100/d102e_ucode.bin.xz" \
+		-o match:"e100/d101s_ucode.bin.zst" \
+		-o not-match:"e100/d101m_ucode.bin.tar.gz" \
+		mkinitfs -b "$PWD" -P "$PWD/etc/mkinitfs/features.d" -F myfeature -l "$kver"
+}
+
