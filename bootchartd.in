@@ -156,7 +156,6 @@ finalize()
 
 case "$1" in
 start-initfs)
-	NEWROOT="$2"
 	mkdir -p "$LOGDIR"
 	(
 		cleanup=true

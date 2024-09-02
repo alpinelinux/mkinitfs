@@ -497,7 +497,7 @@ done
 # start bootcharting if wanted
 if [ "$KOPT_chart" = yes ]; then
 	ebegin "Starting bootchart logging"
-	$MOCK /sbin/bootchartd start-initfs "$sysroot"
+	$MOCK /sbin/bootchartd start-initfs
 	eend 0
 fi
 
