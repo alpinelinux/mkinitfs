@@ -15,6 +15,7 @@
 #include <errno.h>
 #include <fnmatch.h>
 #include <getopt.h>
+#include <inttypes.h>
 #include <limits.h>
 #include <poll.h>
 #include <pthread.h>
@@ -316,6 +317,8 @@ struct cryptdev {
 struct cryptconf {
 	struct cryptdev data;
 	struct cryptdev header;
+	uint64_t key_offset;
+	size_t key_size;
 	size_t payload_offset;
 	pthread_t tid;
 	pthread_mutex_t mutex;
@@ -596,9 +599,10 @@ static void *cryptsetup_thread(void *data)
 	struct stat st;
 	if (!stat(c->crypt.data.key, &st)) {
 		pthread_mutex_lock(&c->crypt.mutex);
-		r = crypt_activate_by_keyfile(cd, c->crypt.data.name,
+		r = crypt_activate_by_keyfile_device_offset(cd, c->crypt.data.name,
 					      CRYPT_ANY_SLOT,
-					      c->crypt.data.key, st.st_size,
+					      c->crypt.data.key, c->crypt.key_size || st.st_size,
+					      c->crypt.key_offset,
 					      c->crypt.flags);
 		pthread_mutex_unlock(&c->crypt.mutex);
 		if (r >= 0)
@@ -1202,7 +1206,7 @@ static void usage(int rc)
 	" -c, --crypt-device CRYPTDEVICE        run cryptsetup luksOpen when CRYPTDEVICE is found\n"
 	" -h, --help                            show this help\n"
 	" -H, --crypt-header HEADER             use HEADER device or file as the LUKS header\n"
-	" -k, --crypt-key KEY                   path to keyfile\n"
+	" -k, --crypt-key KEY                   path to keyfile with optionally :<offset>:<size> appended\n"
 	" -m, --crypt-name NAME                 use NAME as name for crypto device mapping\n"
 	" -o, --crypt-offset OFFSET             cryptsetup payload offset\n"
 	" -D, --crypt-discards                  allow discards on crypto device\n"
@@ -1309,9 +1313,32 @@ int main(int argc, char *argv[])
 		case 'h':
 			usage(0);
 			break;
-		case 'k':
-			conf.crypt.data.key = optarg;
+		case 'k': {
+			/* Get second last ':' to check if key_size and key_offset has been set */
+			char *option = strrchr(optarg, ':');
+			if (option != NULL) {
+				char *tmp = option;
+				tmp[0] = '\0';
+				option = strrchr(optarg, ':');
+				tmp[0] = ':';
+			}
+			if (option != NULL) {
+				if (sscanf(option + 1, "%" SCNu64 ":%zu", &conf.crypt.key_offset, &conf.crypt.key_size) == 2) {
+					option[0] = '\0';
+				} else {
+					conf.crypt.key_offset = 0;
+					conf.crypt.key_size = 0;
+				}
+			}
+			conf.crypt.key.device = optarg;
+			/* the key may be in a regular file and not a device */
+			if (regular_file(conf.crypt.key.device)) {
+				snprintf(conf.crypt.key.devnode,
+					sizeof(conf.crypt.key.devnode),
+					"%s", conf.crypt.key.device);
+			}
 			break;
+		}
 		case 'm':
 			conf.crypt.data.name = optarg;
 			break;
