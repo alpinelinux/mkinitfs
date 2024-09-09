@@ -695,6 +695,18 @@ if [ -n "$KOPT_root" ]; then
 	fi
 
 	eend $?
+
+	if [ -r "$sysroot/etc/fstab" ]; then
+		while read dev mnt fs mntopts chk; do
+			if [ "$mnt" = "/usr" ]; then
+				ebegin "Mounting /usr"
+				$MOCK modprobe -a $fs 2> /dev/null
+				$MOCK mount -t $fs -o $mntopts $dev $sysroot/usr
+				eend $?
+			fi
+		done < $sysroot/etc/fstab
+	fi
+
 	cat "$ROOT"/proc/mounts 2>/dev/null | while read DEV DIR TYPE OPTS ; do
 		if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
 			mkdir -p $sysroot/$DIR
