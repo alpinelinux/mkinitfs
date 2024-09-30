@@ -177,6 +177,7 @@ struct spawn_task {
 	pid_t pid;
 	void *ctx;
 	char **argv, **envp;
+	int fd_out, fd_close;
 };
 
 #define SPAWNMGR_PID_HASH_SIZE 32
@@ -241,11 +242,21 @@ static void spawn_execute(struct spawn_manager *mgr, struct spawn_task *task)
 	pid_t pid;
 
 	if (!(pid = fork())) {
+		if (task->fd_out != STDOUT_FILENO) {
+			dup2(task->fd_out, STDOUT_FILENO);
+			close(task->fd_out);
+		}
+		if (task->fd_close != -1)
+			close(task->fd_close);
 		execve(task->argv[0], task->argv, task->envp ? task->envp : default_envp);
 		err(127, "%s", task->argv[0]);
 	}
 	if (pid < 0)
 		err(1, "fork");
+
+	/* Avoid other childs to inhert the file descriptor */
+	if (task->fd_out != STDOUT_FILENO)
+		close(task->fd_out);
 
 	task->pid = pid;
 	list_add_tail(&task->node, &mgr->running[pid % SPAWNMGR_PID_HASH_SIZE]);
@@ -254,7 +265,7 @@ static void spawn_execute(struct spawn_manager *mgr, struct spawn_task *task)
 	dbgT(task, "spawned (%d running):", mgr->num_running);
 }
 
-static void spawn_command_cb(struct spawn_manager *mgr, char **argv, char **envp, void (*done)(void *, int), void *ctx)
+static void spawn_command_cb_pipeline(struct spawn_manager *mgr, char **argv, char **envp, void (*done)(void *, int), void *ctx, int fd_out, int fd_close)
 {
 	struct spawn_task *task;
 
@@ -266,6 +277,8 @@ static void spawn_command_cb(struct spawn_manager *mgr, char **argv, char **envp
 		.argv = clone_array(argv),
 		.envp = clone_array(envp),
 		.ctx  = ctx,
+		.fd_out = fd_out,
+		.fd_close = fd_close,
 	};
 
 	if (mgr->num_running < mgr->max_running)
@@ -274,7 +287,12 @@ static void spawn_command_cb(struct spawn_manager *mgr, char **argv, char **envp
 		list_add_tail(&task->node, &mgr->queue);
 }
 
-static void spawn_command(struct spawn_manager *mgr, char **argv, char **envp)
+static inline void spawn_command_cb(struct spawn_manager *mgr, char **argv, char **envp, void (*done)(void *, int), void *ctx)
+{
+	spawn_command_cb_pipeline(mgr, argv, envp, done, ctx, STDOUT_FILENO, -1);
+}
+
+static inline void spawn_command(struct spawn_manager *mgr, char **argv, char **envp)
 {
 	spawn_command_cb(mgr, argv, envp, 0, 0);
 }
@@ -604,7 +622,8 @@ static void *cryptsetup_thread(void *data)
 					      c->crypt.key_offset,
 					      c->crypt.flags);
 		pthread_mutex_unlock(&c->crypt.mutex);
-		if (r >= 0)
+		// TODO close pipe
+		if (r >= 0 || (c->crypt.key.device != NULL && envcmp(c->crypt.key.device, "EXEC")))
 			goto free_out;
 	}
 
@@ -665,6 +684,17 @@ static void start_cryptsetup(struct ueventconf *conf)
 	load_kmod("dm-crypt", NULL, 0);
 	conf->cryptsetup_running = 1;
 	conf->running_threads = 1;
+	if (conf->crypt.key.device != NULL && envcmp(conf->crypt.key.device, "EXEC")) {
+		char *argv[] = {
+			conf->crypt.key.device + strlen("EXEC="),
+			NULL
+		};
+		int pipefd[2];
+		if (pipe(pipefd) != 0)
+			err(1, "pipe(%s)", argv[0]);
+		spawn_command_cb_pipeline(&spawnmgr, argv, 0, 0, 0, pipefd[1], pipefd[0]);
+		snprintf(conf->crypt.key.devnode, sizeof(conf->crypt.key.devnode), "/proc/self/fd/%i", pipefd[0]);
+	}
 	start_thread(conf, cryptsetup_thread);
 }
 
@@ -1334,7 +1364,7 @@ int main(int argc, char *argv[])
 			}
 			conf.crypt.key.device = optarg;
 			/* the key may be in a regular file and not a device */
-			if (regular_file(conf.crypt.key.device)) {
+			if (envcmp(conf.crypt.key.device, "EXEC") || regular_file(conf.crypt.key.device)) {
 				snprintf(conf.crypt.key.devnode,
 					sizeof(conf.crypt.key.devnode),
 					"%s", conf.crypt.key.device);

@@ -48,7 +48,9 @@ specifies the device with the LUKS headers.
 .TP
 \fBcryptkey=\fIKEYFILE\fR
 Read the key to decrypt the encypted partition from \fIKEYFILE\f. This can be
-a device or a regular file. The key offset and size can be specified by
+a device or a regular file. When \fIKEYFILE\f is starting with EXEC= it
+specifies a command without arguments that is executed and the stdout used
+as key. The key offset and size can be specified by
 appending :<offset>:<size> to \fIKEYFILE\fR.
 .TP
 \fBcryptoffset=\fISECTORS\fR
