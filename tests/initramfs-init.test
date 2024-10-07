@@ -27,7 +27,8 @@ init_tests \
 	initramfs_init_tmpfs_root_alpine_repo \
 	initramfs_init_aoe \
 	initramfs_init_wireguard \
-	initramfs_init_resume_offset
+	initramfs_init_resume_offset \
+	initramfs_init_mount_usr
 
 fake_cmdline() {
 	mkdir -p proc
@@ -483,3 +484,17 @@ initramfs_init_resume_offset_body() {
 		cat sys/power/resume_offset
 }
 
+initramfs_init_mount_usr_body() {
+	fake_cmdline "root=/dev/vda1"
+	fake_sysroot_init
+	fake_switch_root
+
+	mkdir -p sysroot/etc
+	cat >sysroot/etc/fstab <<-EOF
+		/dev/vda2	/usr	ext4	defaults 0 0
+	EOF
+
+	atf_check \
+		-o match:"Mounting /usr" \
+		initramfs-init
+}
