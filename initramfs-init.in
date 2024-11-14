@@ -743,7 +743,7 @@ if [ -n "$KOPT_root" ]; then
 
 	eend $?
 
-	if [ -r "$sysroot/etc/fstab" ]; then
+	if [ -r "$sysroot/etc/fstab" ] && [ "$KOPT_usrflags" != "disable" ]; then
 		while read dev mnt fs mntopts chk; do
 			if [ "$mnt" = "/usr" ]; then
 				ebegin "Mounting /usr"

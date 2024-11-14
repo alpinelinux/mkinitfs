@@ -119,6 +119,8 @@ Allowed values are the same like the \fB\-t\fR option for \fImount(1)\fR.
 .TP
 \fBusrflags=\fIOPTIONS\fR
 Mount options for /usr, if in a different filesystem than \fBroot\fR.
+The special value \fBdisable\fR can be used to avoid /usr from being mounted
+from the initramfs. Only use it if you know what you are doing.
 .TP
 \fBs390x_net=qeth_l2,\fIBUS-ID\fR{,\fIBUS-ID\fR}
 Configure network devices for the S/390x architecture.
