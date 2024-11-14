@@ -507,6 +507,7 @@ myopts="BOOTIF
 	ssh_key
 	tinycloud
 	uevent_buf_size
+	usrflags
 	usbdelay
 	wireguard
 	zfcp
@@ -747,7 +748,9 @@ if [ -n "$KOPT_root" ]; then
 			if [ "$mnt" = "/usr" ]; then
 				ebegin "Mounting /usr"
 				$MOCK modprobe -a $fs 2> /dev/null
-				$MOCK mount -t $fs -o $mntopts $dev $sysroot/usr
+				$MOCK mount -t $fs \
+					-o ${KOPT_usrflags:-ro} \
+					$dev $sysroot/usr
 				eend $?
 			fi
 		done < $sysroot/etc/fstab
