@@ -748,6 +748,11 @@ if [ -n "$KOPT_root" ]; then
 			if [ "$mnt" = "/usr" ]; then
 				ebegin "Mounting /usr"
 				$MOCK modprobe -a $fs 2> /dev/null
+				$MOCK nlplug-findfs \
+				      -p /sbin/mdev \
+				      ${KOPT_debug_init:+-d} \
+				      ${KOPT_uevent_buf_size:+-U $KOPT_uevent_buf_size} \
+				      $dev
 				$MOCK mount -t $fs \
 					-o ${KOPT_usrflags:-ro} \
 					$dev $sysroot/usr
