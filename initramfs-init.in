@@ -754,7 +754,7 @@ if [ -n "$KOPT_root" ]; then
 	fi
 
 	cat "$ROOT"/proc/mounts 2>/dev/null | while read DEV DIR TYPE OPTS ; do
-		if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a -d "$DIR" ]; then
+		if [ "$DIR" != "/" -a "$DIR" != "$sysroot" -a "$DIR" != "$sysroot/usr" -a -d "$DIR" ]; then
 			mkdir -p $sysroot/$DIR
 			$MOCK mount -o move $DIR $sysroot/$DIR
 		fi
