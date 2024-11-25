@@ -400,6 +400,25 @@ want_tiny_cloud() {
 	findfs LABEL=cidata >/dev/null 2>&1 || findfs LABEL=CIDATA >/dev/null 2>&1
 }
 
+resume_from_disk () {
+	if [ -z "$KOPT_resume" ]; then
+		return
+	fi
+	if [ ! -e "$ROOT"/sys/power/resume ]; then
+		echo "resume: no hibernation support found"
+		return
+	fi
+	echo "Resume from disk"
+	case "$KOPT_resume" in
+	UUID*|LABEL*) resume_dev=$(findfs "$KOPT_resume");;
+	*) resume_dev="$KOPT_resume";;
+	esac
+	printf "%d:%d" $(stat -Lc "0x%t 0x%T" "$resume_dev") > "$ROOT"/sys/power/resume
+	if [ -n "$KOPT_resume_offset" ]; then
+		echo "$KOPT_resume_offset" > "$ROOT"/sys/power/resume_offset
+	fi
+}
+
 /bin/busybox mkdir -p "$ROOT"/usr/bin \
 	"$ROOT"/usr/sbin \
 	"$ROOT"/proc \
@@ -653,21 +672,7 @@ if [ -n "$KOPT_root" ]; then
 			echo "Failed to scan devices for btrfs filesystem."
 	fi
 
-	if [ -n "$KOPT_resume" ]; then
-		echo "Resume from disk"
-		if [ -e $ROOT/sys/power/resume ]; then
-			case "$KOPT_resume" in
-			UUID*|LABEL*) resume_dev=$(findfs "$KOPT_resume");;
-			*) resume_dev="$KOPT_resume";;
-			esac
-			printf "%d:%d" $(stat -Lc "0x%t 0x%T" "$resume_dev") > $ROOT/sys/power/resume
-			if [ -n "$KOPT_resume_offset" ]; then
-				echo "$KOPT_resume_offset" > $ROOT/sys/power/resume_offset
-			fi
-		else
-			echo "resume: no hibernation support found"
-		fi
-	fi
+	resume_from_disk
 
 	if [ "$KOPT_overlaytmpfs" = "yes" ]; then
 		# Create mountpoints
@@ -718,6 +723,8 @@ if [ -n "$KOPT_root" ]; then
 	echo "initramfs emergency recovery shell launched"
 	exec /bin/busybox sh
 fi
+
+resume_from_disk
 
 if $do_networking; then
 	repoopts="-n"
