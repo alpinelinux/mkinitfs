@@ -1,4 +1,4 @@
-VERSION		:= 3.11.0_rc1
+VERSION		:= 3.11.0_rc2
 
 sbindir		?= /sbin
 sysconfdir	?= /etc/mkinitfs
