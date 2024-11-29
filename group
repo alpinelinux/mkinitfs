@@ -13,6 +13,7 @@ input:x:23:
 tape:x:26:root
 video:x:27:root
 netdev:x:28:
+kvm:x:34:kvm
 shadow:x:42:
 ping:x:999:
 nogroup:x:65533:
