@@ -419,7 +419,10 @@ resume_from_disk () {
 	fi
 }
 
-/bin/busybox mkdir -p "$ROOT"/usr/bin \
+/bin/busybox mkdir -p \
+	"$ROOT"/bin \
+	"$ROOT"/sbin \
+	"$ROOT"/usr/bin \
 	"$ROOT"/usr/sbin \
 	"$ROOT"/proc \
 	"$ROOT"/sys \
