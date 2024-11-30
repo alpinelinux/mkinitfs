@@ -1040,26 +1040,28 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
    returns true if we are ready to start cryptsetup. */
 static int search_cryptdevs(struct uevent *ev, struct cryptconf *crypt)
 {
-	struct cryptdev *devices[] = {
-		&crypt->data,
-		&crypt->header,
-	};
-	/* Only start cryptsetup once when we found the last device */
-	int found = 0;
-
-	for (unsigned int i = 0; i < sizeof(devices)/sizeof(devices[0]); i++) {
-		struct cryptdev *device = devices[i];
-		if (device->devnode[0] == '\0' && searchdev(ev, device->device, 0)) {
-			strncpy(device->devnode,
-				device->device[0] == '/' ? device->device : ev->devnode,
-				sizeof(device->devnode));
-			found = 1;
-		}
+	if (crypt->data.devnode[0] == '\0' && searchdev(ev, crypt->data.device, 0)) {
+		strncpy(crypt->data.devnode,
+			crypt->data.device[0] == '/' ? crypt->data.device : ev->devnode,
+			sizeof(crypt->data.devnode));
+		/* if we don't have header or header is found, then we are
+		   ready to start crypsetup */
+		return (crypt->header.device == NULL)
+			|| (crypt->header.devnode[0] != '\0');
 	}
 
-	return found && (crypt->data.devnode[0] != '\0') &&
-		((crypt->header.device == NULL) ||
-		 (crypt->header.devnode[0] != '\0'));
+	if (crypt->header.device == NULL)
+		return 0;
+
+	if (crypt->header.devnode[0] == '\0' && searchdev(ev, crypt->header.device, 0)) {
+		strncpy(crypt->header.devnode,
+			crypt->header.device[0] == '/' ? crypt->header.device : ev->devnode,
+			sizeof(crypt->header.devnode));
+		/* if we also have found data dev, then we are ready to
+		   start cryptsetup */
+		return crypt->data.devnode[0] != '\0';
+	}
+	return 0;
 }
 
 static void uevent_handle(struct uevent *ev)
