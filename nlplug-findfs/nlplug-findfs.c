@@ -309,6 +309,7 @@ static int spawn_active(struct spawn_manager *mgr)
 
 struct cryptdev {
 	char *device;
+	char *name;
 	char devnode[256];
 };
 
@@ -316,7 +317,6 @@ struct cryptconf {
 	struct cryptdev data;
 	struct cryptdev header;
 	struct cryptdev key;
-	char *name;
 	uint64_t key_offset;
 	size_t key_size;
 	size_t payload_offset;
@@ -598,7 +598,7 @@ static void *cryptsetup_thread(void *data)
 
 	if (c->crypt.key.devnode[0] != '\0') {
 		pthread_mutex_lock(&c->crypt.mutex);
-		r = crypt_activate_by_keyfile_device_offset(cd, c->crypt.name,
+		r = crypt_activate_by_keyfile_device_offset(cd, c->crypt.data.name,
 					      CRYPT_ANY_SLOT,
 					      c->crypt.key.devnode, c->crypt.key_size,
 					      c->crypt.key_offset,
@@ -619,7 +619,7 @@ static void *cryptsetup_thread(void *data)
 		passwd_tries--;
 
 		pthread_mutex_lock(&c->crypt.mutex);
-		r = crypt_activate_by_passphrase(cd, c->crypt.name,
+		r = crypt_activate_by_passphrase(cd, c->crypt.data.name,
 						 CRYPT_ANY_SLOT,
 						 pass, strlen(pass),
 						 c->crypt.flags);
@@ -656,11 +656,11 @@ static void start_cryptsetup(struct ueventconf *conf)
 {
 	if(conf->crypt.header.devnode[0] != '\0') {
 		dbg("starting cryptsetup %s -> %s (header: %s)",
-		    conf->crypt.data.devnode, conf->crypt.name,
+		    conf->crypt.data.devnode, conf->crypt.data.name,
 		    conf->crypt.header.devnode);
 	} else {
 		dbg("starting cryptsetup %s -> %s", conf->crypt.data.devnode,
-		    conf->crypt.name);
+		    conf->crypt.data.name);
 	}
 	load_kmod("dm-crypt", NULL, 0);
 	conf->cryptsetup_running = 1;
@@ -1342,7 +1342,7 @@ int main(int argc, char *argv[])
 			break;
 		}
 		case 'm':
-			conf.crypt.name = optarg;
+			conf.crypt.data.name = optarg;
 			break;
 		case 'n':
 			not_found_is_ok = 1;
