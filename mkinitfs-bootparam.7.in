@@ -47,8 +47,7 @@ When the LUKS headers and encrypted data are on different devices, this option
 specifies the device with the LUKS headers.
 .TP
 \fBcryptkey=\fIKEYFILE\fR
-Attempt to decrypt an encypted partition using a keyfile. The key offset and
-size can be specified by appending :<offset>:<size> to \fIKEYFILE\fR
+Attempt to decrypt an encypted partition using a keyfile.
 .TP
 \fBcryptoffset=\fISECTORS\fR
 Indicate that the encrypted data begins the given number of sectors after the

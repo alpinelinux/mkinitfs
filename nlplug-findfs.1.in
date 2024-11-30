@@ -28,7 +28,6 @@ that block device must be specified using this option.
 .TP
 \fB\-k \fIKEYFILE\fR
 Attempt to decrypt the block device given with \fB\-c\fR using a keyfile.
-The key offset and size can be set by appending :<offset>:<size> to \fIKEYFILE\fR.
 .TP
 \fB\-m \fINAME\fR
 When the decryption of the block device is successful, it will appear as
