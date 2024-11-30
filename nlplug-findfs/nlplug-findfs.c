@@ -310,13 +310,13 @@ static int spawn_active(struct spawn_manager *mgr)
 struct cryptdev {
 	char *device;
 	char *name;
+	char *key;
 	char devnode[256];
 };
 
 struct cryptconf {
 	struct cryptdev data;
 	struct cryptdev header;
-	struct cryptdev key;
 	uint64_t key_offset;
 	size_t key_size;
 	size_t payload_offset;
@@ -596,11 +596,12 @@ static void *cryptsetup_thread(void *data)
 		goto free_out;
 	}
 
-	if (c->crypt.key.devnode[0] != '\0') {
+	struct stat st;
+	if (!stat(c->crypt.data.key, &st)) {
 		pthread_mutex_lock(&c->crypt.mutex);
 		r = crypt_activate_by_keyfile_device_offset(cd, c->crypt.data.name,
 					      CRYPT_ANY_SLOT,
-					      c->crypt.key.devnode, c->crypt.key_size,
+					      c->crypt.data.key, c->crypt.key_size || st.st_size,
 					      c->crypt.key_offset,
 					      c->crypt.flags);
 		pthread_mutex_unlock(&c->crypt.mutex);
@@ -1039,13 +1040,12 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 	return rc;
 }
 
-/* search for crypt.key and crypt.data and crypt.header.
+/* search for crypt.data and crypt.header.
    returns true if we are ready to start cryptsetup. */
 static int search_cryptdevs(struct uevent *ev, struct cryptconf *crypt)
 {
 	struct cryptdev *devices[] = {
 		&crypt->data,
-		&crypt->key,
 		&crypt->header,
 	};
 	/* Only start cryptsetup once when we found the last device */
@@ -1063,9 +1063,7 @@ static int search_cryptdevs(struct uevent *ev, struct cryptconf *crypt)
 
 	return found && (crypt->data.devnode[0] != '\0') &&
 		((crypt->header.device == NULL) ||
-		 (crypt->header.devnode[0] != '\0')) &&
-		((crypt->key.device == NULL) ||
-		 (crypt->key.devnode[0] != '\0'));
+		 (crypt->header.devnode[0] != '\0'));
 }
 
 static void uevent_handle(struct uevent *ev)
@@ -1208,7 +1206,7 @@ static void usage(int rc)
 	" -c, --crypt-device CRYPTDEVICE        run cryptsetup luksOpen when CRYPTDEVICE is found\n"
 	" -h, --help                            show this help\n"
 	" -H, --crypt-header HEADER             use HEADER device or file as the LUKS header\n"
-	" -k, --crypt-key KEY                   device or path to read the key from with optionally :<offset>:<size> appended\n"
+	" -k, --crypt-key KEY                   path to keyfile with optionally :<offset>:<size> appended\n"
 	" -m, --crypt-name NAME                 use NAME as name for crypto device mapping\n"
 	" -o, --crypt-offset OFFSET             cryptsetup payload offset\n"
 	" -D, --crypt-discards                  allow discards on crypto device\n"
