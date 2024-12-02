@@ -391,10 +391,10 @@ want_tiny_cloud() {
 	if [ -f "$sysroot/etc/tiny-cloud.disabled" ]; then
 		return 1
 	fi
-	case "$KOPT_ds" in
-		nocloud*) return 0;;
-	esac
-	if grep -q "^ds=nocloud" "$ROOT"/sys/class/dmi/id/product_serial 2>/dev/null; then
+	if [ -n "$KOPT_ds" ]; then
+		return 0
+	fi
+	if grep -q "^ds=" "$ROOT"/sys/class/dmi/id/product_serial 2>/dev/null; then
 		return 0
 	fi
 	findfs LABEL=cidata >/dev/null 2>&1 || findfs LABEL=CIDATA >/dev/null 2>&1
@@ -827,7 +827,7 @@ if [ -f "$sysroot/etc/.default_boot_services" -o ! -f "$ovl" ]; then
 	fi
 
 	if want_tiny_cloud; then
-		pkgs="$pkgs tiny-cloud-alpine ifupdown-ng doas"
+		pkgs="$pkgs tiny-cloud ifupdown-ng doas"
 		rc_add tiny-cloud-boot boot
 		rc_add tiny-cloud-early default
 		rc_add tiny-cloud-main default
