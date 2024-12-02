@@ -391,7 +391,7 @@ want_tiny_cloud() {
 	if [ -f "$sysroot/etc/tiny-cloud.disabled" ]; then
 		return 1
 	fi
-	if [ -n "$KOPT_ds" ]; then
+	if [ -n "$KOPT_ds" ] || [ "$KOPT_tinycloud" ]; then
 		return 0
 	fi
 	if grep -q "^ds=" "$ROOT"/sys/class/dmi/id/product_serial 2>/dev/null; then
@@ -505,6 +505,7 @@ myopts="BOOTIF
 	s390x_net
 	splash
 	ssh_key
+	tinycloud
 	uevent_buf_size
 	usbdelay
 	wireguard
