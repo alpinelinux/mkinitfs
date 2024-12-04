@@ -1,5 +1,6 @@
 kernel/drivers/usb/host
 kernel/drivers/usb/storage
+kernel/drivers/usb/dwc3
 kernel/drivers/hid/usbhid
 kernel/drivers/hid/hid-apple.ko*
 kernel/drivers/hid/hid-asus.ko*
