@@ -507,8 +507,8 @@ myopts="BOOTIF
 	ssh_key
 	tinycloud
 	uevent_buf_size
-	usrflags
 	usbdelay
+	usrflags
 	wireguard
 	zfcp
 "
