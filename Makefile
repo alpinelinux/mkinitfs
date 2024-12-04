@@ -62,7 +62,8 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/dhcp.modules \
 		features.d/https.files \
 		features.d/wireguard.files \
-		features.d/wireguard.modules
+		features.d/wireguard.modules \
+		features.d/phy.modules
 MAN_FILES       := mkinitfs.1 mkinitfs-bootparam.7 nlplug-findfs.1
 
 SCRIPTS		:= mkinitfs bootchartd initramfs-init
