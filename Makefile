@@ -90,6 +90,9 @@ DEFAULT_FEATURES ?= ata base cdrom ext4 keymap kms mmc nvme raid scsi usb virtio
 ifeq ($(shell uname -m), s390x)
 DEFAULT_FEATURES += qeth dasd_mod zfcp
 endif
+ifeq ($(shell uname -m), aarch64)
+DEFAULT_FEATURES += phy
+endif
 
 
 all:	$(SBIN_FILES) $(SCRIPTS) $(CONF_FILES) $(MAN_FILES)
