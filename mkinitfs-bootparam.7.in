@@ -60,6 +60,24 @@ start of the block device.
 \fBcryptroot=\fIDEVICE\fR
 Attempt to decrypt \fIDEVICE\fR.
 .TP
+\fBcryptusrdiscards\fR
+Equivalent to cryptdiscards, but for /usr
+.TP
+\fBcryptusrdm=\fINAME\fR
+Equivalent to cryptdm, but for /usr
+.TP
+\fBcryptusrheader=\fIDEVICE\fR
+Equivalent to cryptheader, but for /usr
+.TP
+\fBcryptusrkey=\fIKEYFILE\fR
+Equivalent to cryptkey, but for /usr
+.TP
+\fBcryptusroffset=\fISECTORS\fR
+Equivalent to cryptoffset, but for /usr
+.TP
+\fBcryptusr=\fIDEVICE\fR
+Equivalent to cryptroot, but for /usr
+.TP
 \fBdasd\fR
 Enable DASD devices on S/390x architectures.
 .TP

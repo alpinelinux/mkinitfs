@@ -660,6 +660,28 @@ if [ -n "$KOPT_cryptroot" ]; then
 	fi
 fi
 
+# TODO: Put this into a function?
+if [ -n "$KOPT_cryptusr" ]; then
+	cryptopts="-c ${KOPT_cryptusr}"
+	if [ "$KOPT_cryptusrdiscards" = "yes" ]; then
+		cryptusropts="$cryptusropts -D"
+	fi
+	if [ -n "$KOPT_cryptusrdm" ]; then
+		cryptusropts="$cryptusropts -m ${KOPT_cryptusrdm}"
+	fi
+	if [ -n "$KOPT_cryptusrheader" ]; then
+		cryptusropts="$cryptusropts -H ${KOPT_cryptusrheader}"
+	fi
+	if [ -n "$KOPT_cryptusroffset" ]; then
+		cryptusropts="$cryptusropts -o ${KOPT_cryptusroffset}"
+	fi
+	if [ "$KOPT_cryptusrkey" = "yes" ]; then
+		cryptusropts="$cryptusropts -k /crypto_usr_keyfile.bin"
+	elif [ -n "$KOPT_cryptusrkey" ]; then
+		cryptusropts="$cryptusropts -k ${KOPT_cryptusrkey}"
+	fi
+fi
+
 if [ -n "$KOPT_wireguard" ]; then
 	configure_ip
 	setup_wireguard || echo "Failed to setup wireguard tunnel."
@@ -749,6 +771,7 @@ if [ -n "$KOPT_root" ]; then
 				ebegin "Mounting /usr"
 				$MOCK modprobe -a $fs 2> /dev/null
 				$MOCK nlplug-findfs \
+				      $cryptusropts \
 				      -p /sbin/mdev \
 				      ${KOPT_debug_init:+-d} \
 				      ${KOPT_uevent_buf_size:+-U $KOPT_uevent_buf_size} \
