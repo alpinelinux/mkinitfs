@@ -525,15 +525,6 @@ static void start_lvm2(char *devnode)
 		spawn_command(&spawnmgr, lvm2_argv, 0);
 }
 
-static void start_zpool(char *uuid) {
-	char *zpool_argv[] = {
-		ZPOOL_PATH, "import", "-N", uuid,
-		NULL
-	};
-	if (use_zpool && uuid)
-		spawn_command(&spawnmgr, zpool_argv, 0);
-}
-
 static int read_pass(char *pass, size_t pass_size)
 {
 	struct termios old_flags, new_flags;
@@ -1047,7 +1038,6 @@ static int searchdev(struct uevent *ev, const char *searchdev, int scanbootmedia
 		} else if (strcmp("LVM2_member", type) == 0) {
 			start_lvm2(ev->devnode);
 		} else if (strcmp("zfs_member", type) == 0) {
-			start_zpool(uuid);
 			if (searchdev != NULL && label != NULL
 			    && strncmp("ZFS=", searchdev, 4) == 0) {
 				rc = is_zfs_pool(&searchdev[4], label);
