@@ -32,6 +32,7 @@ CONF_FILES	:= mkinitfs.conf \
 		features.d/jfs.modules \
 		features.d/keymap.files \
 		features.d/kms.modules \
+		features.d/lvm-thin.files \
 		features.d/lvm.files \
 		features.d/lvm.modules \
 		features.d/mmc.modules \
