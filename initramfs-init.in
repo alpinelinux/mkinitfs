@@ -426,6 +426,27 @@ resume_from_disk () {
 	fi
 }
 
+prepare_apkovl() {
+	local IFS=':'
+	set -- $KOPT_apkovl
+	unset IFS
+
+	local device=, relpath=, fstypeopt=
+
+	case $# in
+	2) device=$1; relpath=$2;;
+	3) device=$1; fstypeopt="-t $2"; relpath=$3;;
+	*) ovl=$KOPT_apkovl; return;;
+	esac
+
+	devname=${device##*/}
+	ovl_unmount="$ROOT/media/$devname"
+	ovl="$ovl_unmount/$relpath"
+
+	$MOCK mkdir -p "$ovl_unmount"
+	$MOCK mount $fstypeopt "$device" "$ovl_unmount"
+}
+
 /bin/busybox mkdir -p \
 	"$ROOT"/bin \
 	"$ROOT"/sbin \
@@ -836,7 +857,7 @@ elif is_url "$KOPT_apkovl"; then
 	ovl="${ovl%%\?*}"
 	$MOCK wget -O "$ovl" "$url" || ovl=
 else
-	ovl="$KOPT_apkovl"
+	prepare_apkovl
 fi
 
 # parse pkgs=pkg1,pkg2

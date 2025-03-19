@@ -143,7 +143,7 @@ comma-separated list of URLs.
 \fBapkovl=\fR(\fIURL\fR | [\fIDEVICE\fR[:\fIFS_TYPE\fR]:]\fIPATH\fR)\fR
 A HTTP, HTTPS or FTP URL to an apkovl.tar.gz file which will be retrieved and
 applied. Can also be a filesystem path, optionally prepended with the device
-name without the /dev/ prefix.
+name with the /dev/ prefix.
 .TP
 \fBautodetect_serial=\fR(\fIno\fR | \fIsetconsole\fR)
 If set to \fIno\fR, disable automatic detection and setup of serial console.
