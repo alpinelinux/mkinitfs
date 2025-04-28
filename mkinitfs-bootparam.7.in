@@ -47,7 +47,7 @@ When the LUKS headers and encrypted data are on different devices, this option
 specifies the device with the LUKS headers.
 .TP
 \fBcryptkey=\fIKEYFILE\fR
-Read the key to decrypt the encypted partition from \fIKEYFILE\f. This can be
+Read the key to decrypt the encrypted partition from \fIKEYFILE\f. This can be
 a device or a regular file. When \fIKEYFILE\f is starting with EXEC= it
 specifies a command without arguments that is executed and the stdout used
 as key. The key offset and size can be specified by
@@ -83,7 +83,7 @@ documentation on \fInfsroot\fR for further information regarding the fields of
 this parameter.
 .TP
 \fBmodules=\fIMODULE\fR{,\fIMODULE\fR}
-Comma-sparated list of kernel modules to load explicitly.
+Comma-separated list of kernel modules to load explicitly.
 .TP
 \fBnbd=\fIHOST\fR:\fIPORT\fR{,\fI...\fR}
 Comma-separated list of nbd servers. Connects to each server running
@@ -161,7 +161,7 @@ Comma-separated list of packages to be installed.
 \fBssh_key=\fR(\fIURL\fR | \fISSH_KEY\fR)
 This setting installs openssh and places the public key given as value in
 \fI/root/.ssh/authorized_keys\fR.
-If the value is an HTTP or FTP url, its fetches the key(s) from there.
+If the value is an HTTP or FTP URL, it fetches the key(s) from there.
 .TP
 \fBsplash\fR
 Enable splash screen.

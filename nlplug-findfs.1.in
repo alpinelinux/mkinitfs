@@ -41,8 +41,8 @@ When the decryption of the block device is successful, it will appear as
 Do not return non-zero if \fISEARCHDEVICE\fR is not found.
 .TP
 \fB\-D\fR
-Mount the encrypted devices with the discard (TRIM) option. Dont enable this if
-you dont know what its doing.
+Mount the encrypted devices with the discard (TRIM) option. Don't enable this if
+you don't know what it does.
 .TP
 \fB\-d\fR
 Enable debugging output.

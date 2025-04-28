@@ -26,7 +26,7 @@ To run the tests you need:
 Build mkinitfs via `make` and install it via `make install`.
 The installation honours the `DESTDIR` parameter to overwrite the sysroot path.
 
-For testing, its not necessary to install `mkinitfs` into your root file system.
+For testing, it is not necessary to install `mkinitfs` into your root file system.
 
 ## Tweaking
 
