@@ -1,4 +1,5 @@
 #!/bin/sh
+# initramfs init
 
 # this is the init script version
 VERSION=@VERSION@
@@ -44,7 +45,7 @@ unpack_apkovl() {
 	fi
 
 	# we need openssl. let apk handle deps
-	apk add --quiet --initdb --repositories-file $repofile openssl || return 1
+	$MOCK apk add --quiet --initdb --repositories-file $repofile openssl || return 1
 
 	if ! openssl list -1 -cipher-commands | grep "^$suffix$" > /dev/null; then
 		errstr="Cipher $suffix is not supported"
@@ -837,7 +838,7 @@ fi
 if [ -f "$ovl" ]; then
 	ebegin "Loading user settings from $ovl"
 	# create apk db and needed /dev/null and /tmp first
-	apk add --root $sysroot --initdb --quiet
+	$MOCK apk add --root $sysroot --initdb --quiet
 
 	unpack_apkovl "$ovl" $sysroot
 	eend $? $errstr || ovlfiles=
@@ -998,9 +999,9 @@ $MOCK mount -o bind /sys $sysroot/sys
 $MOCK mount -o bind /proc $sysroot/proc
 $MOCK mount -o bind /dev $sysroot/dev
 if [ -n "$ovlfiles" ]; then
-	apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles
+	$MOCK apk add --root $sysroot $repo_opt $apkflags $pkgs <$ovlfiles
 else
-	apk add --root $sysroot $repo_opt $apkflags $pkgs
+	$MOCK apk add --root $sysroot $repo_opt $apkflags $pkgs
 fi
 $MOCK umount $sysroot/sys $sysroot/proc $sysroot/dev
 eend $?
