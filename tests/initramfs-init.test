@@ -31,7 +31,9 @@ init_tests \
 	initramfs_init_wireguard \
 	initramfs_init_resume_offset \
 	initramfs_init_mount_usr \
-	initramfs_init_autodetect_serial_setconsole
+	initramfs_init_autodetect_serial_setconsole \
+	initramfs_init_autodetect_serial_setconsole_dmi_notfound \
+	initramfs_init_autodetect_serial_setconsole_dmi_match
 
 fake_cmdline() {
 	mkdir -p proc
@@ -535,6 +537,44 @@ initramfs_init_autodetect_serial_setconsole_body() {
 	fake_bin stty <<-EOF
 		#!/bin/sh
 		true
+	EOF
+
+	atf_check \
+		-o match:"setconsole /dev/ttyS0" \
+		initramfs-init
+}
+
+initramfs_init_autodetect_serial_setconsole_dmi_notfound_body() {
+	fake_cmdline "root=/dev/vda1 autodetect_serial=setconsole=notfound"
+	fake_switch_root
+	fake_sysroot_init
+	fake_serial_devices
+	fake_bin stty <<-EOF
+		#!/bin/sh
+		true
+	EOF
+	mkdir -p sys/class/dmi/id
+	cat > sys/class/dmi/id/modalias <<-EOF
+		dmi:bvnEDKII:bvredk2-stable202408-prebuilt.qemu.org:bd08/13/2024:br0.0:svnQEMU:pnQEMUVirtualMachine:pvrvirt-10.0:cvnQEMU:ct1:cvrvirt-10.0:sku:
+	EOF
+
+	atf_check \
+		-o not-match:"setconsole /dev/ttyS0" \
+		initramfs-init
+}
+
+initramfs_init_autodetect_serial_setconsole_dmi_match_body() {
+	fake_cmdline "root=/dev/vda1 autodetect_serial=setconsole=notfound,pnQEMUVirtualMachine"
+	fake_switch_root
+	fake_sysroot_init
+	fake_serial_devices
+	fake_bin stty <<-EOF
+		#!/bin/sh
+		true
+	EOF
+	mkdir -p sys/class/dmi/id
+	cat > sys/class/dmi/id/modalias <<-EOF
+		dmi:bvnEDKII:bvredk2-stable202408-prebuilt.qemu.org:bd08/13/2024:br0.0:svnQEMU:pnQEMUVirtualMachine:pvrvirt-10.0:cvnQEMU:ct1:cvrvirt-10.0:sku:
 	EOF
 
 	atf_check \

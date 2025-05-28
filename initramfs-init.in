@@ -143,9 +143,14 @@ setup_inittab_console() {
 
 setconsole_serial() {
 	for tty in $(detect_serial_consoles); do
-		if $MOCK setconsole /dev/$tty; then
+		if [ $# -eq 0 ] && $MOCK setconsole /dev/$tty; then
 			return
 		fi
+		for pattern in "$@"; do
+			if grep -E -q "$pattern" "$ROOT/sys/class/dmi/id/modalias" 2>/dev/null; then
+				$MOCK setconsole /dev/$tty && return
+			fi
+		done
 	done
 }
 
@@ -564,9 +569,10 @@ for opt; do
 	done
 done
 
-if [ "$KOPT_autodetect_serial" = "setconsole" ]; then
-	setconsole_serial
-fi
+case "$KOPT_autodetect_serial" in
+	setconsole) setconsole_serial;;
+	setconsole=*) setconsole_serial $(echo "${KOPT_autodetect_serial#setconsole=}" | tr ',' ' ');;
+esac
 
 echo "Alpine Init $VERSION" > "$ROOT"/dev/kmsg
 [ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
