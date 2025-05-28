@@ -29,7 +29,8 @@ init_tests \
 	initramfs_init_aoe \
 	initramfs_init_wireguard \
 	initramfs_init_resume_offset \
-	initramfs_init_mount_usr
+	initramfs_init_mount_usr \
+	initramfs_init_autodetect_serial_setconsole
 
 fake_cmdline() {
 	mkdir -p proc
@@ -510,5 +511,20 @@ initramfs_init_mount_usr_body() {
 
 	atf_check \
 		-o match:"Mounting /usr" \
+		initramfs-init
+}
+
+initramfs_init_autodetect_serial_setconsole_body() {
+	fake_cmdline "root=/dev/vda1 autodetect_serial=setconsole"
+	fake_switch_root
+	fake_sysroot_init
+	fake_serial_devices
+	fake_bin stty <<-EOF
+		#!/bin/sh
+		true
+	EOF
+
+	atf_check \
+		-o match:"setconsole /dev/ttyS0" \
 		initramfs-init
 }

@@ -143,6 +143,18 @@ setup_inittab_console() {
 	done
 }
 
+setconsole_serial() {
+	for tty in $(detect_serial_consoles); do
+		# ignore tty devices that gives I/O error
+		if ! stty -g -F /dev/$tty >/dev/null 2>/dev/null; then
+			continue
+		fi
+		if $MOCK setconsole /dev/$tty; then
+			return
+		fi
+	done
+}
+
 # collect ethernet interfaces, sorted by index
 ethernets() {
 	for i in "$ROOT/sys/class/net/"*; do
@@ -536,6 +548,10 @@ for opt; do
 		esac
 	done
 done
+
+if [ "$KOPT_autodetect_serial" = "setconsole" ]; then
+	setconsole_serial
+fi
 
 echo "Alpine Init $VERSION" > "$ROOT"/dev/kmsg
 [ "$KOPT_quiet" = yes ] || echo "Alpine Init $VERSION"
