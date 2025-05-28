@@ -110,11 +110,13 @@ detect_serial_consoles() {
 		return
 	fi
 	local n=$(awk '$7 ~ /CTS/ || $7 ~ /DSR/ { print $1 }' "$ROOT"/proc/tty/driver/serial 2>/dev/null)
-	if [ -n "$n" ]; then
+	# ignore tty devices that gives I/O error
+	if [ -n "$n" ] && stty -g -F /dev/$tty >/dev/null 2>/dev/null; then
 		echo ttyS${n%:}
 	fi
 	for i in "$ROOT"/sys/class/tty/*; do
-		if [ -e "$i"/device ]; then
+		# ignore tty devices that gives I/O error
+		if [ -e "$i"/device ] && stty -g -F /dev/$tty >/dev/null 2>/dev/null; then
 			echo ${i##*/}
 		fi
 	done
@@ -125,10 +127,6 @@ setup_inittab_console() {
 	# Inquire the kernel for list of console= devices
 	consoles="$(for c in console $KOPT_consoles $(detect_serial_consoles); do list_console_devices $c; done)"
 	for tty in $consoles; do
-		# ignore tty devices that gives I/O error
-		if ! stty -g -F /dev/$tty >/dev/null 2>/dev/null; then
-			continue
-		fi
 		# do nothing if inittab already have the tty set up
 		if ! grep -q "^$tty:" $sysroot/etc/inittab 2>/dev/null; then
 			echo "# enable login on alternative console" \
@@ -145,10 +143,6 @@ setup_inittab_console() {
 
 setconsole_serial() {
 	for tty in $(detect_serial_consoles); do
-		# ignore tty devices that gives I/O error
-		if ! stty -g -F /dev/$tty >/dev/null 2>/dev/null; then
-			continue
-		fi
 		if $MOCK setconsole /dev/$tty; then
 			return
 		fi
