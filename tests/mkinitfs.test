@@ -25,11 +25,6 @@ mkinitfs_invalid_opt_body() {
 		mkinitfs -Z
 }
 
-mkinitfs_invalid_opt_body() {
-	atf_check -s exit:1 -e match:"usage" \
-		mkinitfs -Z
-}
-
 mkinitfs_list_features_body() {
 	mkdir -p etc/mkinitfs/features.d
 	touch etc/mkinitfs/features.d/myfeature1.files
