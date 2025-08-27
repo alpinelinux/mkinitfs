@@ -41,13 +41,15 @@ fake_cmdline() {
 }
 
 fake_bin() {
-	mkdir -p bin
+	mkdir -p usr/bin
+	ln -s usr/bin .
 	cat > bin/"$1"
 	chmod +x bin/"$1"
 }
 
 fake_sysroot_init() {
-	mkdir -p sysroot/sbin
+	mkdir -p sysroot/usr/sbin
+	ln -s usr/sbin sysroot/sbin
 	touch sysroot/sbin/init
 	chmod +x sysroot/sbin/init
 }
@@ -119,6 +121,8 @@ initramfs_init_tmpfs_root_body() {
 	atf_check \
 		-o match:"nlplug-findfs" \
 		-o match:"mount.*tmpfs .*/sysroot" \
+		-o match:"mkdir -p .*/sysroot/usr/lib .*/sysroot/usr/bin .*/sysroot/usr/sbin" \
+		-o match:"ln -s usr/bin usr/sbin usr/lib .*/sysroot" \
 		-o match:"switch_root OK" \
 		initramfs-init
 }

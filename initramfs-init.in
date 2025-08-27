@@ -855,6 +855,8 @@ if [ -n "$KOPT_rootflags" ]; then
 fi
 
 $MOCK mount -t tmpfs -o $rootflags tmpfs $sysroot
+$MOCK mkdir -p "$sysroot"/usr/lib "$sysroot"/usr/bin "$sysroot"/usr/sbin
+$MOCK ln -s usr/bin usr/sbin usr/lib "$sysroot"/
 
 if [ -z "$KOPT_apkovl" ]; then
 	# Not manually set, use the apkovl found by nlplug
