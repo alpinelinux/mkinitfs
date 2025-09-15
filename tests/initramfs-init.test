@@ -20,6 +20,7 @@ init_tests \
 	initramfs_init_tmpfs_root_tiny_cloud_smbios \
 	initramfs_init_tmpfs_root_apkovl_url \
 	initramfs_init_tmpfs_root_apkovl_mount \
+	initramfs_init_tmpfs_root_apkovl_unpack_merged \
 	initramfs_init_tmpfs_root_ip_dhcp_no_iface \
 	initramfs_init_tmpfs_root_ip_dhcp_no_physical_iface \
 	initramfs_init_tmpfs_root_ip_dhcp_all_down \
@@ -381,6 +382,24 @@ initramfs_init_tmpfs_root_apkovl_mount_body() {
 		-o match:"mount -t foofs /dev/sda1 .*/media/sda1" \
 		-o match:"umount .*/media/sda1" \
 		initramfs-init
+}
+
+initramfs_init_tmpfs_root_apkovl_unpack_merged_body() {
+	mkdir bin && touch bin/foo && tar -zcf foo.tar.gz bin/foo
+
+	fake_cmdline "apkovl=foo.tar.gz"
+	fake_switch_root
+	fake_sysroot_init
+
+	mkdir -p sysroot/usr/bin
+	ln -s usr/bin sysroot/
+
+	atf_check \
+		-o ignore \
+		initramfs-init
+	atf_check \
+		-s exit:0 \
+		test -f sysroot/usr/bin/foo
 }
 
 initramfs_init_tmpfs_root_ip_dhcp_no_iface_body() {
