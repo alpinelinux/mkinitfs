@@ -6,6 +6,7 @@ PATH="$srcdir:$PWD/bin:$PATH"
 
 export ROOT="$PWD"
 export MOCK=echo
+export KOPT_bootstrap_usr_merged="yes"
 
 init_tests() {
 	TESTS=
@@ -21,4 +22,3 @@ atf_init_test_cases() {
 		atf_add_test_case "$t"
 	done
 }
-

@@ -515,6 +515,7 @@ myopts="BOOTIF
 	apkovl
 	autodetect_serial
 	blacklist
+	bootstrap_usr_merged
 	chart
 	cryptdiscards
 	cryptdm
@@ -854,9 +855,12 @@ if [ -n "$KOPT_rootflags" ]; then
 	rootflags="$rootflags,$KOPT_rootflags"
 fi
 
+
 $MOCK mount -t tmpfs -o $rootflags tmpfs $sysroot
-$MOCK mkdir -p "$sysroot"/usr/lib "$sysroot"/usr/bin "$sysroot"/usr/sbin
-$MOCK ln -s usr/bin usr/sbin usr/lib "$sysroot"/
+if [ "$KOPT_bootstrap_usr_merged" = "yes" ]; then
+	$MOCK mkdir -p "$sysroot"/usr/lib "$sysroot"/usr/bin "$sysroot"/usr/sbin
+	$MOCK ln -s usr/bin usr/sbin usr/lib "$sysroot"/
+fi
 
 if [ -z "$KOPT_apkovl" ]; then
 	# Not manually set, use the apkovl found by nlplug
