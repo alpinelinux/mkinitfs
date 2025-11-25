@@ -316,7 +316,7 @@ if [ -z "$keeptmp" ]; then
 fi
 
 if [ -z "$list_sources" ] && [ -z "$quiet" ]; then
-	echo "==> initramfs: creating $outfile for $kernel"
+	echo "creating $outfile for $kernel"
 fi
 
 complevel_gzip="${complevel_gzip:--9}"
