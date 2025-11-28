@@ -7,6 +7,7 @@ init_tests \
 	mkinitfs_invalid_opt \
 	mkinitfs_list_features \
 	mkinitfs_list_files \
+	mkinitfs_list_symlinks \
 	mkinitfs_list_modules \
 	mkinitfs_find_zst_compressed_firmware_blob \
 	mkinitfs_copy_firmware
@@ -42,6 +43,29 @@ mkinitfs_list_files_body() {
 	echo "/testfile" > etc/mkinitfs/features.d/myfiles.files
 	DATADIR="$srcdir" atf_check \
 		-o match:"testfile" \
+		mkinitfs -b "$PWD" -P "$PWD/etc/mkinitfs/features.d" -n -F myfiles -l
+}
+
+mkinitfs_list_symlinks_body() {
+	mkdir -p etc/mkinitfs/features.d
+	touch testfile
+	mkdir testdir
+	touch testdir/dirfile
+	ln -s testfile filelink
+	ln -s testdir dirlink
+	cat >> etc/mkinitfs/features.d/myfiles.files << END
+/testfile
+/testdir
+/filelink
+/dirlink
+END
+	DATADIR="$srcdir" atf_check \
+		-o match:"testfile" \
+		-o match:"testdir" \
+		-o match:"testdir/dirfile" \
+		-o match:"filelink" \
+		-o match:"dirlink" \
+		-o not-match:"dirlink/dirfile" \
 		mkinitfs -b "$PWD" -P "$PWD/etc/mkinitfs/features.d" -n -F myfiles -l
 }
 

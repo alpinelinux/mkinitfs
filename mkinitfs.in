@@ -23,7 +23,7 @@ feature_files() {
 			[ -f "$fdir/$f.$suffix" ] || continue
 			for glob in $(sed -e '/^$/d' -e '/^#/d' -e "s|^/*|$dir|" "$fdir/$f.$suffix"); do
 				for file in $glob; do
-					if [ -d $file ]; then
+					if [ -d $file ] && [ ! -L $file ]; then
 						find $file -type f
 					elif [ -e "$file" ]; then
 						echo $file
