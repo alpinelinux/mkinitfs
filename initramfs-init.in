@@ -1062,8 +1062,9 @@ if [ -n "$ovlfiles" ]; then
 else
 	$MOCK apk add --root $sysroot $repo_opt $apkflags $pkgs
 fi
+[ $? -eq 0 ]  || echo "WARNING: apkovl packages install completed with errors..." > "$ROOT"/dev/kmsg
 $MOCK umount $sysroot/sys $sysroot/proc $sysroot/dev
-eend $?
+eend 0
 
 # unmount ovl mount if needed
 if [ -n "$ovl_unmount" ]; then
