@@ -98,6 +98,10 @@ filesystem will always be mounted read-only, the overlay always writable.
 Optional comma-separated list of tmpfs(5) mount options when \fBoverlaytmpfs\fR
 is used.  The default is \fBmode=0755,rw\fR, you cannot override \fBrw\fR.
 .TP
+\fBpanic=\fITIMEOUT\fR
+Disable the recovery/emergency shell when an error in initramfs occurs. Trigger a
+kernel panic instead.
+.TP
 \fBquiet\fR
 Generate less output.
 .TP

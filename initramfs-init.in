@@ -15,6 +15,7 @@ ebegin() {
 	[ "$KOPT_quiet" = yes ] && return 0
 	echo -n " * $last_emsg: "
 }
+
 eend() {
 	local msg
 	if [ "$1" = 0 ] || [ $# -lt 1 ] ; then
@@ -28,9 +29,18 @@ eend() {
 			echo -n "$last_emsg "
 		fi
 		echo "failed. $*"
-		echo "initramfs emergency recovery shell launched. Type 'exit' to continue boot"
-		/bin/busybox sh
+		recovery_shell
 	fi
+}
+
+recovery_shell() {
+	if [ -n "$KOPT_panic" ]; then
+		# emergency shell disabled. let kernel panic instead
+		exit
+	fi
+	echo "Launching initramfs emergency recovery shell."
+	echo "$1"
+	/bin/busybox sh
 }
 
 unpack_apkovl() {
@@ -534,6 +544,7 @@ myopts="BOOTIF
 	nbd
 	overlaytmpfs
 	overlaytmpfsflags
+	panic
 	pkgs
 	quiet
 	resume
@@ -814,8 +825,7 @@ if [ -n "$KOPT_root" ]; then
 	done
 	$MOCK sync
 	exec switch_root $switch_root_opts $sysroot $chart_init "$KOPT_init" $KOPT_init_args
-	echo "initramfs emergency recovery shell launched"
-	exec /bin/busybox sh
+	recovery_shell
 fi
 
 resume_from_disk
@@ -1085,9 +1095,8 @@ fi
 
 if [ ! -x "${sysroot}${KOPT_init}" ]; then
 	[ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
-	echo "$KOPT_init not found in new root. Launching emergency recovery shell"
-	echo "Type exit to continue boot."
-	/bin/busybox sh
+	echo "$KOPT_init not found in new root"
+	recovery_shell "Type exit to continue boot."
 fi
 
 # switch over to new root
@@ -1104,6 +1113,4 @@ echo ""
 exec switch_root $switch_root_opts $sysroot $chart_init "$KOPT_init" $KOPT_init_args
 
 [ "$KOPT_splash" != "no" ] && echo exit > $sysroot/$splashfile
-echo "initramfs emergency recovery shell launched"
-exec /bin/busybox sh
-reboot
+recovery_shell
