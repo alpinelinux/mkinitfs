@@ -149,14 +149,17 @@ A HTTP, HTTPS or FTP URL to an apkovl.tar.gz file which will be retrieved and
 applied. Can also be a filesystem path, optionally prepended with the device
 name with the /dev/ prefix.
 .TP
-\fBautodetect_serial=\fR(\fIno\fR | \fIsetconsole\fR | \fIsetconsole=REGEX{,REGEX,...}\fR)
+\fBautodetect_serial=\fR(\fIno\fR | \fIsetconsole\fR | \fIsetconsole=(REGEX|dmi.ATTRIBUTE=REGEX){,...}\fR)
 Configure serial console detection and setup.
 If set to \fIno\fR, automatic detection and setup of serial consoles is disabled.
 If set to \fIsetconsole\fR, the first detected serial console is set as the
-system console early during boot. If set to \fIsetconsole=REGEX{,REGEX,...}\fR,
-the same behavior applies, but \fIsetconsole\fR is only invoked if any of the
-provided regular expressions match the content of
-\fI/sys/class/dmi/id/modalias\fR.
+system console early during boot. If set to
+\fIsetconsole=(REGEX|dmi.ATTRIBUTE=REGEX){,...}\fR, the same behavior applies,
+but \fIsetconsole\fR is only invoked if any selector matches. A bare \fIREGEX\fR
+matches \fI/sys/class/dmi/id/modalias\fR. A \fIdmi.ATTRIBUTE=REGEX\fR selector
+matches \fI/sys/class/dmi/id/ATTRIBUTE\fR. For example,
+\fIsetconsole=[Aa]mazon,dmi.chassis_asset_tag=OracleCloud[.]com\fR matches
+either an Amazon modalias or the Oracle Cloud chassis asset tag.
 .TP
 \fBds=\fIOPTIONS\fR
 Data source for tiny-cloud. If \fIOPTIONS\fR starts with \fBnocloud\fR,

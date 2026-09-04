@@ -162,20 +162,42 @@ setup_inittab_console() {
 	done
 }
 
+dmi_match() {
+	local selector="$1"
+	local file=modalias
+	local pattern="$selector"
+
+	case "$selector" in
+	dmi.*=*)
+		file="${selector#dmi.}"
+		file="${file%%=*}"
+		pattern="${selector#*=}"
+		case "$file" in
+		''|*[!a-z0-9_]*) return 1;;
+		esac
+		;;
+	esac
+
+	grep -E -q -- "$pattern" "$ROOT/sys/class/dmi/id/$file" 2>/dev/null
+}
+
 setconsole_serial() {
+	local selector matched
+
 	for tty in $(detect_serial_consoles); do
 		# ignore tty devices that gives I/O error
 		if ! stty -g -F /dev/"$tty" >/dev/null 2>/dev/null; then
 			continue
 		fi
-		if [ $# -eq 0 ] && $MOCK setconsole /dev/"$tty"; then
-			return
+		if [ $# -gt 0 ] && [ -z "$matched" ]; then
+			for selector; do
+				dmi_match "$selector" || continue
+				matched=1
+				break
+			done
+			[ -n "$matched" ] || return
 		fi
-		for pattern in "$@"; do
-			if grep -E -q "$pattern" "$ROOT/sys/class/dmi/id/modalias" 2>/dev/null; then
-				$MOCK setconsole /dev/"$tty" && return
-			fi
-		done
+		$MOCK setconsole /dev/"$tty" && return
 	done
 }
 
